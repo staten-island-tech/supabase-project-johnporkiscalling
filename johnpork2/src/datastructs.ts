@@ -1,4 +1,4 @@
-interface Node 
+interface Node //might change this to type instead of interface
 {
     parent:Array<number>
     coordinate:Array<number>

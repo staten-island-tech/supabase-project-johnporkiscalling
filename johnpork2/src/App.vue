@@ -1,13 +1,12 @@
 <template>
   <div>
-    Ligma
   </div>
 </template>
 
 <script setup lang="ts">
   import * as THREE from 'three';
   import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import type { string } from 'three/tsl';
+  import type { string } from 'three/tsl';
   import { render } from 'vue';
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
@@ -17,11 +16,17 @@ import type { string } from 'three/tsl';
   renderer.setAnimationLoop( animate );
   document.body.appendChild( renderer.domElement );
   const controls = new OrbitControls( camera, renderer.domElement );
-  const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+  const geometry = new THREE.BoxGeometry(1,1,1);
   const material = new THREE.MeshBasicMaterial({color:0x0000FF})
   const cube = new THREE.Mesh( geometry, material );
   const edgeGeometry = new THREE.EdgesGeometry(geometry);
-  const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }); // White outline
+  const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+  const size = 10; // Size of the grid
+  const divisions = 10; // Number of divisions
+  const axesHelper = new THREE.AxesHelper(10); // 5 is the length of the axes
+  scene.add(axesHelper);
+  const gridHelper = new THREE.GridHelper(size, divisions);
+  scene.add(gridHelper); // White outline
   const keys:Record<string,boolean>= {};
 
 // Listen for keyboard events
@@ -34,13 +39,12 @@ import type { string } from 'three/tsl';
   const cubeData:Object = {};
   function test()
   {
-    for(let x = 0; x<3; x++)
+    for(let x = 0; x<10; x++)
     {
-      for(let y = 0; y<3; y++)
+      for(let y = 0; y<10; y++)
       {
-        for(let z = 0; z<3; z++)
+        for(let z = 0; z<10; z++)
         {
-          cubeData[x][y][z]
           let position =  new THREE.Vector3(x,y,z);
           let mesh =  new THREE.Mesh(geometry, material);
           let outline = new THREE.LineSegments(edgeGeometry, edgeMaterial);
@@ -52,7 +56,27 @@ import type { string } from 'three/tsl';
       }
     }
   }
+  function test2()
+  {
+    for(let x = 0; x<10; x++)
+    {
+      for(let y = 0; y<10; y++)
+      {
+        for(let z = 0; z<10; z++)
+        {
+          let position =  new THREE.Vector3(-x,-y,-z);
+          let mesh =  new THREE.Mesh(geometry, material);
+          let outline = new THREE.LineSegments(edgeGeometry, edgeMaterial);
+          outline.position.copy(position);
+          mesh.position.copy(position);
+          scene.add(mesh);
+          scene.add(outline);
+        }
+      }
+    }
+  }
   test()
+  test2();
 
   const cellReference:Record<string, Array<number>> =
   {
@@ -114,5 +138,8 @@ import type { string } from 'three/tsl';
 </script>
 
 <style scoped>
-
+  canvas{
+    width:100%;
+    height:100%;
+  }
 </style>
