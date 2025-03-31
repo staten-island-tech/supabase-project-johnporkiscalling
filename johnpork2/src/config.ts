@@ -1,4 +1,4 @@
-const width:number = 10;//x
-const height:number = 10;//y
-const length:number = 10;//z
+const width:number = 1;//x
+const height:number = 1;//y
+const length:number = 1;//z
 export { width, height, length}

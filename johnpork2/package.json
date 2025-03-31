@@ -17,6 +17,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.3",
     "pinia": "^3.0.1",
+    "stats.js": "^0.17.0",
     "three": "^0.174.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"

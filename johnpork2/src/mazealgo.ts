@@ -1,22 +1,38 @@
 import { randomRange, randomVector, Vector3Stringify, getNeighbors, wallCheck } from "./utils";
 import { width, height, length} from "./config"
-import { rand } from "three/tsl";
-import type { axisInfo } from "./types";
+import { array, rand } from "three/tsl";
+import type { axisInfo, cellData } from "./types";
 const totalNodes =  width*height*length;
-const mazeContainer:Array<Array<Array<number>>> = []
-function initializeContainer(w:number,h:number,l:number)
-{
-    for(let x = 0; x<w; x++)
-    {
-        
-        for(let y = 0; y<h; y++)
-        {
-            for(let z = 0; z<l; z++)
-            {
-            }
-        }
-    }
+const testObj:cellData = {
+    x: 0,
+    y: 1,
+    z: 2,
+    left: false,
+    right: true,
+    up: false,
+    down: true,
+    forward: false,
+    back: true
 }
+
+function initializeContainer(w: number, h: number, l: number): Array<Array<Array<cellData>>> {
+    const mazeContainer: Array<Array<Array<cellData>>> =
+        Array.from({ length: w }, (_, x) =>
+            Array.from({ length: h }, (_, y) => 
+                Array.from({ length: l }, (_, z) => 
+                    ({
+                        x, y, z,
+                        left: false, right: false,
+                        up: false, down: false,
+                        forward: false, back: false
+                    } as cellData)
+                )
+            )
+        );
+
+    return mazeContainer;
+}
+
 function RBT()
 {
     const visited = new Set();
@@ -29,7 +45,15 @@ function RBT()
     visited.add(Vector3Stringify(current));
     while(visited.size!=totalNodes)
     {
-        const neighbors = getNeighbors(current)//apply the wrapper here
+        const neighbors = getNeighbors(current).filter(item=>
+            {
+                if(visited.has(Vector3Stringify(item)))
+                {
+                    return false;
+                }
+                return true;
+            }
+        )
         if(neighbors.length>0)
         {
             const randNeighbor = neighbors[randomRange(0, neighbors.length)];
@@ -44,8 +68,6 @@ function RBT()
         }
     }
 }
-function manipulateWalls(a:Array<number>,b:Array<number>)
-{
-    const { max , min , axis } = wallCheck(a, b);//should always return an object with key being string and array
 
-}
+
+export { initializeContainer,  }
