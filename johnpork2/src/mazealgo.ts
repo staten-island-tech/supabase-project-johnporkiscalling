@@ -3,18 +3,18 @@ import { width, height, length} from "./config"
 import { array, rand } from "three/tsl";
 import type { axisInfo, cellData } from "./types";
 const totalNodes =  width*height*length;
-const testObj:cellData = {
+interface testObj:cellData = {
     x: 0,
     y: 1,
     z: 2,
-    left: false,
-    right: true,
-    up: false,
-    down: true,
-    forward: false,
-    back: true
+    "left": false,
+    "right": true,
+    "up": false,
+    "down": true,
+    "forward": false,
+    "back": true
 }
-
+const container = initializeContainer(width, height, length);
 function initializeContainer(w: number, h: number, l: number): Array<Array<Array<cellData>>> {
     const mazeContainer: Array<Array<Array<cellData>>> =
         Array.from({ length: w }, (_, x) =>
@@ -22,21 +22,44 @@ function initializeContainer(w: number, h: number, l: number): Array<Array<Array
                 Array.from({ length: l }, (_, z) => 
                     ({
                         x, y, z,
-                        left: false, right: false,
-                        up: false, down: false,
-                        forward: false, back: false
-                    } as cellData)
+                        left: true, right: true,
+                        up: true, down: true,
+                        forward: true, back: true
+                    } as )
                 )
             )
         );
 
     return mazeContainer;
 }
+const axisReference = [
+    {
+        maxWall:"right",
+        minWall:"left"
+    },
+    {
+        maxWall:"up",
+        minWall:"down"
+    },    
+    {
+        maxWall:"forward",
+        minWall:"back"
+    }
+]
+function mergeCells(a:Array<number>,b:Array<number>)
+{
+    const { max, min, axis} = wallCheck(a,b);
+    const axisref = axisReference[axis];
+    const [max1,max2,max3] = max;
+    const [min1,min2,min3] = min;
+    container[max1][max2][max3][axisref.maxWall] = 
+    container[min1][min2][min3];
 
+}
 function RBT()
 {
     const visited = new Set();
-    const stack:Array<Array<number>>=[];
+    const stack:Array<Array<number>>=[];//replace this with a dll cuz o(1) push and pop operations
     const range = new Map()
     range.set("width", [0, width]);
     range.set("height", [0, height]);

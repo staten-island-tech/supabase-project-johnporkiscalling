@@ -90,3 +90,48 @@ export class BinaryHeap
     }
 
 };
+class Node
+{
+    value:any;
+    next:Node | null = null;
+    prev:Node | null = null;
+    constructor(value:any)
+    {
+        this.value=value;
+    }
+}
+
+
+
+class DoublyLinkedList
+{
+    head: Node | null = null;
+    tail: Node | null = null;
+    value: any;
+    push(value:any)
+    {
+        const nextNode = new Node(value);
+        if(this.tail)
+        {
+            this.tail.next = nextNode;
+            nextNode.prev =  this.tail;
+            this.tail = nextNode;
+        }
+        else
+        {
+            this.head =  this.tail =  nextNode;
+        }
+    }
+    pop()
+    {
+
+    }
+
+}
+class LinkedList
+{
+    constructor()
+    {
+        
+    }
+}
