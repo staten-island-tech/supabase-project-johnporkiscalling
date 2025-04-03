@@ -1,36 +1,52 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { RouterLink, RouterView } from "vue-router";
+import { ref, Ref } from "vue";
+
+const loggedin = ref(false);
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <div class="login" v-if="!loggedin">
+    <div class="logincontainer"></div>
+  </div>
+  <div v-if="loggedin">
+    <header>
+      <div class="wrapper">
+        <nav>
+          <div class="border"><RouterLink to="/">Home</RouterLink></div>
+          <div class="border"><RouterLink to="/about">About</RouterLink></div>
+        </nav>
+      </div>
+    </header>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+    <RouterView />
+  </div>
 </template>
 
 <style scoped>
+/* --------------------logged in = false-------------------- */
+.login {
+  height: 100vh;
+  width: 100%;
+  position: absolute;
+  top: 0%;
+  left: 0%;
+}
+.logincontainer {
+  height: 100%;
+  margin: 30rem 40rem 30rem 40rem;
+  background-color: blue;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* --------------------logged in = true-------------------- */
 header {
   line-height: 1.5;
   max-height: 100vh;
 }
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
 nav {
   width: 100%;
   font-size: 12px;
@@ -39,47 +55,34 @@ nav {
 }
 
 nav a.router-link-exact-active {
-  color: var(--color-text);
+  color: #dfe4e7;
+  background-color: #2c3e50;
 }
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
+a {
+  color: black;
+  text-decoration: none;
+  font-weight: 500;
+  background-color: #d2dbe259;
+  border-radius: 5px;
+  width: 120px;
+  padding: 0rem 1rem 0rem 1rem;
+  height: 100%;
 }
-
-nav a {
+a:hover {
+  color: grey;
+  background-color: #c2c9ce5e;
+}
+a:focus {
+  background-color: #afb4b896;
+}
+.border {
   display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
+  padding: 0 0.125rem;
+  border-left: 1.5px solid var(--color-border);
+  text-decoration: none;
 }
 
-nav a:first-of-type {
+.border:first-of-type {
   border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
 }
 </style>

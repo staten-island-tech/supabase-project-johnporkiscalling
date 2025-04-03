@@ -1,4 +1,18 @@
-<script setup lang="ts">
+<template>
+  <div></div>
+</template>
+
+<script>
+export default {
+  setup() {
+    return {};
+  },
+};
+</script>
+
+<style lang="scss" scoped></style>
+
+<!-- <script setup lang="ts">
 import WelcomeItem from './WelcomeItem.vue'
 import DocumentationIcon from './icons/IconDocumentation.vue'
 import ToolingIcon from './icons/IconTooling.vue'
@@ -8,6 +22,8 @@ import SupportIcon from './icons/IconSupport.vue'
 
 const openReadmeInEditor = () => fetch('/__open-in-editor?file=README.md')
 </script>
+
+
 
 <template>
   <WelcomeItem>
@@ -91,4 +107,4 @@ const openReadmeInEditor = () => fetch('/__open-in-editor?file=README.md')
     us by
     <a href="https://vuejs.org/sponsor/" target="_blank" rel="noopener">becoming a sponsor</a>.
   </WelcomeItem>
-</template>
+</template> -->
