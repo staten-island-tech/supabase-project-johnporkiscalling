@@ -1,13 +1,27 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from "vue-router";
-import { ref, Ref } from "vue";
+import { ref } from "vue";
 
 const loggedin = ref(false);
+function submit() {}
 </script>
 
 <template>
   <div class="login" v-if="!loggedin">
-    <div class="logincontainer"></div>
+    <div class="p"></div>
+    <div class="logincontainer">
+      <div class="sides"></div>
+      <div class="loginview">
+        <div class="log">PLEASE LOGIN</div>
+        <form @submit.prevent="submit()">
+          <input type="text" placeholder="Email" />
+          <input type="text" placeholder="Password" />
+          <button type="submit">Login!</button>
+        </form>
+      </div>
+      <div class="sides"></div>
+    </div>
+    <div class="p"></div>
   </div>
   <div v-if="loggedin">
     <header>
@@ -31,15 +45,81 @@ const loggedin = ref(false);
   position: absolute;
   top: 0%;
   left: 0%;
+  /* padding: 30% 40% 30% 40%; */
 }
 .logincontainer {
-  height: 100%;
-  margin: 30rem 40rem 30rem 40rem;
-  background-color: blue;
+  height: 50%;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
+.loginview {
+  background-color: rgb(107, 185, 240);
   border-radius: 7px;
+  height: 100%;
+  width: 30%;
+}
+.sides {
+  width: 30%;
+  height: 100%;
+}
+.p {
+  height: 25%;
+}
+.log {
+  font-weight: 900;
+  font-size: 2.5rem;
+  width: 100%;
+  height: 15%;
+  text-align: center;
+}
+form {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* justify-content: center; */
+  height: 85%;
+  align-items: center;
+}
+input {
+  margin-bottom: 1.5rem;
+  padding: 0.2rem 1rem 0.2rem 1rem;
+  border: 3px solid transparent;
+  border-radius: 7px;
+  background-color: #f4fdff;
+  outline: none;
+  color: #959697;
+  transition: border-color 0.3s ease;
+}
+input:first-of-type {
+  margin-top: 3rem;
+}
+input:focus {
+  border: 3px solid rgba(190, 202, 206, 0.7);
+  background-color: #ececec;
+  transition: 0.1s;
+}
+input:active {
+  border: 3px solid rgba(190, 202, 206, 0.7);
+}
+input::placeholder {
+  color: #c4c9cb;
+}
+button {
+  padding: 0.2rem 1rem 0.2rem 1rem;
+  border: 3px solid transparent;
+  border-radius: 7px;
+  transition: border 0.3s ease;
+  background-color: #f4fdff;
+  color: #959697;
+}
+
+button:hover {
+  border: 3px solid rgba(190, 202, 206, 0.7);
+}
+button:active {
+  background-color: #ececec;
+  transition: 0.1s;
 }
 
 /* --------------------logged in = true-------------------- */
