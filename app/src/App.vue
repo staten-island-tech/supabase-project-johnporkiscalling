@@ -5,61 +5,79 @@
 </template>
 
 <script setup lang="ts">
-  import { hash } from 'crypto';
 import { utilMath } from './test';//gives acess to lerp and stuff
-  import { Perlin } from './testicle';
-  //lerp will be used for perlin noise
-  //2d perlin noise = heightmap
-  //3d perlin noise =  caves and stuff
-  console.log(Perlin.permuate())
-  const hashTable =[
-    130, 75, 186, 7, 128, 83, 236, 230, 208, 91, 70, 168, 72, 197, 188, 42,
-    182, 213, 63, 92, 223, 216, 1, 193, 178, 54, 172, 23, 51, 77, 167, 8,
-    231, 135, 228, 103, 20, 31, 196, 237, 200, 10, 139, 165, 119, 229, 38, 183,
-    245, 175, 49, 109, 30, 148, 3, 214, 176, 90, 170, 45, 241, 102, 78, 174,
-    114, 87, 112, 25, 204, 234, 57, 96, 151, 232, 65, 238, 224, 21, 233, 67,
-    210, 35, 97, 14, 98, 28, 215, 76, 180, 249, 198, 240, 64, 93, 187, 106,
-    33, 121, 80, 34, 74, 190, 202, 110, 100, 61, 17, 235, 248, 239, 120, 101,
-    226, 118, 169, 27, 13, 207, 243, 253, 85, 5, 156, 199, 44, 217, 144, 179,
-    149, 12, 6, 254, 4, 211, 218, 150, 131, 111, 115, 140, 124, 247, 133, 163,
-    48, 127, 55, 117, 71, 137, 52, 66, 26, 206, 251, 9, 152, 146, 191, 220,
-    88, 225, 161, 2, 79, 68, 18, 158, 73, 203, 16, 189, 108, 173, 255, 56,
-    29, 19, 164, 125, 221, 99, 53, 22, 84, 41, 24, 209, 166, 227, 192, 36,
-    252, 0, 43, 246, 32, 50, 95, 15, 136, 116, 184, 94, 195, 62, 107, 60,
-    222, 244, 11, 205, 194, 129, 122, 147, 145, 89, 185, 40, 86, 47, 81, 157,
-    126, 138, 219, 141, 153, 154, 132, 69, 177, 105, 113, 171, 123, 201, 142, 160,
-    250, 82, 134, 162, 212, 143, 104, 58, 39, 155, 242, 59, 46, 181, 159, 37,
-    130, 75, 186, 7, 128, 83, 236, 230, 208, 91, 70, 168, 72, 197, 188, 42,
-    182, 213, 63, 92, 223, 216, 1, 193, 178, 54, 172, 23, 51, 77, 167, 8,
-    231, 135, 228, 103, 20, 31, 196, 237, 200, 10, 139, 165, 119, 229, 38, 183,
-    245, 175, 49, 109, 30, 148, 3, 214, 176, 90, 170, 45, 241, 102, 78, 174,
-    114, 87, 112, 25, 204, 234, 57, 96, 151, 232, 65, 238, 224, 21, 233, 67,
-    210, 35, 97, 14, 98, 28, 215, 76, 180, 249, 198, 240, 64, 93, 187, 106,
-    33, 121, 80, 34, 74, 190, 202, 110, 100, 61, 17, 235, 248, 239, 120, 101,
-    226, 118, 169, 27, 13, 207, 243, 253, 85, 5, 156, 199, 44, 217, 144, 179,
-    149, 12, 6, 254, 4, 211, 218, 150, 131, 111, 115, 140, 124, 247, 133, 163,
-    48, 127, 55, 117, 71, 137, 52, 66, 26, 206, 251, 9, 152, 146, 191, 220,
-    88, 225, 161, 2, 79, 68, 18, 158, 73, 203, 16, 189, 108, 173, 255, 56,
-    29, 19, 164, 125, 221, 99, 53, 22, 84, 41, 24, 209, 166, 227, 192, 36,
-    252, 0, 43, 246, 32, 50, 95, 15, 136, 116, 184, 94, 195, 62, 107, 60,
-    222, 244, 11, 205, 194, 129, 122, 147, 145, 89, 185, 40, 86, 47, 81, 157,
-    126, 138, 219, 141, 153, 154, 132, 69, 177, 105, 113, 171, 123, 201, 142, 160,
-    250, 82, 134, 162, 212, 143, 104, 58, 39, 155, 242, 59, 46, 181, 159, 37
-]//precomputed hashtable using Perlin.permutate();
- console.log(hashTable.length); 
-  function randGradVector()
-  {
-    const randAngle =  Math.floor(Math.random() * (361));
-    return [Math.cos(randAngle).toFixed(4), Math.sin(randAngle).toFixed(4)];
-  }//for each vertice of the graph generate a randGradVector and associated it with it
-  const vertices =  289 //calculated using (m+1) * (n+1) where m and n = 16
-  const grid = []
-  for(let i = 0; i<vertices;i++)
-  {
-    grid[i] = randGradVector();
-  }
-  console.log(grid)
+import { Perlin } from './testicle';
+const gradients = [
+  [1, 1], [-1, 1], [1,-1], [-1,-1],
+  [1, 0], [-1, 0], [0, 1], [0, -1]
+]
+const hashTable =  Perlin.permutate(2312131);
+function hash(x:number, y:number){
+  return hashTable[((x%256)+y)%256]
+}
 
+console.log(hash(0,0));
+const gridSize = 32;
+const grid = Array.from({length:gridSize}, (_,i)=> 
+  Array.from({length:gridSize}, (_,f)=>octavePerlin((i+0.00001)*0.1, (f+0.00001)*0.1, 1, 1))//call the noise function here
+  //for the thing do the noise function with a scale of .1 and add an offset value to prevent 0 from being used in the noise func
+
+);//generates a 256 long grid
+console.log(grid);
+//put perlinNose and octavePerlin into the perlin object
+//initialize the hashtable first from perlin Object
+//use
+
+
+
+function noise(x:number,y:number)//gotta add something else to make it more varied 
+{
+  //get the truncated int
+  const xi = Math.floor(x)
+  const yi = Math.floor(y)
+
+  //get the decimals
+  const xf = x - xi;
+  const yf = y - yi;
+  
+  //smooth it
+  const u = utilMath.fade(xf);
+  const v = utilMath.fade(yf);
+
+  //get the grad unit vectors index
+  const v00 = hash(xi,yi) %8;
+  const v01 = hash(xi,yi+1)%8;
+  const v10 = hash(xi+1,yi)%8;
+  const v11 = hash(xi+1,yi+1)%8;
+  
+  //calculate the dot products between grad and displacement vectors
+  const dp00 = gradients[v00][0] * xf + gradients[v00][1] * yf;
+  const dp01 = gradients[v01][0] * xf + gradients[v01][1] * (yf-1);
+  const dp10 = gradients[v10][0] * (xf-1) + gradients[v10][1] * yf;
+  const dp11 = gradients[v11][0] * (xf-1) + gradients[v11][1] * (yf-1);
+
+  //lerp it
+  const x1 = utilMath.lerp(dp00, dp10, u);
+  const x2 = utilMath.lerp(dp01, dp11, u);
+  return utilMath.lerp(x1, x2, v)*0.3; 
+}
+//octaves =  how many times to run perlin. higher = more details
+//persistence =  bias of pre existing highs and lows p<.5 reversal so high =  low 0.5 =  standard brown
+function octavePerlin(x:number, y:number, octaves:number, persistence:number)
+{
+  let total = 0; 
+  let frequency = 1;
+  let maxValue = 0;
+  let amplitude = 1;
+  for(let i = 0; i<octaves; i++)
+  {
+    total+=noise(x*frequency, y*frequency) * amplitude;
+    maxValue+=amplitude;
+    frequency *= 2;
+    amplitude *= persistence;
+  }
+  return total/maxValue;
+}
 
 
 
