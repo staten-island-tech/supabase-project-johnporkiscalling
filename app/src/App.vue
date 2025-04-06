@@ -20,19 +20,19 @@ import { array } from 'three/tsl';
 
 
 //terrain gen logic here
-const gridSize = 32;
+const gridSize = 1024; 
 const gradients = [
   [1, 1], [-1, 1], [1, -1], [-1, -1],
   [1, 0], [-1, 0], [0, 1], [0, -1],
   [1, 0.5], [-1, 0.5], [0.5, 1], [-0.5, 1],
   [1, -0.5], [-1, -0.5], [0.5, -1], [-0.5, -1]
-]; // Added more gradients for better variation
+]; 
 const hashTable =  Perlin.permutate(2312131);
 function hash(x:number, y:number){
   return hashTable[(hashTable[(x & 255) + hashTable[y & 255]] & 255)];
 }
 const grid = Array.from({length:gridSize}, (_,i)=> 
-  Array.from({length:gridSize}, (_,f)=>Math.floor(octavePerlin((i+0.00001)*0.05, (f+0.00001)*0.05,1,.6)*5))//call the noise function here
+  Array.from({length:gridSize}, (_,f)=>Math.floor(octavePerlin((i+0.00001)*0.05, (f+0.00001)*0.05,1,.6)*15))//call the noise function here
   //for the thing do the noise function with a scale of .1 and add an offset value to prevent 0 from being used in the noise func
 );//generates a 256 long grid
 console.log(grid);
@@ -94,21 +94,6 @@ function octavePerlin(x:number, y:number, octaves:number, persistence:number)
   return total/maxValue;
 }
 
-class generateChunk
-{ 
-  chunkCords:Array<number> = [];
-  constructor(chunkCords:Array<number>)
-  {
-    this.chunkCords = chunkCords;
-    
-  }
-  
-}
-
-
-
-
-
 const textureLoader = new THREE.TextureLoader();
 const canvasContainer = ref<HTMLElement | null>(null)
 let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls;
@@ -126,16 +111,16 @@ const loadBlockTexture = (path:string) => {
 const texTop = loadBlockTexture('./src/assets/texturetest/grass_block_top.png');
 const texSide = loadBlockTexture('./src/assets/texturetest/grass_block_side.png');
 const texBottom = loadBlockTexture('./src/assets/texturetest/dirt.png');
-const materials2 = [
-  new THREE.MeshBasicMaterial({ map: texSide }), // Right
-  new THREE.MeshBasicMaterial({ map: texSide }), // Left
-  new THREE.MeshBasicMaterial({ map: texTop, color:0x7cbd6b }),  // Top
-  new THREE.MeshBasicMaterial({ map: texBottom }), // Bottom
-  new THREE.MeshBasicMaterial({ map: texSide }), // Front
-  new THREE.MeshBasicMaterial({ map: texSide })  // Back
+const materials = [
+  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Right
+  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Left
+  new THREE.MeshBasicMaterial({ map: texTop, color:0x7cbd6b,side: THREE.DoubleSide }),  // Top
+  new THREE.MeshBasicMaterial({ map: texBottom,side: THREE.DoubleSide }), // Bottom
+  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Front
+  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide })  // Back
 ];
 const texew = loadBlockTexture('./src/assets/texturetest/stone.png');
-const materials = new THREE.MeshBasicMaterial({map:texew})
+const materials2 = new THREE.MeshBasicMaterial({color:0xFF00FF,  side: THREE.DoubleSide })
 
 
 function init() {
@@ -151,6 +136,64 @@ function init() {
   addStuff(grid);
   animate()
 }
+const testBuffer = new THREE.BufferGeometry();
+const vertices:Array<number> = []
+const indexes:Array<number> = [];
+let offset = 0;
+const faceDirections:Record<string,Array<number>> = {
+  top: [
+    -0.5, 0.5, -0.5,
+     0.5, 0.5, -0.5,
+     0.5, 0.5,  0.5,
+    -0.5, 0.5,  0.5,
+  ],
+  bottom: [
+    -0.5, -0.5,  0.5,
+     0.5, -0.5,  0.5,
+     0.5, -0.5, -0.5,
+    -0.5, -0.5, -0.5,
+  ],
+  front: [
+    -0.5, -0.5, 0.5,
+     0.5, -0.5, 0.5,
+     0.5,  0.5, 0.5,
+    -0.5,  0.5, 0.5,
+  ],
+  back: [
+     0.5, -0.5, -0.5,
+    -0.5, -0.5, -0.5,
+    -0.5,  0.5, -0.5,
+     0.5,  0.5, -0.5,
+  ],
+  left: [
+    -0.5, -0.5, -0.5,
+    -0.5, -0.5,  0.5,
+    -0.5,  0.5,  0.5,
+    -0.5,  0.5, -0.5,
+  ],
+  right: [
+     0.5, -0.5,  0.5,
+     0.5, -0.5, -0.5,
+     0.5,  0.5, -0.5,
+     0.5,  0.5,  0.5,
+  ],
+};
+
+
+
+function addQuad(x:number, y:number, z:number, dir:string)
+{
+  const offSetValues = faceDirections[dir];
+  vertices.push(//get da corners
+    x + offSetValues[0], y + offSetValues[1], z + offSetValues[2],
+    x + offSetValues[3], y + offSetValues[4], z + offSetValues[5],
+    x + offSetValues[6], y + offSetValues[7], z + offSetValues[8],
+    x + offSetValues[9], y + offSetValues[10], z + offSetValues[11],
+  )
+
+  indexes.push(offset, offset+1, offset+2, offset+2, offset+3, offset);
+  offset+=4;
+}
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
@@ -159,42 +202,43 @@ function animate() {
 function addStuff(heights:Array<Array<number>>)
 {
   console.log(heights, "heights");
-  for(let i = 0; i<heights.length;i++)
+  for(let x = 0; x<heights.length;x++)
   {
-    for(let f = 0; f<heights[i].length; f++)
+    for(let z = 0; z<heights[x].length; z++)
     {
-      const position = new THREE.Vector3(i,heights[i][f],f);
-      const newCube =  new THREE.Mesh(geometry, materials);
-      newCube.position.copy(position);
-      scene.add(newCube);
+      //add faces based off of the neighboring blocks
+      //so use the height map to determine the neighbors where if the height of neighbors is greater then dont add side faces
+      //otherwise if its taller than its neighbor add a face in the direction of the neighbor
+      const y = heights[x][z];
+      addQuad(x,y,z,"top");      //maybe add a functioin here to check if the block face has neighbor air on top
+      //current neighbors to check for are in the x and z axis 
+      //y axis checks will come later 
+      if(x-1<0||heights[x-1][z]<y)//left
+      { 
+        addQuad(x,y,z,"left");
+      }
+      if(x+1 >= gridSize-1||heights[x+1][z]<y)//right
+      { 
+        addQuad(x,y,z,"right");
+      }
+      if(z+1 >= gridSize-1||heights[x][z+1]<y)//front
+      {
+        addQuad(x,y,z,"front");
+
+      }
+      if(z-1<0||heights[x][z-1]<y)//back
+      {
+        addQuad(x,y,z,"back");
+      }
     }
-  }
-}//store this in a map or smth, then encode the data and put it in supabase. 
-const testBuffer = new THREE.BufferGeometry();
-const vertices = []
-const indexes = [];
-let offset = 0;
-
-function addQuad(x:number, y:number, z:number, dir:string)
-{
-  const size = 1;
-  vertices.push(//get da corners
-    [x - .5, y + .5, z - .5],
-    [x + .5, y + .5, z - .5],
-    [x + .5, y + .5, z + .5],
-    [x - .5, y + .5, z + .5],
-  )
-  indexes.push(offset, offset+1, offset+2, offset+2, offset+3, offset);
-  offset+=4;
-}
-const directions = 
-{
-  "left":
-  [
     
-  ]
-}
-
+  }
+  testBuffer.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  testBuffer.setIndex(indexes);
+  const mesh =  new THREE.Mesh(testBuffer, materials2);
+  scene.add(mesh);
+  console.log(offset/4)
+}//store this in a map or smth, then encode the data and put it in supabase. 
 onMounted(()=>
 {
   init()
