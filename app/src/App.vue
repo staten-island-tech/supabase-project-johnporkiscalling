@@ -8,10 +8,11 @@ import { utilMath } from './test';//gives acess to lerp and stuff
 import { Perlin } from './testicle';
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as THREE from 'three'
-import { OrbitControls } from "three/examples/jsm/Addons.js";
+import { OrbitControls, UVsDebug } from "three/examples/jsm/Addons.js";
 import { array } from 'three/tsl';
-
-
+import Stats from 'stats.js';
+const stats = new Stats();
+document.body.appendChild(stats.dom);
 //checklist
 //actually load massive amounts of chunks
 //save world data to a file on the users computer
@@ -99,7 +100,7 @@ const canvasContainer = ref<HTMLElement | null>(null)
 let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls;
 const geometry = new THREE.BoxGeometry(1, 1, 1);
 scene = new THREE.Scene();
-camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2048);
 const loadBlockTexture = (path:string) => {
   const tex = textureLoader.load(path);
   tex.magFilter = THREE.NearestFilter;
@@ -108,17 +109,22 @@ const loadBlockTexture = (path:string) => {
   tex.premultiplyAlpha = false;
   return tex;
 };
+
+//use a texture atlas
+
+
 const texTop = loadBlockTexture('./src/assets/texturetest/grass_block_top.png');
 const texSide = loadBlockTexture('./src/assets/texturetest/grass_block_side.png');
 const texBottom = loadBlockTexture('./src/assets/texturetest/dirt.png');
-const materials = [
-  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Right
-  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Left
-  new THREE.MeshBasicMaterial({ map: texTop, color:0x7cbd6b,side: THREE.DoubleSide }),  // Top
-  new THREE.MeshBasicMaterial({ map: texBottom,side: THREE.DoubleSide }), // Bottom
-  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Front
-  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide })  // Back
-];
+const materials:Record<string,THREE.MeshBasicMaterial> = {
+  right: new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Right
+  left:  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Left
+  top: new THREE.MeshBasicMaterial({ map: texTop, color:0x7cbd6b,side: THREE.DoubleSide }),  // Top
+  bottom: new THREE.MeshBasicMaterial({ map: texBottom,side: THREE.DoubleSide }), // Bottom
+  front: new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Front
+  back: new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide })  // Back
+};
+const mats:Array<THREE.MeshBasicMaterial> = [];
 const texew = loadBlockTexture('./src/assets/texturetest/stone.png');
 const materials2 = new THREE.MeshBasicMaterial({color:0xFF00FF,  side: THREE.DoubleSide })
 
@@ -139,6 +145,12 @@ function init() {
 const testBuffer = new THREE.BufferGeometry();
 const vertices:Array<number> = []
 const indexes:Array<number> = [];
+const UV:Array<number> = [];
+//apply somne form of chunking ehre to reduce the array size and thus the amount of memory taken up
+//fix the textures somehow
+
+
+
 let offset = 0;
 const faceDirections:Record<string,Array<number>> = {
   top: [
@@ -178,6 +190,47 @@ const faceDirections:Record<string,Array<number>> = {
      0.5,  0.5,  0.5,
   ],
 };
+const uvCords:Record<string,Array<number>> = {
+  right:[
+    1, 0, 
+    0, 0,
+    0, 1,  
+    1, 1   
+  ],
+  left:[
+    1, 0,  
+    0, 0,  
+    0, 1,  
+    1, 1   
+  ],
+  top:[
+    0, 0,
+    1, 0,
+    1, 1,
+    0, 1,
+  ],
+  bottom:[
+    0, 1, 
+    1, 1,  
+    1, 0, 
+    0, 0 
+  ],
+  back:[
+    0, 0, 
+    1, 0,
+    1, 1, 
+    0, 1
+  ],
+  front:[
+    0, 0,  
+    1, 0, 
+    1, 1, 
+    0, 1  
+  ]
+}
+
+
+
 
 
 
@@ -192,12 +245,16 @@ function addQuad(x:number, y:number, z:number, dir:string)
   )
 
   indexes.push(offset, offset+1, offset+2, offset+2, offset+3, offset);
+  UV.push(...uvCords[dir]);
+  mats.push(materials[dir]);
   offset+=4;
 }
 function animate() {
   requestAnimationFrame(animate);
+  stats.begin();
   controls.update();
   renderer.render(scene, camera);
+  stats.end();
 }
 function addStuff(heights:Array<Array<number>>)
 {
@@ -234,6 +291,8 @@ function addStuff(heights:Array<Array<number>>)
     
   }
   testBuffer.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  testBuffer.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2));  // Add UVs for the texture mapping
+
   testBuffer.setIndex(indexes);
   const mesh =  new THREE.Mesh(testBuffer, materials2);
   scene.add(mesh);
