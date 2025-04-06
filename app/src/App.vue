@@ -21,7 +21,7 @@ document.body.appendChild(stats.dom);
 
 
 //terrain gen logic here
-const gridSize = 1024; 
+const gridSize = 128; 
 const gradients = [
   [1, 1], [-1, 1], [1, -1], [-1, -1],
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -33,19 +33,13 @@ function hash(x:number, y:number){
   return hashTable[(hashTable[(x & 255) + hashTable[y & 255]] & 255)];
 }
 const grid = Array.from({length:gridSize}, (_,i)=> 
-  Array.from({length:gridSize}, (_,f)=>Math.floor(octavePerlin((i+0.00001)*0.05, (f+0.00001)*0.05,1,.6)*15))//call the noise function here
+  Array.from({length:gridSize}, (_,f)=>Math.floor(octavePerlin((i+0.00001)*0.05, (f+0.00001)*0.05,2,.5)*4))//call the noise function here
   //for the thing do the noise function with a scale of .1 and add an offset value to prevent 0 from being used in the noise func
 );//generates a 256 long grid
 console.log(grid);
 //small offsset value to ensure non zero values
 //the scale value must be 0.1 or less than to ensure decent generation
 //modify the funcftion byu using a min functoon 
-
-
-
-
-
-
 function noise(x:number,y:number)//gotta add something else to make it more varied 
 {
   //get the truncated intdd
@@ -89,7 +83,7 @@ function octavePerlin(x:number, y:number, octaves:number, persistence:number)
   {
     total+=noise(x*frequency, y*frequency) * amplitude;
     maxValue+=amplitude;
-    frequency *= 2;
+    frequency *= 1.1;
     amplitude *= persistence;
   }
   return total/maxValue;
@@ -127,6 +121,14 @@ const materials:Record<string,THREE.MeshBasicMaterial> = {
 const mats:Array<THREE.MeshBasicMaterial> = [];
 const texew = loadBlockTexture('./src/assets/texturetest/stone.png');
 const materials2 = new THREE.MeshBasicMaterial({color:0xFF00FF,  side: THREE.DoubleSide })
+const materialArray = [
+  materials.top,
+  materials.bottom,
+  materials.front,
+  materials.back,
+  materials.left,
+  materials.right,
+];
 
 
 function init() {
@@ -246,7 +248,11 @@ function addQuad(x:number, y:number, z:number, dir:string)
 
   indexes.push(offset, offset+1, offset+2, offset+2, offset+3, offset);
   UV.push(...uvCords[dir]);
-  mats.push(materials[dir]);
+  testBuffer.addGroup(
+    indexes.length - 6, // Start index (where these faces begin in the index array)
+    6, // Number of indices (6 for 2 triangles)
+    materialArray.indexOf(materials[dir]) // Material index
+  );
   offset+=4;
 }
 function animate() {
@@ -294,7 +300,7 @@ function addStuff(heights:Array<Array<number>>)
   testBuffer.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2));  // Add UVs for the texture mapping
 
   testBuffer.setIndex(indexes);
-  const mesh =  new THREE.Mesh(testBuffer, materials2);
+  const mesh =  new THREE.Mesh(testBuffer, materialArray);
   scene.add(mesh);
   console.log(offset/4)
 }//store this in a map or smth, then encode the data and put it in supabase. 
