@@ -8,20 +8,54 @@ function submit() {}
 
 <template>
   <div class="login" v-if="!loggedin">
-    <div class="p"></div>
-    <div class="logincontainer">
-      <div class="sides"></div>
-      <div class="loginview">
-        <div class="log">PLEASE LOGIN</div>
-        <form @submit.prevent="submit()">
-          <input type="text" placeholder="Email" />
-          <input type="text" placeholder="Password" />
-          <button type="submit">Login!</button>
-        </form>
-      </div>
-      <div class="sides"></div>
+    <div class="background">
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
     </div>
-    <div class="p"></div>
+    <div class="front">
+      <div class="p"></div>
+      <div class="logincontainer">
+        <div class="sides"></div>
+        <div class="loginview">
+          <div class="log">PLEASE LOGIN</div>
+          <form @submit.prevent="submit()">
+            <input type="text" placeholder="Email" />
+            <input type="text" placeholder="Password" />
+            <button type="submit" @click="loggedin = true">Login!</button>
+          </form>
+        </div>
+        <div class="sides"></div>
+      </div>
+      <div class="p"></div>
+    </div>
   </div>
   <div v-if="loggedin">
     <header>
@@ -29,6 +63,7 @@ function submit() {}
         <nav>
           <div class="border"><RouterLink to="/">Home</RouterLink></div>
           <div class="border"><RouterLink to="/about">About</RouterLink></div>
+          <div class="border"><a href="" @click="loggedin = false">Log out</a></div>
         </nav>
       </div>
     </header>
@@ -39,8 +74,12 @@ function submit() {}
 
 <style scoped>
 /* --------------------logged in = false-------------------- */
-.login {
+.front {
+  z-index: 10;
   height: 100vh;
+}
+.login {
+  height: 100%;
   width: 100%;
   position: absolute;
   top: 0%;
@@ -90,6 +129,8 @@ input {
   outline: none;
   color: #959697;
   transition: border-color 0.3s ease;
+  width: 80%;
+  height: 10%;
 }
 input:first-of-type {
   margin-top: 3rem;
@@ -121,7 +162,21 @@ button:active {
   background-color: #ececec;
   transition: 0.1s;
 }
-
+/* --------------------background--------------------- */
+.background {
+  z-index: -1;
+  display: flex;
+  flex-direction: row;
+  position: absolute;
+  flex-wrap: wrap;
+}
+.square {
+  height: 12vh;
+  width: 12vh;
+  background-color: #dfe4e7;
+  border-radius: 7px;
+  margin: 1vh;
+}
 /* --------------------logged in = true-------------------- */
 header {
   line-height: 1.5;
