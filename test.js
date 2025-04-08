@@ -27,7 +27,7 @@ function convertAtlasToJSON(inputPath, outputPath) {
   });
 
   // Write the output
-  fs.writeFileSync(outputPath, JSON.stringify(result, null, 2));
+  fs.writeFileSync(outputPath, JSON.stringify(result).replace(/},/g, '},\n').replace(/{/g, '{').replace(/}/g, '}'));
   console.log(`Converted ${lines.length} entries to ${outputPath}`);
 }
 

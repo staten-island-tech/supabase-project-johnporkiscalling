@@ -9,11 +9,11 @@ import { Perlin } from './testicle';
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls, UVsDebug } from "three/examples/jsm/Addons.js";
-import { array } from 'three/tsl';
+import { array, textureLoad } from 'three/tsl';
 import Stats from 'stats.js';
 const stats = new Stats();
 document.body.appendChild(stats.dom);
-const gridSize = 128; 
+const gridSize = 256; 
 const gradients = [
   [1, 1], [-1, 1], [1, -1], [-1, -1],
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -24,21 +24,17 @@ const hashTable =  Perlin.permutate(1010101011);
 function hash(x:number, y:number){
   return hashTable[(hashTable[(x & 255) + hashTable[y & 255]] & 255)];
 }
-const freq = 0.1;
-const amp = 0.5;
-const pers = 0.5;
-const eta = 0.00001;
-const scale = 0.1;
-const height = 64;
-const octaves = 5;
-const grid = Array.from({length:gridSize}, (_,i)=> 
+const freq = 0.1;//the distance between dips and peaks
+const amp = 0.5;//the max height
+const pers = .3;//smoothness higher =  more smooth
+const eta = 0.00001;//small offset value to ensure non-zero values
+const scale = 0.1;//scale it to ensure non-zero values
+const height = 64;//the default height
+const octaves = 5;//the amount of times to run the function to get more detail
+const grid = Array.from({length:gridSize}, (_,i)=>
   Array.from({length:gridSize}, (_,f)=>
     Math.abs(Math.floor(octavePerlin((i+eta)*scale, (f+eta)*scale, octaves, pers, amp, freq)*10)))
 );
-
-
-console.log(grid); 
-
 function noise(x:number,y:number)
 {
   const xi = Math.floor(x)
@@ -85,7 +81,8 @@ let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRe
 const geometry = new THREE.BoxGeometry(1, 1, 1);
 scene = new THREE.Scene();
 camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2048);
-const loadBlockTexture = (path:string) => {
+function loadBlockTexture(path:string)
+{
   const tex = textureLoader.load(path);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.magFilter = THREE.NearestFilter;
@@ -94,11 +91,42 @@ const loadBlockTexture = (path:string) => {
   tex.premultiplyAlpha = false;
   return tex;
 };
+interface mipMap 
+{
+  image:(HTMLImageElement | HTMLCanvasElement | ImageBitmap),
+  width:number,
+  height:number,
+}
+function mipMap(url: string, mippityMappitys: Array<(HTMLImageElement | HTMLCanvasElement | ImageBitmap)>) {
+  const texture = textureLoader.load(url, () => {
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
 
+    mippityMappitys.forEach((mipmap, index) => {
+      // Create the mipmap object with the correct type
+      const mipmapData: THREE.mipMap = {
+        image: mipmap,
+        width: mipmap.width,
+        height: mipmap.height,
+      };
 
+      // Push the mipmap data to the texture's mipmaps array
+      texture.mipmaps?.push(mipmapData);
+    });
+
+    // Mark texture as updated
+    texture.needsUpdate = true;
+  });
+}
 
 //texture atlas size = 1024*512
-const texture = loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
+const texture0 = loadBlockTexture('./src/assets/blockAtlases/atlas0.png')//16
+const texture1 = loadBlockTexture('./src/assets/blockAtlases/atlas1.png')//8
+const texture2 = loadBlockTexture('./src/assets/blockAtlases/atlas2.png')//4
+const texture3 = loadBlockTexture('./src/assets/blockAtlases/atlas3.png')//2
+const texture4 = loadBlockTexture('./src/assets/blockAtlases/atlas4.png')//1
+
 let atlasData:AtlasData = {
   textureSize:{ width:1024, height:512},
   frames:
@@ -204,7 +232,6 @@ const indexes:Array<number> = [];
 const UV:Array<number> = [];
 let offset = 0;
 import { faceDirections, uvCords } from './stupidlylongvariables';
-import { stdin } from 'process';
 
 function addQuad(x:number, y:number, z:number, dir:string)
 {
