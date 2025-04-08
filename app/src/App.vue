@@ -9,36 +9,16 @@ function submit() {}
 <template>
   <div class="login" v-if="!loggedin">
     <div class="background">
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
+      <div class="row">
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+      </div>
     </div>
     <div class="front">
       <div class="p"></div>
@@ -170,12 +150,17 @@ button:active {
   position: absolute;
   flex-wrap: wrap;
 }
+.row {
+  height: 12.5vw;
+  width: 100%;
+}
 .square {
-  height: 12vh;
-  width: 12vh;
+  box-sizing: border-box;
   background-color: #dfe4e7;
   border-radius: 7px;
   margin: 1vh;
+  width: 11.5%;
+  height: 100%;
 }
 /* --------------------logged in = true-------------------- */
 header {
