@@ -19,6 +19,36 @@ function submit() {}
         <div class="square"></div>
         <div class="square"></div>
       </div>
+      <div class="row">
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+      </div>
+      <div class="row">
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+      </div>
+      <div class="row">
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+      </div>
     </div>
     <div class="front">
       <div class="p"></div>
@@ -64,7 +94,8 @@ function submit() {}
   position: absolute;
   top: 0%;
   left: 0%;
-  /* padding: 30% 40% 30% 40%; */
+  background-color: #303030;
+  z-index: -2;
 }
 .logincontainer {
   height: 50%;
@@ -74,10 +105,11 @@ function submit() {}
   justify-content: center;
 }
 .loginview {
-  background-color: rgb(107, 185, 240);
+  background-color: rgb(56, 56, 56);
   border-radius: 7px;
   height: 100%;
   width: 30%;
+  box-shadow: 0 0 15 #000;
 }
 .sides {
   width: 30%;
@@ -92,6 +124,7 @@ function submit() {}
   width: 100%;
   height: 15%;
   text-align: center;
+  color: #c4c9cb;
 }
 form {
   display: flex;
@@ -144,23 +177,30 @@ button:active {
 }
 /* --------------------background--------------------- */
 .background {
+  height: 100vh;
+  width: 100vw;
   z-index: -1;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   position: absolute;
-  flex-wrap: wrap;
+  overflow: hidden;
 }
 .row {
   height: 12.5vw;
   width: 100%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
 }
 .square {
   box-sizing: border-box;
   background-color: #dfe4e7;
+  background-image: url(../src/assets/image.png);
   border-radius: 7px;
   margin: 1vh;
   width: 11.5%;
-  height: 100%;
+  height: 11.5vw;
+  background-size: cover;
 }
 /* --------------------logged in = true-------------------- */
 header {
