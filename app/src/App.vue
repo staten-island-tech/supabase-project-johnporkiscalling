@@ -13,7 +13,7 @@ import { array, textureLoad } from 'three/tsl';
 import Stats from 'stats.js';
 const stats = new Stats();
 document.body.appendChild(stats.dom);
-const gridSize = 256; 
+const gridSize = 1024; 
 const gradients = [
   [1, 1], [-1, 1], [1, -1], [-1, -1],
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -24,7 +24,7 @@ const hashTable =  Perlin.permutate(1010101011);
 function hash(x:number, y:number){
   return hashTable[(hashTable[(x & 255) + hashTable[y & 255]] & 255)];
 }
-const freq = 0.1;//the distance between dips and peaks
+const freq = .05;//the distance between dips and peaks
 const amp = 0.5;//the max height
 const pers = .3;//smoothness higher =  more smooth
 const eta = 0.00001;//small offset value to ensure non-zero values
@@ -33,7 +33,7 @@ const height = 64;//the default height
 const octaves = 5;//the amount of times to run the function to get more detail
 const grid = Array.from({length:gridSize}, (_,i)=>
   Array.from({length:gridSize}, (_,f)=>
-    Math.abs(Math.floor(octavePerlin((i+eta)*scale, (f+eta)*scale, octaves, pers, amp, freq)*10)))
+    Math.abs(Math.floor(Math.max(0, octavePerlin((i+eta)*scale, (f+eta)*scale, octaves, pers, amp, freq))*256)))
 );
 function noise(x:number,y:number)
 {
@@ -68,7 +68,21 @@ function octavePerlin(x:number, y:number, octaves:number, persistence:number, am
   }
   return total/maxValue;
 }
+interface TextureSize {
+    width: number;
+    height: number;
+}
 
+interface AtlasData {
+    textureSize: TextureSize;
+    frames: Record<string, TextureFrame>;
+}
+interface TextureFrame {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
 
 
 
@@ -89,6 +103,7 @@ function loadBlockTexture(path:string)
   tex.minFilter = THREE.NearestFilter;
   tex.generateMipmaps = false;
   tex.premultiplyAlpha = false;
+  
   return tex;
 };
 interface mipMap 
@@ -143,23 +158,11 @@ let atlasData:AtlasData = {
       "w": 16,
       "h": 16
     },
+    "minecraft:block/dirt":{"x":384,"y":32,"w":16,"h":16},
+
   }
 };
-interface TextureSize {
-    width: number;
-    height: number;
-}
 
-interface AtlasData {
-    textureSize: TextureSize;
-    frames: Record<string, TextureFrame>;
-}
-interface TextureFrame {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-}
 
 function getUVs(textureName:string)
 {
@@ -172,17 +175,16 @@ function getUVs(textureName:string)
   const { width: texWidth, height: texHeigh } =  atlasData.textureSize;
   const left =  x / texWidth
   const right = ( x+w ) / texWidth;
-  const top =  y /texHeigh;
-  const bottom = (y+h)/texHeigh;
+  const top = 1 -  y /texHeigh;
+  const bottom = 1 - (y+h)/texHeigh;
+  const padding = 0.001;
   return [
-        left, bottom,  // bottom-left
-        right, bottom, // bottom-right
-        right, top,    // top-right
-        left, top      // top-left
+    left + padding, bottom + padding,  // bottom-left
+    right - padding, bottom + padding, // bottom-right
+    right - padding, top - padding,    // top-right
+    left + padding, top - padding      // top-left
   ];
 }
-
-
 //use a texture atlas
 const texTop = loadBlockTexture('./src/assets/texturetest/grass_block_top.png');
 const texSide = loadBlockTexture('./src/assets/texturetest/grass_block_side.png');
@@ -226,13 +228,28 @@ function animate() {
   renderer.render(scene, camera);
   stats.end();
 }
+
+
+
+
+
+
+
+
 const testBuffer = new THREE.BufferGeometry();
 const vertices:Array<number> = []
 const indexes:Array<number> = [];
 const UV:Array<number> = [];
 let offset = 0;
 import { faceDirections, uvCords } from './stupidlylongvariables';
-
+const blockUVs:Record<string,Array<number>> = {
+  top: getUVs('minecraft:block/grass_block_top'),
+  right: getUVs('minecraft:block/grass_block_side'),
+  left: getUVs('minecraft:block/grass_block_side'),
+  front: getUVs('minecraft:block/grass_block_side'),
+  back: getUVs('minecraft:block/grass_block_side'),
+  bottom: getUVs('minecraft:block/dirt'), // for example
+};
 function addQuad(x:number, y:number, z:number, dir:string)
 {
   const offSetValues = faceDirections[dir];
@@ -244,14 +261,13 @@ function addQuad(x:number, y:number, z:number, dir:string)
   )
 
   indexes.push(offset, offset+1, offset+2, offset+2, offset+3, offset);
-  UV.push(...uvCords[dir]);
-  testBuffer.addGroup(
-    indexes.length - 6, // Start index (where these faces begin in the index array)
-    6, // Number of indices (6 for 2 triangles)
-    materialArray.indexOf(materials[dir]) // Material index
-  );
+  const texturew = blockUVs[dir]
+  UV.push(...texturew);
   offset+=4;
 }
+const blocksMaterial = new THREE.MeshBasicMaterial({map:texture0,side: THREE.DoubleSide})
+
+
 function addStuff(heights:Array<Array<number>>)
 {
   console.log(heights, "heights");
@@ -290,10 +306,32 @@ function addStuff(heights:Array<Array<number>>)
   testBuffer.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2));  
 
   testBuffer.setIndex(indexes);
-  const mesh =  new THREE.Mesh(testBuffer, materialArray);
+  const mesh =  new THREE.Mesh(testBuffer, blocksMaterial);
   scene.add(mesh);
   console.log(offset/4)
 }
+window.addEventListener("keydown", (event)=>
+  {
+    if(event.key == "s")
+    {
+      camera.position.z-=1;
+    } 
+    if(event.key == "w")
+    {
+      camera.position.z+=1;
+    } 
+    if(event.key == "a")
+    {
+      camera.position.x-=1;
+    } 
+    if(event.key == "d")
+    {
+      camera.position.x+=1;
+    } 
+});
+//quaternions for camera adjustmennt 
+//euler =  gimbal lock
+
 onMounted(()=>
 {
   init()
