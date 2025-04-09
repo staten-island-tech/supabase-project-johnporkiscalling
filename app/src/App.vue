@@ -9,22 +9,22 @@ import { Perlin } from './testicle';
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls, UVsDebug } from "three/examples/jsm/Addons.js";
-import { array, textureLoad } from 'three/tsl';
+import { array, texture, textureLoad } from 'three/tsl';
 import Stats from 'stats.js';
 const stats = new Stats();
 document.body.appendChild(stats.dom);
-const gridSize = 1024; 
+const gridSize = 512; 
 const gradients = [
   [1, 1], [-1, 1], [1, -1], [-1, -1],
   [1, 0], [-1, 0], [0, 1], [0, -1],
   [1, 0.5], [-1, 0.5], [0.5, 1], [-0.5, 1],
   [1, -0.5], [-1, -0.5], [0.5, -1], [-0.5, -1]
 ]; 
-const hashTable =  Perlin.permutate(1010101011);
+const hashTable =  Perlin.permutate(34963789);
 function hash(x:number, y:number){
   return hashTable[(hashTable[(x & 255) + hashTable[y & 255]] & 255)];
 }
-const freq = .05;//the distance between dips and peaks
+const freq = .1;//the distance between dips and peaks
 const amp = 0.5;//the max height
 const pers = .3;//smoothness higher =  more smooth
 const eta = 0.00001;//small offset value to ensure non-zero values
@@ -33,7 +33,7 @@ const height = 64;//the default height
 const octaves = 5;//the amount of times to run the function to get more detail
 const grid = Array.from({length:gridSize}, (_,i)=>
   Array.from({length:gridSize}, (_,f)=>
-    Math.abs(Math.floor(Math.max(0, octavePerlin((i+eta)*scale, (f+eta)*scale, octaves, pers, amp, freq))*256)))
+  (Math.floor(( octavePerlin((i+eta)*scale, (f+eta)*scale, octaves, pers, amp, freq))*100)))
 );
 function noise(x:number,y:number)
 {
@@ -101,7 +101,7 @@ function loadBlockTexture(path:string)
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
+  tex.generateMipmaps = true;
   tex.premultiplyAlpha = false;
   
   return tex;
@@ -141,6 +141,14 @@ const texture1 = loadBlockTexture('./src/assets/blockAtlases/atlas1.png')//8
 const texture2 = loadBlockTexture('./src/assets/blockAtlases/atlas2.png')//4
 const texture3 = loadBlockTexture('./src/assets/blockAtlases/atlas3.png')//2
 const texture4 = loadBlockTexture('./src/assets/blockAtlases/atlas4.png')//1
+
+const texture =  new THREE.Texture();
+texture.image =  texture0.image;
+texture.mipmaps = [];
+
+
+
+
 
 let atlasData:AtlasData = {
   textureSize:{ width:1024, height:512},
@@ -210,8 +218,8 @@ const materialArray = [
 ];
 function init() {
   if (renderer) return;
-  camera.position.z = 1;
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  camera.position.set(0, 1, 5); // Starting position
+  camera.rotation.set(0, Math.PI, 0);  renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
@@ -224,7 +232,8 @@ function init() {
 function animate() {
   requestAnimationFrame(animate);
   stats.begin();
-  controls.update();
+  controls.update()
+  moveCamera();
   renderer.render(scene, camera);
   stats.end();
 }
@@ -310,31 +319,77 @@ function addStuff(heights:Array<Array<number>>)
   scene.add(mesh);
   console.log(offset/4)
 }
-window.addEventListener("keydown", (event)=>
-  {
-    if(event.key == "s")
-    {
-      camera.position.z-=1;
-    } 
-    if(event.key == "w")
-    {
-      camera.position.z+=1;
-    } 
-    if(event.key == "a")
-    {
-      camera.position.x-=1;
-    } 
-    if(event.key == "d")
-    {
-      camera.position.x+=1;
-    } 
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'w') keys.w = true;
+  if (event.key === 'a') keys.a = true;
+  if (event.key === 's') keys.s = true;
+  if (event.key === 'd') keys.d = true;
 });
+
+document.addEventListener('keyup', (event) => {
+  if (event.key === 'w') keys.w = false;
+  if (event.key === 'a') keys.a = false;
+  if (event.key === 's') keys.s = false;
+  if (event.key === 'd') keys.d = false;
+});
+ // Starting rotation (facing opposite direction)
+
+// Movement keys state
+const keys = {
+  w: false,
+  a: false,
+  s: false,
+  d: false
+};
+// Move the camera based on WASD input, using its local orientation
+function moveCamera() {
+  const speed = 0.1;
+
+  // Forward (W)
+  if (keys.w) {
+    camera.position.addScaledVector(camera.getWorldDirection(new THREE.Vector3()), speed);
+  }
+
+  // Backward (S)
+  if (keys.s) {
+    camera.position.addScaledVector(camera.getWorldDirection(new THREE.Vector3()).negate(), speed);
+  }
+
+  // Left (A)
+  if (keys.a) {
+    const left = new THREE.Vector3();
+    camera.getWorldDirection(left);
+    left.cross(camera.up);  // Get the left direction by crossing with camera's up vector
+    left.normalize();
+    camera.position.addScaledVector(left, speed);
+  }
+
+  // Right (D)
+  if (keys.d) {
+    const right = new THREE.Vector3();
+    camera.getWorldDirection(right);
+    right.cross(camera.up);  // Get the right direction by crossing with camera's up vector
+    right.normalize();
+    camera.position.addScaledVector(right, speed);
+  }
+}
 //quaternions for camera adjustmennt 
 //euler =  gimbal lock
-
+//1 radian = 180/pi
+function movementSystem(rotation:number, axis:THREE.Vector3)
+{
+  const rotationRad = rotation*180/Math.PI;
+  const rotationQuaternion =  new THREE.Quaternion();
+  rotationQuaternion.setFromAxisAngle(axis, rotationRad);
+  //rotation quaternion
+  //multiple the object by the given quaternion to get the resulting object rotated;
+  camera.quaternion.multiplyQuaternions(rotationQuaternion, camera.quaternion);
+}
 onMounted(()=>
 {
   init()
+  movementSystem(400, new THREE.Vector3(0,1,0))
+
 }
 );
 onBeforeUnmount(() => {
