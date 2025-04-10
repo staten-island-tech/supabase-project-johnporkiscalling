@@ -9,11 +9,29 @@ import { Perlin } from './testicle';
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls, UVsDebug } from "three/examples/jsm/Addons.js";
-import { array, texture, textureLoad } from 'three/tsl';
+import { array, textureLoad } from 'three/tsl';
 import Stats from 'stats.js';
+import { atlasData:atlasData } from './atlas'
+interface TextureSize {
+    width: number;
+    height: number;
+}
+
+interface AtlasData {
+    textureSize: TextureSize;
+    frames: Record<string, TextureFrame>;
+}
+interface TextureFrame {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
+console.log(atlasData);
 const stats = new Stats();
 document.body.appendChild(stats.dom);
-const gridSize = 512; 
+const gridSize = 16; 
 const gradients = [
   [1, 1], [-1, 1], [1, -1], [-1, -1],
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -150,7 +168,7 @@ texture.mipmaps = [];
 
 
 
-let atlasData:AtlasData = {
+let notAtlasData:AtlasData = {
   textureSize:{ width:1024, height:512},
   frames:
   {
@@ -259,7 +277,7 @@ const blockUVs:Record<string,Array<number>> = {
   back: getUVs('minecraft:block/grass_block_side'),
   bottom: getUVs('minecraft:block/dirt'), // for example
 };
-function addQuad(x:number, y:number, z:number, dir:string)
+function addQuad(x:number, y:number, z:number, dir:string)//modify this to allow a texture type to be passed in
 {
   const offSetValues = faceDirections[dir];
   vertices.push(//get da corners
@@ -278,36 +296,36 @@ const blocksMaterial = new THREE.MeshBasicMaterial({map:texture0,side: THREE.Dou
 
 
 function addStuff(heights:Array<Array<number>>)
-{
+{//modify this for different material types based on the amount of a given x away from the top most block facing air 
   console.log(heights, "heights");
   for(let x = 0; x<heights.length;x++)
   {
     for(let z = 0; z<heights[x].length; z++)
     {
-      //add faces based off of the neighboring blocks
-      //so use the height map to determine the neighbors where if the height of neighbors is greater then dont add side faces
-      //otherwise if its taller than its neighbor add a face in the direction of the neighbor
-      const y = heights[x][z];
-      addQuad(x,y,z,"top");      //maybe add a functioin here to check if the block face has neighbor air on top
-      //current neighbors to check for are in the x and z axis 
-      //y axis checks will come later 
-      if(x-1<0||heights[x-1][z]<y)//left
-      { 
-        addQuad(x,y,z,"left");
-      }
-      if(x+1 >= gridSize-1||heights[x+1][z]<y)//right
-      { 
-        addQuad(x,y,z,"right");
-      }
-      if(z+1 >= gridSize-1||heights[x][z+1]<y)//front
+      for(let y = heights[x][z];y>-256; y--)//decrement so generate from top down
       {
-        addQuad(x,y,z,"front");
-
+        if(y==heights[x][z])
+        {
+          addQuad(x,y,z,"top");//add a top quad if its the top most layer
+        }//check the neighbors
+        if(x-1<0||heights[x-1][z]<y)//left
+        { 
+          addQuad(x,y,z,"left");
+        }//check if the neighbor to the left is higher or lower than the current block
+        if(x+1 >= gridSize-1||heights[x+1][z]<y)//right
+        { 
+          addQuad(x,y,z,"right");
+        }
+        if(z+1 >= gridSize-1||heights[x][z+1]<y)//front
+        {
+          addQuad(x,y,z,"front");
+        }
+        if(z-1<0||heights[x][z-1]<y)//back
+        {
+          addQuad(x,y,z,"back");
+        }
       }
-      if(z-1<0||heights[x][z-1]<y)//back
-      {
-        addQuad(x,y,z,"back");
-      }
+      //at the end of every cord add a bottom at y = 0;
     }
     
   }
