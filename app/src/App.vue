@@ -9,47 +9,48 @@ function submit() {}
 <template>
   <div class="login" v-if="!loggedin">
     <div class="background">
-      <div class="row">
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-      </div>
-      <div class="row">
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-      </div>
-      <div class="row">
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-      </div>
-      <div class="row">
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-        <div class="square"></div>
-      </div>
+      <!-- <div class="row"> -->
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <!-- </div>
+      <div class="row"> -->
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <!-- </div>
+      <div class="row"> -->
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <!-- </div>
+      <div class="row"> -->
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <!-- </div> -->
     </div>
+    <div class="overlay"></div>
     <div class="front">
       <div class="p"></div>
       <div class="logincontainer">
@@ -94,8 +95,7 @@ function submit() {}
   position: absolute;
   top: 0%;
   left: 0%;
-  background-color: #303030;
-  z-index: -2;
+  z-index: 2;
 }
 .logincontainer {
   height: 50%;
@@ -105,11 +105,11 @@ function submit() {}
   justify-content: center;
 }
 .loginview {
-  background-color: rgb(56, 56, 56);
+  background-color: #1f1f1f;
   border-radius: 7px;
   height: 100%;
   width: 30%;
-  box-shadow: 0 0 15 #000;
+  box-shadow: 0 0 15px #1f1f1f;
 }
 .sides {
   width: 30%;
@@ -124,7 +124,8 @@ function submit() {}
   width: 100%;
   height: 15%;
   text-align: center;
-  color: #c4c9cb;
+  color: #f2f3f3;
+  text-shadow: 0 0 15px #f2f3f3;
 }
 form {
   display: flex;
@@ -184,18 +185,31 @@ button:active {
   flex-direction: column;
   position: absolute;
   overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  background-color: #1f1f1f;
 }
-.row {
+.overlay {
+  z-index: -1;
+  background: radial-gradient(circle, #ffffff00, #000000);
+  height: 100%;
+  width: 100%;
+  position: absolute;
+}
+/* .row {
   height: 12.5vw;
   width: 100%;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-}
+  justify-content: center;
+} */
 .square {
   box-sizing: border-box;
   background-color: #dfe4e7;
-  background-image: url(../src/assets/image.png);
+  background-image: url(../src/assets/grass.png);
   border-radius: 7px;
   margin: 1vh;
   width: 11.5%;
