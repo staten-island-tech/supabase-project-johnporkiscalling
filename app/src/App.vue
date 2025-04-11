@@ -4,6 +4,12 @@
 
 
 <script setup lang="ts">
+
+//use chunking to prevent too much memory utilization
+
+
+
+
 import { utilMath } from './test';
 import { Perlin } from './testicle';
 import { onMounted, onBeforeUnmount, ref } from 'vue'
@@ -11,7 +17,6 @@ import * as THREE from 'three'
 import { OrbitControls, UVsDebug } from "three/examples/jsm/Addons.js";
 import { array, textureLoad } from 'three/tsl';
 import Stats from 'stats.js';
-import { atlasData:atlasData } from './atlas'
 interface TextureSize {
     width: number;
     height: number;
@@ -28,10 +33,9 @@ interface TextureFrame {
     h: number;
 }
 
-console.log(atlasData);
 const stats = new Stats();
 document.body.appendChild(stats.dom);
-const gridSize = 16; 
+const gridSize = 256; 
 const gradients = [
   [1, 1], [-1, 1], [1, -1], [-1, -1],
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -42,16 +46,21 @@ const hashTable =  Perlin.permutate(34963789);
 function hash(x:number, y:number){
   return hashTable[(hashTable[(x & 255) + hashTable[y & 255]] & 255)];
 }
-const freq = .1;//the distance between dips and peaks
-const amp = 0.5;//the max height
-const pers = .3;//smoothness higher =  more smooth
+const maxDepth = -64;
+const maxHeight = 100;
+
+
+
+const freq = .05;//the distance between dips and peaks
+const amp = 100;//the max height
+const pers = .5;//smoothness lower =  more smooth
 const eta = 0.00001;//small offset value to ensure non-zero values
 const scale = 0.1;//scale it to ensure non-zero values
 const height = 64;//the default height
-const octaves = 5;//the amount of times to run the function to get more detail
+const octaves = 2;//the amount of times to run the function to get more detail
 const grid = Array.from({length:gridSize}, (_,i)=>
   Array.from({length:gridSize}, (_,f)=>
-  (Math.floor(( octavePerlin((i+eta)*scale, (f+eta)*scale, octaves, pers, amp, freq))*100)))
+  (Math.floor(( octavePerlin((i+eta)*scale, (f+eta)*scale, octaves, pers, amp, freq))*maxHeight)))
 );
 function noise(x:number,y:number)
 {
@@ -86,25 +95,35 @@ function octavePerlin(x:number, y:number, octaves:number, persistence:number, am
   }
   return total/maxValue;
 }
-interface TextureSize {
-    width: number;
-    height: number;
+const elevationMap = {
+  
 }
+//start at the origin or 0,0 of the block 
+//increment the x and z index of the thing to figure out if merging is possible
 
-interface AtlasData {
-    textureSize: TextureSize;
-    frames: Record<string, TextureFrame>;
+function greedyMesh()
+{
+  for(let x = 0; x < gridSize; x++)
+  {
+    for(let z = 0; z<gridSize; z++)
+    {
+      let xOffset = 1;
+      let zOffset = 1;
+      let data = []
+      const y = grid[x][z];
+      while(y==grid[x+xOffset][z])
+      {
+        //set values that satisfy this to a false or null value to ensure that they dont get reread again
+        xOffset+=1;
+      }
+      while(y==grid[x][z+zOffset])//use a while loop and use a for loop equal to the offset amount 
+      {
+        zOffset+=1;
+      }
+      data.push([[x,y,z], [x+xOffset,y,z]])
+    }
+  }
 }
-interface TextureFrame {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-}
-
-
-
-
 
 
 const textureLoader = new THREE.TextureLoader();
@@ -168,7 +187,7 @@ texture.mipmaps = [];
 
 
 
-let notAtlasData:AtlasData = {
+let atlasData:AtlasData = {
   textureSize:{ width:1024, height:512},
   frames:
   {
@@ -302,7 +321,7 @@ function addStuff(heights:Array<Array<number>>)
   {
     for(let z = 0; z<heights[x].length; z++)
     {
-      for(let y = heights[x][z];y>-256; y--)//decrement so generate from top down
+      for(let y = heights[x][z];y>maxDepth; y--)//decrement so generate from top down
       {
         if(y==heights[x][z])
         {
@@ -350,7 +369,7 @@ document.addEventListener('keyup', (event) => {
   if (event.key === 's') keys.s = false;
   if (event.key === 'd') keys.d = false;
 });
- // Starting rotation (facing opposite direction)
+// Starting rotation (facing opposite direction)
 
 // Movement keys state
 const keys = {
