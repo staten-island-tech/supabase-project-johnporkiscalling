@@ -49,6 +49,7 @@ function submit() {}
       <div class="square"></div>
       <div class="square"></div>
       <!-- </div> -->
+      <div class="cursor"></div>
     </div>
     <div class="overlay"></div>
     <div class="front">
@@ -98,7 +99,7 @@ function submit() {}
   z-index: 2;
 }
 .logincontainer {
-  height: 50%;
+  height: 37%;
   width: 100%;
   display: flex;
   flex-direction: row;
@@ -109,14 +110,14 @@ function submit() {}
   border-radius: 7px;
   height: 100%;
   width: 30%;
-  box-shadow: 0 0 15px #1f1f1f;
+  box-shadow: 0 0 15px #7d7d7d;
 }
 .sides {
   width: 30%;
   height: 100%;
 }
 .p {
-  height: 25%;
+  height: 31.5%;
 }
 .log {
   font-weight: 900;
@@ -126,6 +127,7 @@ function submit() {}
   text-align: center;
   color: #f2f3f3;
   text-shadow: 0 0 15px #f2f3f3;
+  margin: 5% 0 3% 0;
 }
 form {
   display: flex;
@@ -193,7 +195,7 @@ button:active {
 }
 .overlay {
   z-index: -1;
-  background: radial-gradient(circle, #ffffff00, #000000);
+  background: radial-gradient(circle, #ffffff15, #000000cf);
   height: 100%;
   width: 100%;
   position: absolute;
@@ -215,6 +217,26 @@ button:active {
   width: 11.5%;
   height: 11.5vw;
   background-size: cover;
+  z-index: 1;
+}
+.cursor {
+  position: absolute;
+  height: 40vh;
+  width: 40vh;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(47, 172, 15, 1) 0%,
+    rgba(46, 172, 15, 0.708) 50%,
+    rgba(46, 172, 15, 0.447) 59%,
+
+    rgba(255, 255, 255, 0) 70%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  z-index: 0;
+  border-radius: 50%;
+  top: 23%;
+  left: 73%;
+  transform: translate(-50%, -50%);
 }
 /* --------------------logged in = true-------------------- */
 header {
