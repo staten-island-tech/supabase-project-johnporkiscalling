@@ -1,74 +1,13 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
-
+import LogIn from "./components/LogIn.vue";
 const loggedin = ref(false);
-function submit() {}
 </script>
 
 <template>
-  <div class="login" v-if="!loggedin">
-    <div class="background">
-      <!-- <div class="row"> -->
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <!-- </div>
-      <div class="row"> -->
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <!-- </div>
-      <div class="row"> -->
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <!-- </div>
-      <div class="row"> -->
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <!-- </div> -->
-      <div class="cursor"></div>
-    </div>
-    <div class="overlay"></div>
-    <div class="front">
-      <div class="p"></div>
-      <div class="logincontainer">
-        <div class="sides"></div>
-        <div class="loginview">
-          <div class="log">PLEASE LOGIN</div>
-          <form @submit.prevent="submit()">
-            <input type="text" placeholder="Email" />
-            <input type="text" placeholder="Password" />
-            <button type="submit" @click="loggedin = true">Login!</button>
-          </form>
-        </div>
-        <div class="sides"></div>
-      </div>
-      <div class="p"></div>
-    </div>
-  </div>
+  <div class="login" v-if="!loggedin"></div>
+  <LogIn></LogIn>
   <div v-if="loggedin">
     <header>
       <div class="wrapper">
@@ -152,15 +91,17 @@ input:first-of-type {
   margin-top: 3rem;
 }
 input:focus {
-  border: 3px solid rgba(190, 202, 206, 0.7);
+  border: 3px solid rgba(31, 31, 31, 0.3);
   background-color: #ececec;
-  transition: 0.1s;
+  transition: 0.2s;
 }
 input:active {
-  border: 3px solid rgba(190, 202, 206, 0.7);
+  border: 3px solid rgba(31, 31, 31, 0.55);
+  transition: 0.2s;
 }
 input::placeholder {
-  color: #c4c9cb;
+  color: #1f1f1fb0;
+  transition: 0.2s;
 }
 button {
   padding: 0.2rem 1rem 0.2rem 1rem;
@@ -168,13 +109,15 @@ button {
   border-radius: 7px;
   transition: border 0.3s ease;
   background-color: #f4fdff;
-  color: #959697;
+  color: #1f1f1fb0;
 }
 
 button:hover {
-  border: 3px solid rgba(190, 202, 206, 0.7);
+  border: 3px solid rgba(31, 31, 31, 0.3);
+  transition: 0.1s;
 }
 button:active {
+  border: 3px solid rgba(31, 31, 31, 0.55);
   background-color: #ececec;
   transition: 0.1s;
 }
@@ -195,7 +138,7 @@ button:active {
 }
 .overlay {
   z-index: -1;
-  background: radial-gradient(circle, #ffffff15, #000000cf);
+  background: radial-gradient(circle, #ffffff00 60%, #1f1f1f 90%);
   height: 100%;
   width: 100%;
   position: absolute;
