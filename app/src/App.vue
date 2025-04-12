@@ -1,14 +1,7 @@
 <template>
   <div ref="canvasContainer" class="scene-container"></div>
 </template>
-
-
 <script setup lang="ts">
-
-//use chunking to prevent too much memory utilization
-
-
-
 
 import { utilMath } from './test';
 import { Perlin } from './testicle';
@@ -21,7 +14,6 @@ interface TextureSize {
     width: number;
     height: number;
 }
-
 interface AtlasData {
     textureSize: TextureSize;
     frames: Record<string, TextureFrame>;
@@ -35,7 +27,7 @@ interface TextureFrame {
 
 const stats = new Stats();
 document.body.appendChild(stats.dom);
-const gridSize = 256; 
+const gridSize = 512; 
 const gradients = [
   [1, 1], [-1, 1], [1, -1], [-1, -1],
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -46,22 +38,27 @@ const hashTable =  Perlin.permutate(34963789);
 function hash(x:number, y:number){
   return hashTable[(hashTable[(x & 255) + hashTable[y & 255]] & 255)];
 }
-const maxDepth = -64;
-const maxHeight = 100;
+const maxDepth = -100;
+const maxHeight = 20;
+const chunkSize = 16;
 
 
-
-const freq = .05;//the distance between dips and peaks
-const amp = 100;//the max height
-const pers = .5;//smoothness lower =  more smooth
+const freq = .1;//the distance between dips and peaks
+const amp = 5;//the max height
+const pers = .4;//smoothness lower =  more smooth
 const eta = 0.00001;//small offset value to ensure non-zero values
 const scale = 0.1;//scale it to ensure non-zero values
 const height = 64;//the default height
 const octaves = 2;//the amount of times to run the function to get more detail
 const grid = Array.from({length:gridSize}, (_,i)=>
   Array.from({length:gridSize}, (_,f)=>
-  (Math.floor(( octavePerlin((i+eta)*scale, (f+eta)*scale, octaves, pers, amp, freq))*maxHeight)))
+  Math.pow(Math.floor(( octavePerlin((i+eta)*scale, (f+eta)*scale, octaves, pers, amp, freq))*maxHeight),3))
 );
+
+
+
+
+
 function noise(x:number,y:number)
 {
   const xi = Math.floor(x)
@@ -103,24 +100,34 @@ const elevationMap = {
 
 function greedyMesh()
 {
+  const vertexData = []
   for(let x = 0; x < gridSize; x++)
   {
     for(let z = 0; z<gridSize; z++)
     {
       let xOffset = 1;
       let zOffset = 1;
-      let data = []
       const y = grid[x][z];
       while(y==grid[x+xOffset][z])
       {
         //set values that satisfy this to a false or null value to ensure that they dont get reread again
+        
         xOffset+=1;
       }
       while(y==grid[x][z+zOffset])//use a while loop and use a for loop equal to the offset amount 
       {
+        for(let i = 0; i<xOffset; i++)//run a loop to check that the rows after actually can be extended to 
+        {
+          if(y!=grid[x+zOffset][z+i])
+          {
+            zOffset=0;
+            break;    
+          }
+        }
         zOffset+=1;
       }
-      data.push([[x,y,z], [x+xOffset,y,z]])
+      vertexData.push([
+      ])
     }
   }
 }
@@ -129,7 +136,6 @@ function greedyMesh()
 const textureLoader = new THREE.TextureLoader();
 const canvasContainer = ref<HTMLElement | null>(null)
 let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls;
-const geometry = new THREE.BoxGeometry(1, 1, 1);
 scene = new THREE.Scene();
 camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2048);
 function loadBlockTexture(path:string)
@@ -143,50 +149,12 @@ function loadBlockTexture(path:string)
   
   return tex;
 };
-interface mipMap 
-{
-  image:(HTMLImageElement | HTMLCanvasElement | ImageBitmap),
-  width:number,
-  height:number,
-}
-function mipMap(url: string, mippityMappitys: Array<(HTMLImageElement | HTMLCanvasElement | ImageBitmap)>) {
-  const texture = textureLoader.load(url, () => {
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
-
-    mippityMappitys.forEach((mipmap, index) => {
-      // Create the mipmap object with the correct type
-      const mipmapData: THREE.mipMap = {
-        image: mipmap,
-        width: mipmap.width,
-        height: mipmap.height,
-      };
-
-      // Push the mipmap data to the texture's mipmaps array
-      texture.mipmaps?.push(mipmapData);
-    });
-
-    // Mark texture as updated
-    texture.needsUpdate = true;
-  });
-}
-
 //texture atlas size = 1024*512
 const texture0 = loadBlockTexture('./src/assets/blockAtlases/atlas0.png')//16
 const texture1 = loadBlockTexture('./src/assets/blockAtlases/atlas1.png')//8
 const texture2 = loadBlockTexture('./src/assets/blockAtlases/atlas2.png')//4
 const texture3 = loadBlockTexture('./src/assets/blockAtlases/atlas3.png')//2
 const texture4 = loadBlockTexture('./src/assets/blockAtlases/atlas4.png')//1
-
-const texture =  new THREE.Texture();
-texture.image =  texture0.image;
-texture.mipmaps = [];
-
-
-
-
-
 let atlasData:AtlasData = {
   textureSize:{ width:1024, height:512},
   frames:
@@ -206,9 +174,7 @@ let atlasData:AtlasData = {
     "minecraft:block/dirt":{"x":384,"y":32,"w":16,"h":16},
 
   }
-};
-
-
+}
 function getUVs(textureName:string)
 {
   const stuff = atlasData.frames[textureName];
@@ -230,29 +196,6 @@ function getUVs(textureName:string)
     left + padding, top - padding      // top-left
   ];
 }
-//use a texture atlas
-const texTop = loadBlockTexture('./src/assets/texturetest/grass_block_top.png');
-const texSide = loadBlockTexture('./src/assets/texturetest/grass_block_side.png');
-const texBottom = loadBlockTexture('./src/assets/texturetest/dirt.png');
-const materials:Record<string,THREE.MeshBasicMaterial> = {
-  right: new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Right
-  left:  new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Left
-  top: new THREE.MeshBasicMaterial({ map: texTop, color:0x7cbd6b,side: THREE.DoubleSide }),  // Top
-  bottom: new THREE.MeshBasicMaterial({ map: texBottom,side: THREE.DoubleSide }), // Bottom
-  front: new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide }), // Front
-  back: new THREE.MeshBasicMaterial({ map: texSide,side: THREE.DoubleSide })  // Back
-};
-const mats:Array<THREE.MeshBasicMaterial> = [];
-const texew = loadBlockTexture('./src/assets/texturetest/stone.png');
-const materials2 = new THREE.MeshBasicMaterial({color:0xFF00FF,  side: THREE.DoubleSide })
-const materialArray = [
-  materials.top,
-  materials.bottom,
-  materials.front,
-  materials.back,
-  materials.left,
-  materials.right,
-];
 function init() {
   if (renderer) return;
   camera.position.set(0, 1, 5); // Starting position
@@ -270,7 +213,6 @@ function animate() {
   requestAnimationFrame(animate);
   stats.begin();
   controls.update()
-  moveCamera();
   renderer.render(scene, camera);
   stats.end();
 }
@@ -356,76 +298,151 @@ function addStuff(heights:Array<Array<number>>)
   scene.add(mesh);
   console.log(offset/4)
 }
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'w') keys.w = true;
-  if (event.key === 'a') keys.a = true;
-  if (event.key === 's') keys.s = true;
-  if (event.key === 'd') keys.d = true;
-});
-
-document.addEventListener('keyup', (event) => {
-  if (event.key === 'w') keys.w = false;
-  if (event.key === 'a') keys.a = false;
-  if (event.key === 's') keys.s = false;
-  if (event.key === 'd') keys.d = false;
-});
-// Starting rotation (facing opposite direction)
-
-// Movement keys state
-const keys = {
-  w: false,
-  a: false,
-  s: false,
-  d: false
-};
-// Move the camera based on WASD input, using its local orientation
-function moveCamera() {
-  const speed = 0.1;
-
-  // Forward (W)
-  if (keys.w) {
-    camera.position.addScaledVector(camera.getWorldDirection(new THREE.Vector3()), speed);
+function generateChunks()
+  {
+    const chunks = (gridSize/16);
+    for(let x = 0; x<chunks; x++)
+    {
+      for(let z = 0; z<chunks; z++)
+      {
+        const heightMap =         Array.from({length:16}, (_,x)=>{
+          Array.from({length:16}, (_,z)=>{
+            Math.pow(Math.floor(( octavePerlin((x+eta)*scale, (z+eta)*scale, octaves, pers, amp, freq))*maxHeight),3);
+          })
+        })
+        //pass the heightmap as a the parameter for the addStuff function 
+      }
+    }
   }
-
-  // Backward (S)
-  if (keys.s) {
-    camera.position.addScaledVector(camera.getWorldDirection(new THREE.Vector3()).negate(), speed);
-  }
-
-  // Left (A)
-  if (keys.a) {
-    const left = new THREE.Vector3();
-    camera.getWorldDirection(left);
-    left.cross(camera.up);  // Get the left direction by crossing with camera's up vector
-    left.normalize();
-    camera.position.addScaledVector(left, speed);
-  }
-
-  // Right (D)
-  if (keys.d) {
-    const right = new THREE.Vector3();
-    camera.getWorldDirection(right);
-    right.cross(camera.up);  // Get the right direction by crossing with camera's up vector
-    right.normalize();
-    camera.position.addScaledVector(right, speed);
-  }
-}
-//quaternions for camera adjustmennt 
-//euler =  gimbal lock
-//1 radian = 180/pi
-function movementSystem(rotation:number, axis:THREE.Vector3)
+function createChunk(chunkCord:Array<number>, heights:Array<Array<number>>)
 {
-  const rotationRad = rotation*180/Math.PI;
-  const rotationQuaternion =  new THREE.Quaternion();
-  rotationQuaternion.setFromAxisAngle(axis, rotationRad);
-  //rotation quaternion
-  //multiple the object by the given quaternion to get the resulting object rotated;
-  camera.quaternion.multiplyQuaternions(rotationQuaternion, camera.quaternion);
+  //c =  corner nearest to world origin(0,0) of the chunk at the specified chunk cords
+  const cX = chunkCord[0]*chunkSize;
+  const cZ = chunkCord[1]*chunkSize;
+  for(let x = 0; x<heights.length;x++)
+  {
+    for(let z = 0; z<heights[x].length; z++)
+    {
+      for(let y = heights[x][z];y>maxDepth; y--)
+      {
+        if(y==heights[x][z])
+        {
+          addQuad(x+cX,y,z+cZ,"top");
+        }
+        if(x-1<0||heights[x-1][z]<y)
+        { 
+          addQuad(x+cX,y,z+cZ,"left");
+        }
+        if(x+1 >= gridSize-1||heights[x+1][z]<y)
+        { 
+          addQuad(x+cX,y,z+cZ,"right");
+        }
+        if(z+1 >= gridSize-1||heights[x][z+1]<y)
+        {
+          addQuad(x+cX,y,z+cZ,"front");
+        }
+        if(z-1<0||heights[x][z-1]<y)
+        {
+          addQuad(x+cX,y,z+cZ,"back");
+        }
+      }
+    }
+  }
 }
+function addQuad2Point0()
+{
+  
+
+
+}
+//chunk size will be a constant that cannot be changed by the user
+class WorldChunk
+{
+  cCords:Array<number>
+  buffer:THREE.BufferGeometry;
+  vertices:Array<number>
+  indices:Array<number>
+  UVs:Array<number>;
+  offset:number
+  constructor(cCords:Array<number>)
+  {
+    this.cCords = cCords
+    this.buffer = new THREE.BufferGeometry();
+    this.vertices = [];
+    this.indices = [];
+    this.UVs = [];
+    this.offset = 0;
+  }
+  private createHeights():Array<Array<number>>//prevents user from calling this acidentally
+  {
+    const cX = this.cCords[0]*chunkSize;
+    const cZ = this.cCords[1]*chunkSize;
+    const heights:Array<Array<number>> = 
+    Array.from({length:16}, (_,x)=>
+      Array.from({length:16}, (_,z)=>
+        Math.pow(Math.floor(( octavePerlin((x+cX+eta)*scale, (z+cZ+eta)*scale, octaves, pers, amp, freq))*maxHeight),3)
+      )
+    )
+    return heights;
+    
+  }
+  createChunk()
+  {
+    const heights:Array<Array<number>> = this.createHeights();
+    const cX = this.cCords[0]*chunkSize;
+    const cZ = this.cCords[1]*chunkSize;
+    for(let x = 0; x<heights.length;x++)
+    {
+      for(let z = 0; z<heights[x].length; z++)
+      {
+        for(let y = heights[x][z];y>maxDepth; y--)
+        {
+          if(y==heights[x][z])
+          {
+            addQuad(x+cX,y,z+cZ,"top");
+          }
+          if(x-1<0||heights[x-1][z]<y)
+          { 
+            addQuad(x+cX,y,z+cZ,"left");
+          }
+          if(x+1 >= gridSize-1||heights[x+1][z]<y)
+          { 
+            addQuad(x+cX,y,z+cZ,"right");
+          }
+          if(z+1 >= gridSize-1||heights[x][z+1]<y)
+          {
+            addQuad(x+cX,y,z+cZ,"front");
+          }
+          if(z-1<0||heights[x][z-1]<y)
+          {
+            addQuad(x+cX,y,z+cZ,"back");
+          }
+        }
+      }
+    }
+  }
+  addQuad2()
+  {
+
+  }//basuically the addquad function but write to the class instead of a global var
+  //then when the user requests for the buffergeo info etc return it ez chunk based generation
+}
+
+
+
+//chunk data storage
+//use a map with ChunkCords as the key with chunk as the data being stored
+//use a palete. get all the unique blocks in a chunk. store those in an array
+//then get the length of the array
+//find the closest power of 2 to the length of the array
+//2^x => array.length
+//take x to create the neccesary amounts of bits needed to store them efficiently 
+
+
+
 onMounted(()=>
 {
   init()
-  movementSystem(400, new THREE.Vector3(0,1,0))
 
 }
 );
@@ -440,7 +457,3 @@ onBeforeUnmount(() => {
 
 
 </script>
-
-<style scoped>
-
-</style>
