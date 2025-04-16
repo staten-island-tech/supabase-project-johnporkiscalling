@@ -1,45 +1,55 @@
 <template>
   <div class="background">
-    <!-- <div class="row"> -->
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <!-- </div>
+    <div class="squares">
+      <!-- <div class="row"> -->
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <!-- </div>
     <div class="row"> -->
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <!-- </div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <!-- </div>
     <div class="row"> -->
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <!-- </div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <!-- </div>
     <div class="row"> -->
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <div class="square"></div>
-    <!-- </div> -->
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <!-- </div> -->
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+    </div>
     <div class="cursor" ref="cursor"></div>
   </div>
   <div class="overlay"></div>
@@ -180,14 +190,15 @@ button:active {
   height: 100vh;
   width: 100vw;
   z-index: -1;
-  display: flex;
-  flex-direction: column;
   position: absolute;
-  overflow: hidden;
+
   display: flex;
-  flex-direction: row;
+  /* flex-direction: column; */
   flex-wrap: wrap;
-  justify-content: center;
+  /* justify-content: center; */
+  flex-direction: row;
+  overflow: hidden;
+
   background-color: #1f1f1f;
 }
 .overlay {
@@ -205,6 +216,15 @@ button:active {
   flex-wrap: wrap;
   justify-content: center;
 } */
+.squares {
+  height: auto;
+  width: 100%;
+  display: flex;
+  /* flex-direction: column; */
+  flex-wrap: wrap;
+  justify-content: center;
+  flex-direction: row;
+}
 .square {
   box-sizing: border-box;
   background-color: #dfe4e7;
@@ -234,5 +254,11 @@ button:active {
   top: 23%;
   left: 73%;
   transform: translate(-50%, -50%);
+}
+@media screen and (max-width: 1300px) {
+  .square {
+    width: 13.1%;
+    height: 13.1vw;
+  }
 }
 </style>
