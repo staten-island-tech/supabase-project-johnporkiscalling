@@ -57,27 +57,30 @@ export class Noise
          const v01 = (this.hash(xi, yi + 1) % gradients.length + gradients.length) % gradients.length;
          const v10 = (this.hash(xi + 1, yi) % gradients.length + gradients.length) % gradients.length;
          const v11 = (this.hash(xi + 1, yi + 1) % gradients.length + gradients.length) % gradients.length; 
-        const dp00 = gradients[v00][0] * xf + gradients[v00][1] * yf;
+         const dp00 = gradients[v00][0] * xf + gradients[v00][1] * yf;
          const dp01 = gradients[v01][0] * xf + gradients[v01][1] * (yf-1);
          const dp10 = gradients[v10][0] * (xf-1) + gradients[v10][1] * yf;
          const dp11 = gradients[v11][0] * (xf-1) + gradients[v11][1] * (yf-1);
          const x1 = utilMath.lerp(dp00, dp10, u);
          const x2 = utilMath.lerp(dp01, dp11, u);
-         return utilMath.lerp(x1, x2, v)/2; 
+         const value = utilMath.lerp(x1, x2, v)/2; 
+         return value * Math.SQRT1_2
      }
      octaveNoise(x:number, y:number, octaves:number, persistence:number, amplitude:number, frequency:number, type:(x:number, y:number)=>number)
      {
-       let total = 0; 
-       let maxValue = 0;
-       for(let i = 0; i<octaves; i++)
-       {
-         total+=type(x*frequency, y*frequency) * amplitude;
-         maxValue+=amplitude;
-         frequency *= 2;
-         amplitude *= persistence;
-       }
-       return total/maxValue;
-     }
+      let total = 0;
+      let maxAmplitude = 0;
+      let amp = amplitude;
+      let freq = frequency;
+    
+      for (let i = 0; i < octaves; i++) {
+        total += type(x * freq, y * freq) * amp;
+        maxAmplitude += amp;
+        freq *= 2;
+        amp *= persistence;
+      }
+      return total / maxAmplitude; 
+    }
      simplex(x: number, y: number) {
         const skew = (x + y) * F2;
         const cellX = Math.floor(x + skew);

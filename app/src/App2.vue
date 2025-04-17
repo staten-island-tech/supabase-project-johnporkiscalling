@@ -3,6 +3,21 @@
 </template>
 
 <script setup lang="ts">
+//to do
+//movement system
+//actual terrain generation
+//for this use multiple noise functions to determine different stuff
+//temperature
+//continentalness
+//
+//greedymeshing - might be a bit hard
+//actually making original textures
+//generating structures maybe
+//different biomes
+
+
+
+
 import { onMounted, ref } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
@@ -20,12 +35,12 @@ const noiseMachine =  new Noise(seed);
 const stats = new Stats();
 document.body.appendChild(stats.dom);
 
-const freq = .1;//the distance between dips and peaks
-const amp = 1;//the max height
-const pers = .001;//smoothness lower =  more smooth
+const freq = .002;//the distance between dips and peaks
+const amp = .2;//the max height
+const pers = .5;//smoothness lower =  more smooth
 const eta = 0.00001;//small offset value to ensure non-zero values
-const scale = 0.1;//scale it to ensure non-zero values
-const octaves = 2;
+const scale = 1;//scale it to ensure non-zero values
+const octaves = 3;
 
 
 const textureLoader = new THREE.TextureLoader();
@@ -45,26 +60,66 @@ function init() {
         canvasContainer.value.appendChild(renderer.domElement);
     }
     controls = new OrbitControls(camera, renderer.domElement);
-    const bufferArray = [];
-    for(let x = -20; x<10; x++)
+    animate()
+}
+const chunkMeshes:Map<string, THREE.Mesh> = new Map();
+let lastChunkX = Infinity, lastChunkZ = Infinity;
+function maybeLoadChunks() {
+    const chunkX = Math.floor(camera.position.x / 16);
+    const chunkZ = Math.floor(camera.position.z / 16);
+
+    if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
+        chunkLoader();
+        lastChunkX = chunkX;
+        lastChunkZ = chunkZ;
+    }
+}
+function chunkLoader()
+{
+  const chunkLoadLimit = 16;//maximum chunks to load
+  const chunkZ = Math.floor(camera.position.z/16)
+  const chunkX = Math.floor(camera.position.x/16)
+  const nBound = chunkZ - chunkLoadLimit;
+  const sBound = chunkZ + chunkLoadLimit;
+  const wBound = chunkX - chunkLoadLimit;
+  const eBound = chunkX + chunkLoadLimit;
+
+  console.log(camera.position, chunkX, chunkZ)  
+  for(const [key, mesh] of chunkMeshes.entries())
+  {
+    const [x,y] =  key.split(',').map(Number);
+    if(x<wBound||x>eBound||y<nBound||y>sBound)
     {
-        for(let z = -20; z<10; z++)
-        {
+      scene.remove(mesh);
+      mesh.geometry.dispose();
+      chunkMeshes.delete(key);
+    }
+  }
+  for(let x =  wBound; x<eBound; x++)
+  {
+      for(let z =  nBound; z<sBound; z++)
+      {
+          const stringCords = `${x},${z}`
+          if(!chunkMeshes.has(stringCords))
+          {
             const chunkTest =  new WorldChunk([x,z]);
             chunkTest.createChunk();
             const {buffer, UVs, indices, vertices} = chunkTest.returnData();
             chunkTest.destroy();
-            bufferArray.push(buffer);
             const mesh = new THREE.Mesh(buffer, blocksMaterial)
+            mesh.receiveShadow = true;
             scene.add(mesh);       
-        }
-    }
-    animate()
+            chunkMeshes.set(stringCords, mesh);
+          }
+
+      }
+  }
 }
 function animate() {
     requestAnimationFrame(animate);
     stats.begin();
     controls.update()
+    maybeLoadChunks();
     renderer.render(scene, camera);
     stats.end();
 }
@@ -126,7 +181,7 @@ class WorldChunk
     const cZ = z * configurationInfo.chunkSize;
     return  Array.from({ length: 18 }, (_, x) =>
             Array.from({ length: 18 }, (_, z) =>
-            Math.floor(
+        (Math.floor(
                 noiseMachine.octaveNoise(
                 (x + cX + eta - 1) * scale,
                 (z + cZ + eta - 1) * scale,
@@ -136,7 +191,7 @@ class WorldChunk
                 freq,
                 noiseMachine.simplex.bind(noiseMachine)
                 ) * configurationInfo.maxHeight
-            )
+            ))
             )
         );
     }
@@ -202,11 +257,29 @@ class WorldChunk
     this.buffer.dispose();
   }
 }
-onMounted(()=>
-{
-    init()
 
+onMounted(()=>
+{ 
+    init();
 })
+const alpha =  0.1;
+function calculateNosievalues(x:number, y:number)
+{
+    const continentalness =     noiseMachine.octaveNoise(x/2000+alpha, y/2000+alpha, octaves, pers, amp, freq, noiseMachine.simplex.bind(noiseMachine) )
+    const temperature =    noiseMachine.octaveNoise(x/600+eta, y/600+eta, octaves, pers, amp, freq, noiseMachine.simplex.bind(noiseMachine) )
+    const humidity =      noiseMachine.octaveNoise(x/500, y/500, octaves, pers, amp, freq, noiseMachine.simplex.bind(noiseMachine) )
+    const weirdness =     noiseMachine.octaveNoise(x/300, y/300, octaves, pers, amp, freq, noiseMachine.simplex.bind(noiseMachine) )
+    const erosion =     noiseMachine.octaveNoise(x/200, y/200, octaves, pers, amp, freq, noiseMachine.simplex.bind(noiseMachine) )
+    return [continentalness, temperature, humidity, weirdness, erosion]
+}
+const biomeAssignment  = 
+{
+    continentalness:
+    {
+        0.1:1,
+
+    }
+}
 
 
 
