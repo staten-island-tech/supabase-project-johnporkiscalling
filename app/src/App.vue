@@ -6,12 +6,14 @@ const loggedin = ref(false);
 </script>
 
 <template>
-  <div class="login" v-if="!loggedin"></div>
-  <LogIn></LogIn>
-  <div v-if="loggedin">
+  <div class="login" v-if="!loggedin">
+    <LogIn @login="loggedin = true" />
+  </div>
+  <div v-else>
     <header>
       <div class="wrapper">
         <nav>
+          <button class="logo"><img src="./assets/grass.png" alt="" /></button>
           <div class="border"><RouterLink to="/">Home</RouterLink></div>
           <div class="border"><RouterLink to="/about">About</RouterLink></div>
           <div class="border"><a href="" @click="loggedin = false">Log out</a></div>
@@ -25,43 +27,80 @@ const loggedin = ref(false);
 
 <style scoped>
 /* --------------------logged in = true-------------------- */
+.wrapper {
+  width: 98%;
+  height: 100%;
+  border-bottom: 1px solid #dfe4e7;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.logo {
+  height: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-right: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.logo img {
+  height: 35px;
+  width: 35px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+/* --------------------buttons-------------------- */
 header {
   line-height: 1.5;
-  max-height: 100vh;
+  height: 7vh;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
 }
 nav {
+  display: flex;
+  flex-direction: row;
+  height: 50%;
   width: 100%;
   font-size: 12px;
   text-align: center;
-  margin-top: 2rem;
 }
 
 nav a.router-link-exact-active {
   color: #dfe4e7;
-  background-color: #2c3e50;
+  background-color: #1f1f1f;
+  border: 2px solid #dfe4e7;
 }
 a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 1rem;
+  background-color: #dadada;
   color: black;
   text-decoration: none;
   font-weight: 500;
-  background-color: #d2dbe259;
   border-radius: 5px;
   width: 120px;
-  padding: 0rem 1rem 0rem 1rem;
-  height: 100%;
+  transition: border-color 0.3s ease, background-color 0.5s ease;
 }
 a:hover {
-  color: grey;
-  background-color: #c2c9ce5e;
+  color: lightgrey;
+  background-color: #8b8b8b;
+  border: 1px solid #dfe4e7;
 }
 a:focus {
-  background-color: #afb4b896;
+  background-color: #525252;
 }
 .border {
   display: inline-block;
   padding: 0 0.125rem;
   border-left: 1.5px solid var(--color-border);
   text-decoration: none;
+  height: 100%;
 }
 
 .border:first-of-type {

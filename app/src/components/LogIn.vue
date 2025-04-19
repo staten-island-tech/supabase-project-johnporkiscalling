@@ -1,7 +1,6 @@
 <template>
   <div class="background">
     <div class="squares">
-      <!-- <div class="row"> -->
       <div class="square"></div>
       <div class="square"></div>
       <div class="square"></div>
@@ -10,8 +9,6 @@
       <div class="square"></div>
       <div class="square"></div>
       <div class="square"></div>
-      <!-- </div>
-    <div class="row"> -->
       <div class="square"></div>
       <div class="square"></div>
       <div class="square"></div>
@@ -20,8 +17,6 @@
       <div class="square"></div>
       <div class="square"></div>
       <div class="square"></div>
-      <!-- </div>
-    <div class="row"> -->
       <div class="square"></div>
       <div class="square"></div>
       <div class="square"></div>
@@ -30,8 +25,6 @@
       <div class="square"></div>
       <div class="square"></div>
       <div class="square"></div>
-      <!-- </div>
-    <div class="row"> -->
       <div class="square"></div>
       <div class="square"></div>
       <div class="square"></div>
@@ -40,7 +33,6 @@
       <div class="square"></div>
       <div class="square"></div>
       <div class="square"></div>
-      <!-- </div> -->
       <div class="square"></div>
       <div class="square"></div>
       <div class="square"></div>
@@ -58,8 +50,11 @@
     <div class="logincontainer">
       <div class="sides"></div>
       <div class="loginview">
-        <div class="log">PLEASE LOGIN</div>
-        <form @submit.prevent="submit()">
+        <div class="log">
+          <div class="l">PLEASE</div>
+          <div class="l">LOG IN</div>
+        </div>
+        <form @submit.prevent="submit">
           <input type="text" placeholder="Email" />
           <input type="text" placeholder="Password" />
           <button type="submit" @click="loggedin = true">Login!</button>
@@ -71,24 +66,28 @@
   </div>
 </template>
 <script setup lang="ts">
-import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
 
+const emit = defineEmits(["login"]);
+
 const loggedin = ref(false);
-// let x = ref(null)
-// let y = ref(null)
+
 const cursor = ref<HTMLElement | null>(null);
 function mouse(e: MouseEvent) {
   if (cursor.value) {
     cursor.value.style.left = `${e.clientX}px`;
     cursor.value.style.top = `${e.clientY}px`;
   }
-  console.log("works");
 }
-function submit() {}
+
+function submit() {
+  emit("login");
+}
 </script>
+
 <style scoped>
 /* --------------------logged in = false-------------------- */
+
 .front {
   z-index: 10;
   height: 100vh;
@@ -123,7 +122,6 @@ function submit() {}
   height: 31.5%;
 }
 .log {
-  font-weight: 900;
   font-size: 2.5rem;
   width: 100%;
   height: 15%;
@@ -131,11 +129,21 @@ function submit() {}
   color: #f2f3f3;
   text-shadow: 0 0 15px #f2f3f3;
   margin: 5% 0 3% 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.l {
+  font-weight: 900;
+}
+.l:first-of-type {
+  margin-bottom: -20px;
+  margin-right: 12.5px;
 }
 form {
   display: flex;
   flex-direction: column;
-  /* justify-content: center; */
   height: 85%;
   align-items: center;
 }
@@ -175,7 +183,6 @@ button {
   background-color: #f4fdff;
   color: #1f1f1fb0;
 }
-
 button:hover {
   border: 3px solid rgba(31, 31, 31, 0.3);
   transition: 0.1s;
@@ -185,42 +192,31 @@ button:active {
   background-color: #ececec;
   transition: 0.1s;
 }
+
 /* --------------------background--------------------- */
+
 .background {
   height: 100vh;
   width: 100vw;
   z-index: -1;
   position: absolute;
-
   display: flex;
-  /* flex-direction: column; */
   flex-wrap: wrap;
-  /* justify-content: center; */
   flex-direction: row;
   overflow: hidden;
-
   background-color: #1f1f1f;
 }
 .overlay {
   z-index: -1;
-  background: radial-gradient(circle, #ffffff00 60%, #1f1f1f 90%);
+  background: radial-gradient(circle, #ffffff00 60%, #000000e2 90%, #000000 99%);
   height: 100%;
   width: 100%;
   position: absolute;
 }
-/* .row {
-  height: 12.5vw;
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: center;
-} */
 .squares {
   height: auto;
   width: 100%;
   display: flex;
-  /* flex-direction: column; */
   flex-wrap: wrap;
   justify-content: center;
   flex-direction: row;
@@ -259,6 +255,64 @@ button:active {
   .square {
     width: 13.1%;
     height: 13.1vw;
+  }
+}
+@media screen and (max-width: 1244px) {
+  .square {
+    width: 15.3%;
+    height: 15.3vw;
+  }
+}
+@media screen and (max-width: 1079px) {
+  .square {
+    width: 18.4%;
+    height: 18.4vw;
+  }
+  .log {
+    font-weight: 800;
+    font-size: 2.2rem;
+  }
+}
+@media screen and (max-width: 922px) {
+  .square {
+    width: 18%;
+    height: 18vw;
+  }
+}
+@media screen and (max-width: 873.6px) {
+  .l:first-of-type {
+    margin-right: 0;
+    width: 100%;
+  }
+}
+@media screen and (max-width: 738px) {
+  .square {
+    width: 22.4%;
+    height: 22.4vw;
+  }
+}
+@media screen and (max-width: 570px) {
+  .square {
+    width: 30%;
+    height: 30vw;
+  }
+}
+@media screen and (max-width: 443px) {
+  .square {
+    width: 29.5%;
+    height: 29.5vw;
+  }
+}
+@media screen and (max-width: 390px) {
+  .square {
+    width: 46%;
+    height: 46vw;
+  }
+}
+@media screen and (max-width: 370px) {
+  .square {
+    width: 44%;
+    height: 44vw;
   }
 }
 </style>
