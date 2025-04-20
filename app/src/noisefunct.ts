@@ -24,7 +24,7 @@ export class Noise
     }
     private lcg()
     {
-        return (this.seed * 6364136223846793005 + 1) >>> 0;
+        return (this.seed * 1103515245 + 1) >>> 0;
     }
     generatePermutation() {
         const permutate = [...Array(256).keys()];
@@ -66,7 +66,7 @@ export class Noise
          const value = utilMath.lerp(x1, x2, v)/2; 
          return value * Math.SQRT1_2
      }
-     octaveNoise(x:number, y:number, octaves:number, persistence:number, amplitude:number, frequency:number, type:(x:number, y:number)=>number)
+     octaveNoise(x:number, y:number, octaves:number, persistence:number, amplitude:number, frequency:number, lacunarity:number,type:(x:number, y:number)=>number)
      {
       let total = 0;
       let maxAmplitude = 0;
@@ -76,7 +76,7 @@ export class Noise
       for (let i = 0; i < octaves; i++) {
         total += type(x * freq, y * freq) * amp;
         maxAmplitude += amp;
-        freq *= 2;
+        freq *= lacunarity;
         amp *= persistence;
       }
       return total / maxAmplitude; 
@@ -135,7 +135,3 @@ export class Noise
     }
   
 }
-
-
-//basic idea 
-//generate the islands 

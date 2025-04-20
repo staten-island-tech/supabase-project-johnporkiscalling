@@ -38,6 +38,11 @@ export const utilMath = Object.freeze(
         dot:function(a:Array<number>, b:Array<number>)
         {
             return  a[0]*b[0]+a[1]*b[1];
+        },
+        roundTo:function(number:number, decimal:number)
+        {
+            const place = 10**decimal;
+            return Math.round(number*place)/place;
         }
     }
 )
