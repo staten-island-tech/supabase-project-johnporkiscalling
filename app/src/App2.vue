@@ -19,7 +19,6 @@ import { util3d } from './utils';
 import { Noise } from './noisefunct';
 import { configurationInfo } from './config';
 import { faceDirections } from './stupidlylongvariables';
-import { array } from 'three/tsl';
 const seed = 121214141414124;
 const noiseMachine =  new Noise(seed);
 const stats = new Stats();
@@ -84,14 +83,14 @@ window.addEventListener("keyup", (event)=>
 {
   keys[event.key.toLowerCase()] = false;
 })
-const moveSpeed = 2;
+const moveSpeed = 20;
 function updateDebug()
 {
   coordinates.value =  `
   Position:
-  ${Math.round(camera.position.x).toString()},
-  ${Math.round(camera.position.y).toString()},
-  ${Math.round(camera.position.z).toString()}
+  ${Math.round(yawObject.position.x).toString()},
+  ${Math.round(yawObject.position.y).toString()},
+  ${Math.round(yawObject.position.z).toString()}
   `;
 
 }
@@ -105,6 +104,7 @@ function checkJump()
 {
 
 }
+const delta = [];//make delta a global variable sos it can be acessed by other stuff not just movement
 function tweakMovement(delta: number) {
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward).normalize();
@@ -118,6 +118,7 @@ function tweakMovement(delta: number) {
   if (keys["s"]) yawObject.position.add(forward.clone().multiplyScalar(-moveSpeed * delta));
   if (keys["a"]) yawObject.position.add(right.clone().multiplyScalar(-moveSpeed * delta));
   if (keys["d"]) yawObject.position.add(right.clone().multiplyScalar(moveSpeed * delta));
+
 }
 
 
@@ -131,8 +132,8 @@ function init() {
     requestAnimationFrame(animate);
 }
 function maybeLoadChunks() {
-    const chunkX = Math.floor(camera.position.x / 16);
-    const chunkZ = Math.floor(camera.position.z / 16);
+    const chunkX = Math.floor(yawObject.position.x / 16);
+    const chunkZ = Math.floor(yawObject.position.z / 16);
 
     if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
         chunkLoader();
@@ -143,8 +144,8 @@ function maybeLoadChunks() {
 function chunkLoader()
 {
   const chunkLoadLimit = 8;
-  const chunkZ = Math.floor(camera.position.z/16)
-  const chunkX = Math.floor(camera.position.x/16)  
+  const chunkZ = Math.floor(yawObject.position.z/16)
+  const chunkX = Math.floor(yawObject.position.x/16)  
   const nBound = chunkZ - chunkLoadLimit;
   const sBound = chunkZ + chunkLoadLimit;
   const wBound = chunkX - chunkLoadLimit;
@@ -180,13 +181,15 @@ function chunkLoader()
   }
 }
 let currentTime =  performance.now();
-function animate() {
+function animate() 
+{
     const delta = (performance.now()-currentTime)/1000;
     currentTime = performance.now()
-    tweakMovement(delta);
-    stats.begin();
     maybeLoadChunks();
     updateDebug();
+    tweakMovement(delta);
+    stats.begin();
+
     renderer.render(scene, camera);
     stats.end();
     requestAnimationFrame(animate);
@@ -212,6 +215,52 @@ const blockUVs:Record<string,Array<number>> = {
   back: util3d.getUVCords('minecraft:block/grass_block_side'),
   bottom: util3d.getUVCords('minecraft:block/dirt'),
 };
+
+class Player
+{
+  position:THREE.Vector3;
+  velocity:THREE.Vector3;
+  constructor(position:THREE.Vector3, velocity:THREE.Vector3)
+  {
+    this.position = position;
+    this.velocity =  velocity;
+  }
+  getBoundingBox():THREE.Box3
+  {
+
+    return new THREE.Box3;
+  }
+  //add a function here to check the position. checking for in air can be done using bounding boxes of the player 
+  checkPosition()
+  {
+    this.getBoundingBox();
+    //if the player is off the ground 
+    //multiple the delta variable by the velocity and apply that to the camera position
+    //continuously do this until the boundingBoxs have collided and returns a true condition
+  }
+  updatePosition()
+  {
+    //tweak this might not be good practice
+    camera.position.copy(this.position);
+    //adjust for the current players rotation to prevent it from snapping every animation frame
+    //
+  } 
+
+  
+}
+class AABB
+{
+
+  constructor()
+  {
+
+  }
+}
+function greedyMeshPrototype(heights:Array<Array<number>>)
+{
+  
+}
+
 class WorldChunk
 {
   cCords:Array<number>
@@ -311,6 +360,7 @@ class WorldChunk
     this.buffer.dispose();
   }
 }
+
 
 
 
