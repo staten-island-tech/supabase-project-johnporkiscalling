@@ -13,10 +13,14 @@ const loggedin = ref(false);
     <header>
       <div class="wrapper">
         <nav>
-          <button class="logo"><img src="./assets/grass.png" alt="" /></button>
-          <div class="border"><RouterLink to="/">Home</RouterLink></div>
-          <div class="border"><RouterLink to="/about">About</RouterLink></div>
-          <div class="border"><a href="" @click="loggedin = false">Log out</a></div>
+          <button class="account">
+            <Transition> <img src="./assets/grass.png" alt="" @click="" /></Transition>
+          </button>
+          <div class="main">
+            <div class="border"><RouterLink to="/">Home</RouterLink></div>
+            <div class="border"><RouterLink to="/about">About</RouterLink></div>
+            <div class="border"><a href="" @click="loggedin = false">Log out</a></div>
+          </div>
         </nav>
       </div>
     </header>
@@ -35,7 +39,7 @@ const loggedin = ref(false);
   flex-direction: column;
   justify-content: center;
 }
-.logo {
+.account {
   height: 100%;
   background: none;
   border: none;
@@ -43,14 +47,34 @@ const loggedin = ref(false);
   margin-right: 1rem;
   display: flex;
   align-items: center;
+  position: absolute;
 }
-
-.logo img {
+.account img {
   height: 35px;
   width: 35px;
   object-fit: cover;
   border-radius: 5px;
+  transform-origin: center;
+  image-rendering: crisp-edges;
+  transition: 0.4s ease-out;
 }
+.account img:hover {
+  transform: scale(1.3);
+}
+.main {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+}
+/* .accountimg: */
+/* .v-enter-from,
+.v-leave-to {
+  transform: rotate(0);
+}
+.v-enter-active,
+.v-leave-active {
+  transition: all 0.5s ease-out;
+} */
 /* --------------------buttons-------------------- */
 header {
   line-height: 1.5;
@@ -66,6 +90,7 @@ nav {
   width: 100%;
   font-size: 12px;
   text-align: center;
+  position: relative;
 }
 
 nav a.router-link-exact-active {
