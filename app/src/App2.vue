@@ -21,6 +21,11 @@ import { configurationInfo } from './config';
 import { faceDirections } from './stupidlylongvariables';
 const seed = 121214141414124;
 const noiseMachine =  new Noise(seed);
+const layer1 =  new Noise(seed+1);
+const layer2 =  new Noise(seed+2);
+
+
+
 const stats = new Stats();
 document.body.appendChild(stats.dom);
 const coordinates =  ref("SOMETHING");
@@ -216,6 +221,15 @@ const blockUVs:Record<string,Array<number>> = {
   bottom: util3d.getUVCords('minecraft:block/dirt'),
 };
 
+
+function greedyMeshPrototype(heights:Array<Array<number>>)
+{
+  
+}
+
+//initialize the biomeCache at the beginning 
+
+
 class Player
 {
   position:THREE.Vector3;
@@ -245,22 +259,75 @@ class Player
     //adjust for the current players rotation to prevent it from snapping every animation frame
     //
   } 
+  
 
   
 }
 class AABB
 {
-
   constructor()
   {
 
   }
 }
-function greedyMeshPrototype(heights:Array<Array<number>>)
+class BiomeCache
 {
+  cache:Map<string, Array<Array<number>>>
+  constructor()
+  {
+    this.cache = new Map();
+  }
+  generateArea(cX:number, cZ:number)
+  {
+    const biomeValues = [];
+    for(let x = -1; x<2; x++) //range of cCords from  -1 to 1
+    {
+      for(let z = -1; z<2; z++)
+      {
+        //check if the item exists in the cache if not call the function to generate the chunk biomes
+        const serializedcCords = `${cX},${cZ}`;
+        const possibleCache = this.cache.get(serializedcCords);
+        if(possibleCache)
+        {
+          biomeValues.push(possibleCache);
+          continue;
+        }
+        const chunkBiome = this.generateChunkBiomes(cX+x, cZ+z);
+        this.cache.set(serializedcCords, chunkBiome)
+        //set the value to the serialized cCords
+      }
+    }
+    return biomeValues; 
+  }
+  generateChunkBiomes(cX:number, cZ:number):Array<Array<number>>
+  {
+    const chunkData = [];
+    for(let x = 0; x<16;x++)
+    {
+      const row = []
+      for(let z = 0; z<16; z++)
+      {
+        row.push(this.biomeSelect(cX+x, cZ+x));
+      }
+      chunkData.push(row);
+    }
+    return chunkData;
+  }
+  biomeSelect(x:number, z:number):number
+  {
+    const continentalness = noiseMachine.octaveNoise();
+    const humidity =  layer1.octaveNoise();
+    const temperature =  layer2.octaveNoise();    
+    //
+
+
+
+    //call the noise functions here 
+    //add the conditionals here to determine the biome type 
+    return 1;
+  }
   
 }
-
 class WorldChunk
 {
   cCords:Array<number>
@@ -281,7 +348,7 @@ class WorldChunk
   createheights(x: number, z: number): Array<Array<number>> {
     const cX = x * configurationInfo.chunkSize;
     const cZ = z * configurationInfo.chunkSize;
-    return  Array.from({ length: 18 }, (_, x) =>
+    return Array.from({ length: 18 }, (_, x) =>
             Array.from({ length: 18 }, (_, z) =>
         (Math.floor(
                 noiseMachine.octaveNoise(
@@ -359,6 +426,9 @@ class WorldChunk
   {
     this.buffer.dispose();
   }
+  //define the whole chunks block types
+  //set some rules where if the current y level =  the max height - 8 place another type of block 
+
 }
 
 
