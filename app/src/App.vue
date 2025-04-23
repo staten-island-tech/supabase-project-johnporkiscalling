@@ -6,27 +6,34 @@ const loggedin = ref(false);
 </script>
 
 <template>
-  <div class="login" v-if="!loggedin">
+  <!-- <div class="login" v-if="!loggedin">
     <LogIn @login="loggedin = true" />
-  </div>
-  <div v-else>
-    <header>
-      <div class="wrapper">
-        <nav>
-          <button class="account">
-            <Transition> <img src="./assets/grass.png" alt="" @click="" /></Transition>
-          </button>
-          <div class="main">
-            <div class="border"><RouterLink to="/">Home</RouterLink></div>
-            <div class="border"><RouterLink to="/about">About</RouterLink></div>
-            <div class="border"><a href="" @click="loggedin = false">Log out</a></div>
-          </div>
-        </nav>
-      </div>
-    </header>
+  </div> -->
+  <!-- <div v-else> -->
+  <header>
+    <div class="wrapper">
+      <nav>
+        <button class="account">
+          <Transition> <img src="./assets/grass.png" alt="" @click="" /></Transition>
+        </button>
+        <div class="main">
+          <div class="border"><RouterLink to="/">Home</RouterLink></div>
+          <div class="border"><RouterLink to="/about">About</RouterLink></div>
 
-    <RouterView />
-  </div>
+          <div class="border" v-if="loggedin">
+            <a href="" @click.prevent="loggedin = false">Log out</a>
+          </div>
+          <div class="border" v-else>
+            <RouterLink to="/login">Log in</RouterLink>
+            <!-- <a href="" @click.prevent="loggedin = false">Log in / sign up</a> -->
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <RouterView />
+  <!-- </div> -->
 </template>
 
 <style scoped>
@@ -67,14 +74,17 @@ const loggedin = ref(false);
   align-items: center;
 }
 /* .accountimg: */
-/* .v-enter-from,
+.v-enter-from,
 .v-leave-to {
   transform: rotate(0);
+}
+.v.enter-to,
+.v-leave-from {
 }
 .v-enter-active,
 .v-leave-active {
   transition: all 0.5s ease-out;
-} */
+}
 /* --------------------buttons-------------------- */
 header {
   line-height: 1.5;
