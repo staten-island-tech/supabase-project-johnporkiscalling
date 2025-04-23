@@ -1,39 +1,38 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
-import LogIn from "./components/LogIn.vue";
-const loggedin = ref(false);
+import LogIn from "./components/LogIn1.vue";
+const loggedin = ref(true);
+const wantstologin = ref(false);
 </script>
 
 <template>
-  <!-- <div class="login" v-if="!loggedin">
-    <LogIn @login="loggedin = true" />
-  </div> -->
-  <!-- <div v-else> -->
-  <header>
-    <div class="wrapper">
-      <nav>
-        <button class="account">
-          <Transition> <img src="./assets/grass.png" alt="" @click="" /></Transition>
-        </button>
-        <div class="main">
-          <div class="border"><RouterLink to="/">Home</RouterLink></div>
-          <div class="border"><RouterLink to="/about">About</RouterLink></div>
+  <div class="login" v-if="wantstologin">
+    <LogIn @login="(loggedin = true), (wantstologin = false)" />
+  </div>
+  <div v-else-if="!wantstologin || loggedin">
+    <header>
+      <div class="wrapper">
+        <nav>
+          <button class="account">
+            <Transition> <img src="./assets/grass.png" alt="" @click="" /></Transition>
+          </button>
+          <div class="main">
+            <div class="border"><RouterLink to="/">Home</RouterLink></div>
+            <div class="border"><RouterLink to="/about">About</RouterLink></div>
 
-          <div class="border" v-if="loggedin">
-            <a href="" @click.prevent="loggedin = false">Log out</a>
+            <div class="border" v-if="loggedin">
+              <a href="" @click.prevent="(loggedin = false), (wantstologin = false)">Log out</a>
+            </div>
+            <div class="border" v-if="!loggedin">
+              <a href="" @click.prevent="wantstologin = true">Log in</a>
+            </div>
           </div>
-          <div class="border" v-else>
-            <RouterLink to="/login">Log in</RouterLink>
-            <!-- <a href="" @click.prevent="loggedin = false">Log in / sign up</a> -->
-          </div>
-        </div>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
-  <!-- </div> -->
+        </nav>
+      </div>
+    </header>
+    <RouterView />
+  </div>
 </template>
 
 <style scoped>
