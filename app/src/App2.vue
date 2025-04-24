@@ -229,13 +229,69 @@ function greedyMeshPrototype(heights:Array<Array<number>>)
 
 //initialize the biomeCache at the beginning 
 
+class Entity
+{
+  boundingBox:THREE.Box3
+  entityType:string
+  id:number
+  constructor(entityType:string)
+  {
+    this.id = 1;
+    this.entityType = entityType
+    this.boundingBox =  new THREE.Box3
+  }
+  checkCollision()
+  {
 
-class Player
+  }
+  toggleHitbox()
+  { 
+
+  }
+
+}
+class Mob extends Entity
+{
+
+}
+class entityManager
+{
+  //class to manage entities
+  //
+  entityMap:Map<number,Entity>
+  entityPositions:Map<number, THREE.Vector3>
+  constructor()
+  {
+    this.entityPositions =  new Map();
+    this.entityMap = new Map();
+  }
+  add(entity:Entity, position:THREE.Vector3)
+  {
+    this.entityMap.set(entity.id, entity);
+    this.entityPositions.set(entity.id, position);
+     
+  }
+  remove(id:number)
+  {
+    
+  }
+  get()
+  {
+
+  }
+  update()
+  {
+
+  }
+
+}
+class Player extends Entity
 {
   position:THREE.Vector3;
   velocity:THREE.Vector3;
   constructor(position:THREE.Vector3, velocity:THREE.Vector3)
   {
+    super("test");
     this.position = position;
     this.velocity =  velocity;
   }
@@ -259,9 +315,6 @@ class Player
     //adjust for the current players rotation to prevent it from snapping every animation frame
     //
   } 
-  
-
-  
 }
 class AABB
 {
@@ -319,9 +372,9 @@ class BiomeCache
     const humidity =  layer1.octaveNoise();
     const temperature =  layer2.octaveNoise();    
     //
+    
 
-
-
+    
     //call the noise functions here 
     //add the conditionals here to determine the biome type 
     return 1;
