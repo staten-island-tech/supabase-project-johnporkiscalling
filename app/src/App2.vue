@@ -10,7 +10,7 @@
 
 import { onMounted, ref } from 'vue';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { OrbitControls, ThreeMFLoader } from 'three/examples/jsm/Addons.js';
 import Stats from 'stats.js';
 
 
@@ -234,11 +234,25 @@ class Entity
   boundingBox:THREE.Box3
   entityType:string
   id:number
-  constructor(entityType:string)
+  entitySize:THREE.Vector3
+  entityPosition:THREE.Vector3
+  entityVelocity:THREE.Vector3;
+  worldBoundingBox:THREE.Box3;
+  toggledBox:boolean
+  constructor(entityType:string, entitySize:THREE.Vector3)
   {
     this.id = 1;
     this.entityType = entityType
-    this.boundingBox =  new THREE.Box3
+    this.entitySize = entitySize;
+    this.entityPosition = new THREE.Vector3;
+    const max = new THREE.Vector3(this.entitySize.x/2, this.entitySize.y/2, this.entitySize.z/2)
+    const min = new THREE.Vector3(-this.entitySize.x/2, -this.entitySize.y/2, -this.entitySize.z/2)
+    this.boundingBox = new THREE.Box3(min, max);
+    this.worldBoundingBox =  new THREE.Box3();
+    this.worldBoundingBox.copy(this.boundingBox);
+    this.entityVelocity =  new THREE.Vector3;
+    this.toggledBox = false;
+
   }
   checkCollision()
   {
@@ -248,11 +262,25 @@ class Entity
   { 
 
   }
-
+  updateBound()
+  {
+    //corners of the bounding boxes defined by a given size dimension vector
+    this.worldBoundingBox.copy(this.boundingBox);
+    this.worldBoundingBox.min.add(this.entityPosition);
+    this.worldBoundingBox.max.add(this.entityPosition);
+  }
+  updatePosition(delta:number)
+  {
+    //trigger when velocity changes 
+  }
 }
 class Mob extends Entity
 {
 
+  constructor()
+  {
+    super("id", new THREE.Vector3(1,1,1))
+  }
 }
 class entityManager
 {
@@ -291,14 +319,17 @@ class Player extends Entity
   velocity:THREE.Vector3;
   constructor(position:THREE.Vector3, velocity:THREE.Vector3)
   {
-    super("test");
+    super("test", new THREE.Vector3(1,1,1));
     this.position = position;
     this.velocity =  velocity;
   }
   getBoundingBox():THREE.Box3
-  {
-
-    return new THREE.Box3;
+  { 
+    const min =  new THREE.Vector3();
+    const max = new THREE.Vector3();
+    return new THREE.Box3(
+      min, max
+    )
   }
   //add a function here to check the position. checking for in air can be done using bounding boxes of the player 
   checkPosition()
