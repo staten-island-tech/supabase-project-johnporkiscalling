@@ -2,8 +2,24 @@
 import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
 import LogIn from "./components/LogIn1.vue";
-const loggedin = ref(true);
+const loggedin = ref(false);
 const wantstologin = ref(false);
+const open = ref(false);
+// const spinimage = ref(false);
+
+// function spin() {
+//   spinimage.value = true;
+//   setTimeout(() => (spinimage.value = false), 5000);
+// }
+// let style = ref({ transform: "rotate(0deg)" });
+function spin() {
+  // style.value = { transform: "rotate(90deg)" };
+  open.value = true;
+}
+function close() {
+  // style.value = { transform: "rotate(-90deg)" };
+  open.value = false;
+}
 </script>
 
 <template>
@@ -12,10 +28,10 @@ const wantstologin = ref(false);
   </div>
   <div v-else-if="!wantstologin || loggedin">
     <header>
-      <div class="wrapper">
+      <div class="wrapper" @click="close">
         <nav>
           <button class="account">
-            <Transition> <img src="./assets/grass.png" alt="" @click="" /></Transition>
+            <img src="./assets/grass.png" alt="" :class="{ rotated: open }" @click="spin" />
           </button>
           <div class="main">
             <div class="border"><RouterLink to="/">Home</RouterLink></div>
@@ -37,6 +53,19 @@ const wantstologin = ref(false);
 
 <style scoped>
 /* --------------------logged in = true-------------------- */
+/* @keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(90deg);
+  }
+}
+
+.spin {
+  animation: spin 0.7s ease-out;
+} */
+
 .wrapper {
   width: 98%;
   height: 100%;
@@ -67,23 +96,27 @@ const wantstologin = ref(false);
 .account img:hover {
   transform: scale(1.3);
 }
+.account img.rotated {
+  transform: rotate(90deg);
+}
 .main {
   width: 100%;
   height: 100%;
   align-items: center;
 }
 /* .accountimg: */
-.v-enter-from,
+/* .v-enter-from,
 .v-leave-to {
-  transform: rotate(0);
+  transform: rotate(0deg);
 }
-.v.enter-to,
+.v-enter-to,
 .v-leave-from {
+  transform: rotate(270deg);
 }
 .v-enter-active,
 .v-leave-active {
-  transition: all 0.5s ease-out;
-}
+  transition: all 0.7s ease-out;
+} */
 /* --------------------buttons-------------------- */
 header {
   line-height: 1.5;
