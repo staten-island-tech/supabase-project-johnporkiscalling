@@ -10,11 +10,8 @@
 
 import { onMounted, ref } from 'vue';
 import * as THREE from 'three';
-import { OrbitControls, ThreeMFLoader } from 'three/examples/jsm/Addons.js';
+import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import Stats from 'stats.js';
-
-
-
 import { util3d } from './utils';    
 import { Noise } from './noisefunct';
 import { configurationInfo } from './config';
@@ -97,16 +94,6 @@ function updateDebug()
   ${Math.round(yawObject.position.y).toString()},
   ${Math.round(yawObject.position.z).toString()}
   `;
-
-}
-const playerVars = 
-{
-  velocity:new THREE.Vector3(),
-  onGround:false,
-
-}
-function checkJump()
-{
 
 }
 const delta = [];//make delta a global variable sos it can be acessed by other stuff not just movement
@@ -221,14 +208,6 @@ const blockUVs:Record<string,Array<number>> = {
   bottom: util3d.getUVCords('minecraft:block/dirt'),
 };
 
-
-function greedyMeshPrototype(heights:Array<Array<number>>)
-{
-  
-}
-
-//initialize the biomeCache at the beginning 
-
 class Entity
 {
   boundingBox:THREE.Box3
@@ -238,7 +217,8 @@ class Entity
   entityPosition:THREE.Vector3
   entityVelocity:THREE.Vector3;
   worldBoundingBox:THREE.Box3;
-  toggledBox:boolean
+  toggledBox:boolean;
+  boxHelper?:THREE.Box3Helper
   constructor(entityType:string, entitySize:THREE.Vector3)
   {
     this.id = 1;
@@ -254,13 +234,28 @@ class Entity
     this.toggledBox = false;
 
   }
-  checkCollision()
+  checkCollision(box:THREE.Box3)
   {
+    if(this.worldBoundingBox.intersectsBox(box))
+    {
+      //apply velocity to the entities to push them apart based off of how close to each other's center they are which is basically just their position
+      //
 
+      return true;
+    }
+    return false;
   }
   toggleHitbox()
-  { 
-
+  {   
+    this.toggledBox = !this.toggledBox;
+    if(this.toggledBox)
+    {
+      const boxHelper = new THREE.Box3Helper(this.worldBoundingBox, 0x000000);
+      this.boxHelper = boxHelper;
+      scene.add(boxHelper);
+      return
+    }
+    scene.remove(this.boxHelper as THREE.Box3Helper);
   }
   updateBound()
   {
@@ -272,44 +267,35 @@ class Entity
   updatePosition(delta:number)
   {
     //trigger when velocity changes 
+    //call the handleIntersect to check for possible intersections
+    //if intersection does occur position gets set to smwhere where it dont intersect
+  }
+  handleIntersect(box:THREE.Box3)
+  {
+    if(this.worldBoundingBox.intersectsBox(box))
+    {
+      //set the position of the entity to above the block so they dont collide
+    } 
   }
 }
 class Mob extends Entity
 {
-
+  agroLevel:number
   constructor()
   {
     super("id", new THREE.Vector3(1,1,1))
+    this.agroLevel = 0;
   }
-}
-class entityManager
-{
-  //class to manage entities
-  //
-  entityMap:Map<number,Entity>
-  entityPositions:Map<number, THREE.Vector3>
-  constructor()
+  manageAgro()
   {
-    this.entityPositions =  new Map();
-    this.entityMap = new Map();
+    //conditions for agro
+    //target entities in range =  agro up
+    //higher agro = targets the target mob
+    //must meet a certain agro threshold
   }
-  add(entity:Entity, position:THREE.Vector3)
+  targetAgro()
   {
-    this.entityMap.set(entity.id, entity);
-    this.entityPositions.set(entity.id, position);
-     
-  }
-  remove(id:number)
-  {
-    
-  }
-  get()
-  {
-
-  }
-  update()
-  {
-
+    //system to find the nearest target and pathfind to it
   }
 
 }
@@ -346,13 +332,44 @@ class Player extends Entity
     //adjust for the current players rotation to prevent it from snapping every animation frame
     //
   } 
+  checkMovement(delta:number)
+  {
+      //move the code from the handleMovement function here
+      //modify it to also include jumping
+      //when jumping apply an amount of y velocity. 
+      //when the player 
+  }
 }
-class AABB
+class entityManager
 {
+  //class to manage entities
+  //
+  entityMap:Map<number,Entity>
+  entityPositions:Map<number, THREE.Vector3>
   constructor()
+  {
+    this.entityPositions =  new Map();
+    this.entityMap = new Map();
+  }
+  add(entity:Entity, position:THREE.Vector3)
+  {
+    this.entityMap.set(entity.id, entity);
+    this.entityPositions.set(entity.id, position);
+     
+  }
+  remove(id:number)
+  {
+    
+  }
+  get()
   {
 
   }
+  update()
+  {
+
+  }
+  
 }
 class BiomeCache
 {
@@ -515,23 +532,30 @@ class WorldChunk
 
 }
 
+//world gen rules
+//biome defines the top layer block type
+//top layer = some number between 5-8
+//rest is stone at the bottom
+//ores are randomly distributed
 
-
-
-
-
+//nbt system 
+//for each block in a chunk assign an int to it
+//convert the int to binary format
+//store that info to make it more compact 
+//ex:3 block types
+//3 in the range of 2^1 and 2^2 so the binary would range from 00 to 10
 
 
 onMounted(()=>
 { 
     init();
 })
-const alpha =  0.1;
+
 </script>
 
 <style scoped>
  .debugScreen
- {
+  {
     position: fixed;
     top: 10px;
     right: 10px;
@@ -541,5 +565,5 @@ const alpha =  0.1;
     font-family: monospace;
     font-size: 14px;
     z-index: 1000;
- }
+  }
 </style>
