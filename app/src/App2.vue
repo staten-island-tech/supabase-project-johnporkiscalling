@@ -16,10 +16,15 @@ import { util3d } from './utils';
 import { Noise } from './noisefunct';
 import { configurationInfo } from './config';
 import { faceDirections } from './stupidlylongvariables';
+
 const seed = 121214141414124;
 const noiseMachine =  new Noise(seed);
 const layer1 =  new Noise(seed+1);
 const layer2 =  new Noise(seed+2);
+
+//to do list
+
+
 
 
 
@@ -94,7 +99,6 @@ function updateDebug()
   ${Math.round(yawObject.position.y).toString()},
   ${Math.round(yawObject.position.z).toString()}
   `;
-
 }
 const delta = [];//make delta a global variable sos it can be acessed by other stuff not just movement
 function tweakMovement(delta: number) {
@@ -133,6 +137,19 @@ function maybeLoadChunks() {
         lastChunkZ = chunkZ;
     }
 }
+const chunkDataMap:Map<string, Array<number>> =  new Map();
+
+class SaveLoad
+{
+  constructor()
+  {
+     
+  }
+}
+//when generating a chunk write it to the save file and then return the mesh to be constructed
+//that way if the mesh does get destroyed the chunk data is still in the save file and can be used to reconstruct the chunk without having to 
+//go through the worldchunk generation functin
+
 function chunkLoader()
 {
   const chunkLoadLimit = 8;
@@ -181,7 +198,6 @@ function animate()
     updateDebug();
     tweakMovement(delta);
     stats.begin();
-
     renderer.render(scene, camera);
     stats.end();
     requestAnimationFrame(animate);
@@ -194,7 +210,6 @@ function loadBlockTexture(path:string)
   tex.minFilter = THREE.NearestFilter;
   tex.generateMipmaps = true;
   tex.premultiplyAlpha = false;
-  
   return tex;
 };
 const texture0 = loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
@@ -208,6 +223,10 @@ const blockUVs:Record<string,Array<number>> = {
   bottom: util3d.getUVCords('minecraft:block/dirt'),
 };
 
+function loadblocks()
+{
+  
+}
 class Entity
 {
   boundingBox:THREE.Box3
@@ -297,8 +316,16 @@ class Mob extends Entity
   {
     //system to find the nearest target and pathfind to it
   }
+}
+
+function updateSave()
+{
+  //checks for chunks with dirty flags which will be loaded into a map or the chunk can be marked dirty and then the function will iterate through the orig chunk map to update the save file data 
 
 }
+
+
+
 class Player extends Entity
 {
   position:THREE.Vector3;
@@ -340,6 +367,9 @@ class Player extends Entity
       //when the player 
   }
 }
+
+
+
 class entityManager
 {
   //class to manage entities
@@ -416,18 +446,12 @@ class BiomeCache
   }
   biomeSelect(x:number, z:number):number
   {
-    const continentalness = noiseMachine.octaveNoise();
-    const humidity =  layer1.octaveNoise();
-    const temperature =  layer2.octaveNoise();    
-    //
-    
 
     
     //call the noise functions here 
     //add the conditionals here to determine the biome type 
     return 1;
   }
-  
 }
 class WorldChunk
 {
@@ -544,6 +568,12 @@ class WorldChunk
 //store that info to make it more compact 
 //ex:3 block types
 //3 in the range of 2^1 and 2^2 so the binary would range from 00 to 10
+
+function greedyMesh()
+{
+
+}
+
 
 
 onMounted(()=>

@@ -21,16 +21,17 @@ export class Noise
         this.seed = seed;
         this.permutation = [];
         this.generatePermutation();
+        this.lcgState = seed >>> 0;
     }
-    private lcg()
-    {
-        return (this.seed * 1103515245 + 1) >>> 0;
+    private lcgState = 0;
+    private lcg() {
+        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
+        return this.lcgState;
     }
     generatePermutation() {
         const permutate = [...Array(256).keys()];
         for (let i = 255; i > 0; i--) {
-          this.seed = this.lcg();
-          const j = Math.abs(this.seed) % (i + 1);
+          const j = this.lcg() % (i + 1);
           [permutate[i], permutate[j]] = [permutate[j], permutate[i]];
         }
         this.permutation = new Array(512);
