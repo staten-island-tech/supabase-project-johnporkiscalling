@@ -1,3 +1,4 @@
+import { exp, mul } from "three/tsl";
 import { utilMath } from "./utils";
 const gradients = [
     [1, 1], [-1, 1], [1, -1], [-1, -1],
@@ -42,9 +43,8 @@ export class Noise
     hash(x: number, y: number): number {
         const xi = x & 255;
         const yi = y & 255;
-        return this.permutation[
-          this.permutation[xi] + yi 
-        ];
+        const hash = this.permutation[this.permutation[xi] + yi];
+        return hash & (gradients.length - 1);
     }
     perlin(x:number,y:number)
      {
@@ -136,3 +136,121 @@ export class Noise
     }
   
 }
+
+const yDir = [0, 0, 1, -1];
+const xDir = [1, -1, 0, 0];
+
+
+class DLA
+{   
+    prng:()=>number;
+    occupied:Set<string>;
+    grid:Uint8Array;
+    width:number;
+    height:number;
+    LoD:number;
+    constructor(seed:number, LoD:number)
+    {
+        this.prng = this.mulberry32(seed);
+        const dim = Math.pow(2, LoD);
+        this.grid = new Uint8Array(dim*dim);
+        this.occupied = new Set;
+        this.width = dim;
+        this.height = dim;
+        this.grid[this.width/2 + (this.height/2) * this.width] = 1;
+        this.occupied.add(`${this.width/2},${this.height/2}`);
+        this.LoD = LoD;
+    }
+    //note:width and height here are different and don't actually map to voxel cords so scale it properly later on
+    mulberry32(seed:number) 
+    {
+        return function() {
+            seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+            let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+            t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        }
+    }   
+    isStuck(x:number, y:number)
+    {
+        for(let oY = -1; oY<=1; oY++)
+        {
+            for(let oX = -1; oX<=1; oX++)
+            {
+                const nX =  x +  oX, nY = y+oY;
+                if (nX >= 0 && nX < this.width && nY >= 0 && nY < this.height && this.grid[nY * this.width + nX]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    DLASTEP()
+    {
+        const [x,y] = [1,2];
+        let stuck = false;
+        let pX = x, pY = y;
+        while(!stuck)
+        {
+            const dir =  Math.floor(this.prng()*4);
+            const dX = pX + xDir[dir], dY = pY + yDir[dir];
+            if(dX < 0 || dX >= this.width || dY < 0 || dY >= this.height) break;
+            if(this.grid[dY * this.height + dX] === 1)
+            {
+                this.setPixel(pX, pY);
+                break;
+            }   
+            pX = dX, pY = dY;
+        }  
+    }
+    DLASCALE()
+    {
+        //restrict the grid movement to a certain area
+        //define the intialize Lod
+        let pow = 1;
+        let size = Math.pow(2, pow);
+        const center = [this.width/2, this.height/2];
+        while(pow!=this.LoD)
+        {
+            //define the grid area
+            //biased center towards the lower left corner 
+            const expandAmount =  size - 1;
+            const nwExpand = Math.ceil(expandAmount/2);
+            const seExpand = Math.floor(expandAmount/2);
+            const nwBound = [center[0]-nwExpand, center[1]-nwExpand];
+            const seBound = [center[0]+seExpand, center[1]+seExpand];
+            //defines the bounds for particle movement
+            //prevents crossing of them
+            //figure out scaling here by doing sm magic with the occipied set
+            //also call the blur function here and store the resulsts somewhere to be processed again 
+            //weight assignment =  use 1 -  1/1+n to flatten values to a range of 0-1 where as n increases it goes slower towards 1
+            //n is equal to the nodes distance from the outermost node in that branch
+            //
+
+            //confine the possible expansion to here now
+            
+
+
+            //new limits
+
+
+
+            //new define grid size
+            
+        }   
+    }
+    setPixel(x:number, y:number)
+    {
+        this.grid[y*this.width+x] = 1;
+        this.occupied.add(`${x},${y}`);
+    }
+    newInstance(LoD:number)
+    {
+        const dim = Math.pow(2, LoD);
+        this.grid = new Uint8Array(dim*dim);
+        this.occupied = new Set;
+        this.width =  dim;
+        this.height = dim;
+        this.grid[this.width/2+(this.height/2) * this.width] = 1;
+    }
+}   

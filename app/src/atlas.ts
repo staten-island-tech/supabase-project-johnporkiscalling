@@ -1,7 +1,8 @@
 import type { AtlasData } from "./types";
 const atlasData:AtlasData= 
 {"textureSize":{"width":1024,"height":512},
-"frames":{"minecraft:block/acacia_door_bottom":{"x":96,"y":64,"w":16,"h":16},
+"frames":{
+"minecraft:block/acacia_door_bottom":{"x":96,"y":64,"w":16,"h":16},
 "minecraft:block/acacia_door_top":{"x":112,"y":64,"w":16,"h":16},
 "minecraft:block/acacia_leaves":{"x":32,"y":80,"w":16,"h":16},
 "minecraft:block/acacia_log":{"x":48,"y":80,"w":16,"h":16},

@@ -109,8 +109,15 @@ function tweakMovement(delta: number) {
 
   const right = new THREE.Vector3();
   right.crossVectors(forward, camera.up).normalize();
-
-  if (keys["w"]) yawObject.position.add(forward.clone().multiplyScalar(moveSpeed * delta));
+  if(!keys["w"]){
+    camera.fov = 75;
+    camera.updateProjectionMatrix();
+  }
+  if (keys["w"]) { 
+    camera.fov = 100;
+    yawObject.position.add(forward.clone().multiplyScalar(moveSpeed * delta))
+    camera.updateProjectionMatrix();
+  };
   if (keys["s"]) yawObject.position.add(forward.clone().multiplyScalar(-moveSpeed * delta));
   if (keys["a"]) yawObject.position.add(right.clone().multiplyScalar(-moveSpeed * delta));
   if (keys["d"]) yawObject.position.add(right.clone().multiplyScalar(moveSpeed * delta));
@@ -145,6 +152,9 @@ class SaveLoad
   {
      
   }
+}
+class WorldChunk2
+{
 }
 //when generating a chunk write it to the save file and then return the mesh to be constructed
 //that way if the mesh does get destroyed the chunk data is still in the save file and can be used to reconstruct the chunk without having to 
@@ -221,12 +231,11 @@ const blockUVs:Record<string,Array<number>> = {
   front: util3d.getUVCords('minecraft:block/grass_block_side'),
   back: util3d.getUVCords('minecraft:block/grass_block_side'),
   bottom: util3d.getUVCords('minecraft:block/dirt'),
+  desert: util3d.getUVCords('minecraft:block/sand'),
+  badland: util3d.getUVCords('minecraft:block/red_sand'),
+  stone: util3d.getUVCords('minecraft:block/stone'),
 };
 
-function loadblocks()
-{
-  
-}
 class Entity
 {
   boundingBox:THREE.Box3
@@ -408,7 +417,7 @@ class BiomeCache
   {
     this.cache = new Map();
   }
-  generateArea(cX:number, cZ:number)
+  multiChunkBiomes(cX:number, cZ:number)
   {
     const biomeValues = [];
     for(let x = -1; x<2; x++) //range of cCords from  -1 to 1
@@ -438,7 +447,7 @@ class BiomeCache
       const row = []
       for(let z = 0; z<16; z++)
       {
-        row.push(this.biomeSelect(cX+x, cZ+x));
+        row.push(this.biomeSelect(cX+x, cZ+z));
       }
       chunkData.push(row);
     }
@@ -446,13 +455,75 @@ class BiomeCache
   }
   biomeSelect(x:number, z:number):number
   {
+    const continentalness = noiseMachine.octaveNoise(
+                (x + eta) * scale,
+                (z + eta) * scale,
+                octaves,
+                pers,
+                amp,
+                freq,
+                lacunarity,
+                noiseMachine.simplex.bind(noiseMachine)
+                )
+    const temperature = layer1.octaveNoise(                
+                (x + eta) * scale,
+                (z + eta) * scale,
+                octaves,
+                pers,
+                amp,
+                freq,
+                lacunarity,
+                layer1.simplex.bind(layer1)
+              )
+    const humidity = layer2.octaveNoise(                
+                (x + eta) * scale,
+                (z + eta) * scale,
+                octaves,
+                pers,
+                amp,
+                freq,
+                lacunarity,
+                layer2.simplex.bind(layer2)
+              )
+    
 
     
-    //call the noise functions here 
-    //add the conditionals here to determine the biome type 
     return 1;
   }
 }
+const biomesAndTerrain = [
+  // Original entries
+  "plains", "mountain", "beach", "desert", "forest", "cold", "valley", "canyon", "jungle",
+  
+  // Additional biomes
+  "tundra", "taiga", "savanna", "wetlands", "marsh", "swamp", "bog", 
+  "grassland", "steppe", "prairie", "badlands", "mesa", "plateau",
+  "rainforest", "bamboo_forest", "mangrove", "mushroom_fields",
+  "ice_spikes", "frozen_ocean", "deep_ocean", "coral_reef",
+  
+  // Fantasy/magical biomes
+  "enchanted_forest", "magic_grove", "crystal_caves", "floating_islands",
+  "volcanic_wasteland", "obsidian_fields",
+  
+  // Terrain features
+  "cliffs", "dunes", "fjord", "glacier", "geyser_field", "hot_springs",
+  "lava_lakes", "salt_flats", "sandstone_pinnacles", "karst_landscape",
+  "underground_rivers", "sinkholes", "cenotes", "oasis",
+  
+  // Water-related
+  "river", "delta", "estuary", "lagoon", "atoll", "archipelago",
+  "fjord", "bayou", "tidal_zone", "kelp_forest",
+  
+  // Special features
+  "petrified_forest", "rainbow_hills", "slot_canyons", "pillar_clusters",
+  "glowshroom_caverns", "bioluminescent_bays", "magnetic_hills"
+];
+function sampleBiome(x:number, y:number)
+{
+  
+}
+
+
 class WorldChunk
 {
   cCords:Array<number>
@@ -569,10 +640,11 @@ class WorldChunk
 //ex:3 block types
 //3 in the range of 2^1 and 2^2 so the binary would range from 00 to 10
 
-function greedyMesh()
-{
 
-}
+
+
+
+
 
 
 
