@@ -100,6 +100,9 @@ function updateDebug()
   `;
 }
 const delta = [];
+const currentFov = 75;
+const sprintFov = currentFov + 25;
+const adjustmentSpeed = 0.1; 
 function tweakMovement(delta: number) {
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward).normalize();
@@ -109,13 +112,19 @@ function tweakMovement(delta: number) {
   const right = new THREE.Vector3();
   right.crossVectors(forward, camera.up).normalize();
   if(!keys["w"]){
-    camera.fov = 75;
-    camera.updateProjectionMatrix();
+    if(camera.fov>currentFov)
+    {
+      camera.fov-=(camera.fov-currentFov)*0.1;
+      camera.updateProjectionMatrix();
+    }
   }
   if (keys["w"]) { 
-    camera.fov = 100;
+    if(camera.fov<sprintFov)
+    {
+      camera.fov+=(sprintFov-camera.fov)* adjustmentSpeed;
+      camera.updateProjectionMatrix();
+    }
     yawObject.position.add(forward.clone().multiplyScalar(moveSpeed * delta))
-    camera.updateProjectionMatrix();
   };
   if (keys["s"]) yawObject.position.add(forward.clone().multiplyScalar(-moveSpeed * delta));
   if (keys["a"]) yawObject.position.add(right.clone().multiplyScalar(-moveSpeed * delta));
@@ -335,11 +344,15 @@ class Player extends Entity
 {
   position:THREE.Vector3;
   velocity:THREE.Vector3;
-  constructor(position:THREE.Vector3, velocity:THREE.Vector3)
+  fov:number;
+  fovMultiplier:number;
+  constructor(position:THREE.Vector3, velocity:THREE.Vector3, fov:number)
   {
     super("test", new THREE.Vector3(1,1,1));
     this.position = position;
     this.velocity =  velocity;
+    this.fov =  75;
+    this.fovMultiplier = 1.3;
   }
   getBoundingBox():THREE.Box3
   { 
@@ -349,27 +362,44 @@ class Player extends Entity
       min, max
     )
   }
-  //add a function here to check the position. checking for in air can be done using bounding boxes of the player 
   checkPosition()
   {
     this.getBoundingBox();
-    //if the player is off the ground 
-    //multiple the delta variable by the velocity and apply that to the camera position
-    //continuously do this until the boundingBoxs have collided and returns a true condition
+
   }
-  updatePosition()
+  updatePosition(delta:number)
   {
-    //tweak this might not be good practice
-    camera.position.copy(this.position);
-    //adjust for the current players rotation to prevent it from snapping every animation frame
-    //
-  } 
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward).normalize();
+    forward.y = 0; 
+    forward.normalize();
+
+    const right = new THREE.Vector3();
+    right.crossVectors(forward, camera.up).normalize();
+    if(!keys["w"]){
+      if(camera.fov>currentFov)
+      {
+        camera.fov-=(camera.fov-this.fov)*0.1;
+        camera.updateProjectionMatrix();
+      }
+    }
+    if (keys["w"]) { 
+      if(camera.fov<sprintFov)
+      {
+        camera.fov+=(this.fov*this.fovMultiplier-camera.fov)* adjustmentSpeed;
+        camera.updateProjectionMatrix();
+      }
+      yawObject.position.add(forward.clone().multiplyScalar(moveSpeed * delta))
+    };
+    if (keys["s"]) yawObject.position.add(forward.clone().multiplyScalar(-moveSpeed * delta));
+    if (keys["a"]) yawObject.position.add(right.clone().multiplyScalar(-moveSpeed * delta));
+    if (keys["d"]) yawObject.position.add(right.clone().multiplyScalar(moveSpeed * delta));
+    if(keys[" "]) yawObject.position.add
+  }
+
   checkMovement(delta:number)
   {
-      //move the code from the handleMovement function here
-      //modify it to also include jumping
-      //when jumping apply an amount of y velocity. 
-      //when the player 
+
   }
 }
 
@@ -544,6 +574,15 @@ function sampleBiome(x:number, y:number)
 
 }
 
+const noiseParams = 
+{
+  "volcano":
+  {
+    
+  }
+}
+
+
 
 //
 
@@ -653,11 +692,21 @@ class WorldChunk
 
 
 
+
+//use a biome noise function to determine the biomes
+//use parameters set for the biome to generate the terrain values
+//when generating the stuff check the refernce for the main block type in the biome
+//add additional features specific to the biome
+
+
 class ChunkGeneration
 {
+  cCords:Array<number>
+  vertices:Array<number>
   constructor(cCords:Array<number>)
   {
-    
+    this.cCords =  cCords;
+    this.vertices =  [];
   }
 }
 
