@@ -1,4 +1,17 @@
-import type { AtlasData } from "./types";
+interface TextureSize {
+    width: number;
+    height: number;
+}
+type AtlasData = {
+    textureSize: TextureSize;
+    frames: Record<string, TextureFrame>;
+}
+interface TextureFrame {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
 const atlasData:AtlasData= 
 {"textureSize":{"width":1024,"height":512},
 "frames":{

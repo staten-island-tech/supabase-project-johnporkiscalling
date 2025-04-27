@@ -22,7 +22,6 @@ const noiseMachine =  new Noise(seed);
 const layer1 =  new Noise(seed+1);
 const layer2 =  new Noise(seed+2);
 
-//to do list
 
 
 
@@ -100,7 +99,7 @@ function updateDebug()
   ${Math.round(yawObject.position.z).toString()}
   `;
 }
-const delta = [];//make delta a global variable sos it can be acessed by other stuff not just movement
+const delta = [];
 function tweakMovement(delta: number) {
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward).normalize();
@@ -156,9 +155,7 @@ class SaveLoad
 class WorldChunk2
 {
 }
-//when generating a chunk write it to the save file and then return the mesh to be constructed
-//that way if the mesh does get destroyed the chunk data is still in the save file and can be used to reconstruct the chunk without having to 
-//go through the worldchunk generation functin
+
 
 function chunkLoader()
 {
@@ -266,8 +263,7 @@ class Entity
   {
     if(this.worldBoundingBox.intersectsBox(box))
     {
-      //apply velocity to the entities to push them apart based off of how close to each other's center they are which is basically just their position
-      //
+
 
       return true;
     }
@@ -520,9 +516,36 @@ const biomesAndTerrain = [
 ];
 function sampleBiome(x:number, y:number)
 {
+  //for biome generation
+  //volcanoes =  generate a heightmap that has only peaks with no dips so Math.abs() all the values
+  //for the parameters to generate the noise map for the volcano zoom out the values
+  //find the max number in the noise map 
+  //use that thing to create a cone area around the highest point
+  //add some variation to it using some prng function
+  //add a bias for the max number towards the center of the noise map  
   
+
+
+  //for mountains just raise the function output to a power to prevent dips
+  //plains = low frequency value
+  //valleys and carved terrain strucutres = use 3d noise or a carver
+  //mountains = DLA if i can figure it out and make it viable as an option
+  //rivers and lakes and stuff 
+  //3d noise or carver again
+  //trees and grass are gonna be determined by another noise function
+  //for mesa/badland biomes rase the noise value to an even power to ensure 0 dips and exagerated shapes 
+  //apply a function that changes the bands of terracota to a certain color at a given y level
+  //for glaciers biome have a high erosion value aka higher octaves/lacunarity
+  //causes more holes to show up 
+  //floating islands will prob just be selected by applying a noise function and then selectively selecting the value towards which the noise function values aggregate towards most commonly
+  //add a bit of detail by putting random stuff and then extend thhe bottom with some function
+  //for hotsprings same thing as mesa where you raise the noise functiokn value output to even power to prevent negative values
+  //then restrict the height of the terrain generated to a given value and carve a hole in the center of it to mimic a geyser/hot srpign
+
 }
 
+
+//
 
 class WorldChunk
 {
@@ -627,21 +650,16 @@ class WorldChunk
 
 }
 
-//world gen rules
-//biome defines the top layer block type
-//top layer = some number between 5-8
-//rest is stone at the bottom
-//ores are randomly distributed
-
-//nbt system 
-//for each block in a chunk assign an int to it
-//convert the int to binary format
-//store that info to make it more compact 
-//ex:3 block types
-//3 in the range of 2^1 and 2^2 so the binary would range from 00 to 10
 
 
 
+class ChunkGeneration
+{
+  constructor(cCords:Array<number>)
+  {
+    
+  }
+}
 
 
 

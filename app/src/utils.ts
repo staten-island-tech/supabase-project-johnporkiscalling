@@ -24,7 +24,6 @@ export const util3d = Object.freeze(
         }
     }
 )
-
 export const utilMath = Object.freeze(
     {
         lerp:function(a:number, b:number, t:number)//t must be between 0-1;

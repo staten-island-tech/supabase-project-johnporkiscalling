@@ -1,4 +1,3 @@
-import { exp, mul } from "three/tsl";
 import { utilMath } from "./utils";
 const gradients = [
     [1, 1], [-1, 1], [1, -1], [-1, -1],
@@ -139,27 +138,33 @@ export class Noise
 
 const yDir = [0, 0, 1, -1];
 const xDir = [1, -1, 0, 0];
-
+const quadrantDirections = {
+    1: [[ 1,  0], [ 0, -1]],  // NE: prefer right or down
+    2: [[ 1,  0], [ 0, -1]],   // NW: prefer right or down
+    3: [[ 1,  0], [ 0,  1]],   // SW: prefer right or up
+    4: [[-1,  0], [ 0,  1]]    // SE: prefer left or up
+  };
 
 class DLA
 {   
     prng:()=>number;
-    occupied:Set<string>;
     grid:Uint8Array;
     width:number;
     height:number;
     LoD:number;
+    boundary:Set<string>;
+    bounds:Array<number>;
     constructor(seed:number, LoD:number)
     {
         this.prng = this.mulberry32(seed);
         const dim = Math.pow(2, LoD);
         this.grid = new Uint8Array(dim*dim);
-        this.occupied = new Set;
         this.width = dim;
         this.height = dim;
         this.grid[this.width/2 + (this.height/2) * this.width] = 1;
-        this.occupied.add(`${this.width/2},${this.height/2}`);
         this.LoD = LoD;
+        this.boundary = new Set();
+        this.bounds = []//wnes
     }
     //note:width and height here are different and don't actually map to voxel cords so scale it properly later on
     mulberry32(seed:number) 
@@ -171,42 +176,83 @@ class DLA
             return ((t ^ t >>> 14) >>> 0) / 4294967296;
         }
     }   
-    isStuck(x:number, y:number)
+    validNeighbors(x:number, y:number)
     {
+        const valid = [];
         for(let oY = -1; oY<=1; oY++)
         {
             for(let oX = -1; oX<=1; oX++)
             {
                 const nX =  x +  oX, nY = y+oY;
-                if (nX >= 0 && nX < this.width && nY >= 0 && nY < this.height && this.grid[nY * this.width + nX]) {
-                    return true;
+                if (nX >= this.bounds[0] && nX < this.bounds[2] && nY >= this.bounds[1] && nY < this.bounds[3] && this.grid[nY * this.width + nX] != 0 && !this.boundary.has(`${nX},${nY}`)) {
+                    valid.push([nX, nY])
                 }
             }
         }
-        return false;
+        return valid;
     }
-    DLASTEP()
+    DLAStep()
     {
-        const [x,y] = [1,2];
-        let stuck = false;
-        let pX = x, pY = y;
-        while(!stuck)
+        const [x,y] = this.getRandomBoundary() as Array<number>;
+        if(this.prng() < 0.5)
         {
-            const dir =  Math.floor(this.prng()*4);
-            const dX = pX + xDir[dir], dY = pY + yDir[dir];
-            if(dX < 0 || dX >= this.width || dY < 0 || dY >= this.height) break;
-            if(this.grid[dY * this.height + dX] === 1)
-            {
-                this.setPixel(pX, pY);
-                break;
-            }   
-            pX = dX, pY = dY;
-        }  
+            this.grid[y* this.width + x] = 0;
+            this.boundary.delete(`${x},${y}`);
+        }
+        else
+        {
+            let [pX, pY] = this.stepAwayFromCenter(x,y,this.width/2, this.height/2);
+            while(true)
+            {   
+                const neighbors = (this.validNeighbors(pX,pY));
+                if(this.grid[pY*this.width+pX] === 1)
+                {
+                    for(let i = 0; i<neighbors.length; i++)
+                    {
+                        if(this.grid[neighbors[i][1] * this.width + neighbors[i][0]] === 1)
+                        {
+                            this.grid[pY * this.width + pX] = 1; 
+                            this.updateBoundary(pY,pX);
+                            this.boundary.delete(`${x},${y}`);
+                            break;
+                        }
+                    }
+                }
+                [pX,pY] = this.randomWalk(pX, pY);
+            }
+        }
     }
-    DLASCALE()
+    getQuadrant(x:number, y:number, centerX:number, centerY:number) {
+        if (x >= centerX) {
+          return y >= centerY ? 1 : 4; // Quadrants 1 (NE) or 4 (SE)
+        } else {
+          return y >= centerY ? 2 : 3; // Quadrants 2 (NW) or 3 (SW)
+        }
+    }      
+    stepAwayFromCenter(x:number, y:number, centerX:number, centerY:number) {
+        const quadrant = this.getQuadrant(x, y, centerX, centerY);
+        const [dx, dy] = quadrantDirections[quadrant][Math.floor(this.prng() * 2)];
+        return [x + dx, y + dy];
+    }  
+    randomWalk(x:number, y:number)
     {
-        //restrict the grid movement to a certain area
-        //define the intialize Lod
+        const neighbors = this.validNeighbors(x,y);
+        const randomNeighbor = neighbors[Math.floor(this.prng()*neighbors.length)];
+        return randomNeighbor;
+    }
+    getRandomBoundary():Array<number>|undefined 
+    {
+        const index = Math.floor(this.prng() * this.boundary.size)
+        let i = 0;
+        for(const cell of this.boundary)
+        {
+            if(i++ === index) return cell.split(',').map(Number);
+        }
+        return;
+    }
+    DLAScale()
+    {
+
         let pow = 1;
         let size = Math.pow(2, pow);
         const center = [this.width/2, this.height/2];
@@ -219,38 +265,40 @@ class DLA
             const seExpand = Math.floor(expandAmount/2);
             const nwBound = [center[0]-nwExpand, center[1]-nwExpand];
             const seBound = [center[0]+seExpand, center[1]+seExpand];
-            //defines the bounds for particle movement
-            //prevents crossing of them
-            //figure out scaling here by doing sm magic with the occipied set
-            //also call the blur function here and store the resulsts somewhere to be processed again 
-            //weight assignment =  use 1 -  1/1+n to flatten values to a range of 0-1 where as n increases it goes slower towards 1
-            //n is equal to the nodes distance from the outermost node in that branch
-            //
-
-            //confine the possible expansion to here now
-            
-
-
-            //new limits
-
-
-
-            //new define grid size
-            
+            this.bounds = [...nwBound, ...seBound]; 
+            let amountOfParticles = 0;
+            while(amountOfParticles!=(size**2/2)-1)
+            {
+                this.DLAStep();
+                
+                amountOfParticles+=1;
+            }
         }   
     }
     setPixel(x:number, y:number)
     {
         this.grid[y*this.width+x] = 1;
-        this.occupied.add(`${x},${y}`);
     }
     newInstance(LoD:number)
     {
         const dim = Math.pow(2, LoD);
         this.grid = new Uint8Array(dim*dim);
-        this.occupied = new Set;
         this.width =  dim;
         this.height = dim;
         this.grid[this.width/2+(this.height/2) * this.width] = 1;
     }
+    updateBoundary(x:number, y:number)
+    {
+        const neighbors =  this.validNeighbors(x,y);
+        for(let i = 0; i< neighbors.length; i++)
+        {
+            if(this.grid[neighbors[i][1] * this.width +  neighbors[i][0]] === 1)
+            {
+                continue;
+            }
+            this.boundary.add(`${neighbors[i][0]},${neighbors[i][1]}`);
+        }
+
+    }
 }   
+const mountainMachine =  new DLA(1,1);
