@@ -12,15 +12,12 @@ const open = ref(false);
 //   setTimeout(() => (spinimage.value = false), 5000);
 // }
 // let style = ref({ transform: "rotate(0deg)" });
-function spin() {
-  // style.value = { transform: "rotate(90deg)" };
+function spin(event: MouseEvent) {
+  event.stopPropagation(); // prevent triggering document click
   open.value = !open.value;
 }
-function close(event: MouseEvent) {
-  event.stopPropagation();
-  // style.value = { transform: "rotate(-90deg)" };
-  open.value = false;
-  console.log("broke");
+function close() {
+  if (open.value) open.value = false;
 }
 </script>
 
