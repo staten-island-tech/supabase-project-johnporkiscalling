@@ -14,11 +14,13 @@ const open = ref(false);
 // let style = ref({ transform: "rotate(0deg)" });
 function spin() {
   // style.value = { transform: "rotate(90deg)" };
-  open.value = true;
+  open.value = !open.value;
 }
-function close() {
+function close(event: MouseEvent) {
+  event.stopPropagation();
   // style.value = { transform: "rotate(-90deg)" };
   open.value = false;
+  console.log("broke");
 }
 </script>
 
@@ -31,7 +33,7 @@ function close() {
       <div class="wrapper" @click="close">
         <nav>
           <button class="account">
-            <img src="./assets/grass.png" alt="" :class="{ rotated: open }" @click="spin" />
+            <img src="./assets/grass.png" alt="Account" :class="{ rotated: open }" @click="spin" />
           </button>
           <div class="main">
             <div class="border"><RouterLink to="/">Home</RouterLink></div>
@@ -90,7 +92,7 @@ function close() {
   object-fit: cover;
   border-radius: 5px;
   transform-origin: center;
-  image-rendering: crisp-edges;
+  /* image-rendering: crisp-edges; */
   transition: 0.4s ease-out;
 }
 .account img:hover {
@@ -99,6 +101,10 @@ function close() {
 .account img.rotated {
   transform: rotate(90deg);
 }
+.account img.rotated:hover {
+  transform: rotate(90deg);
+}
+
 .main {
   width: 100%;
   height: 100%;
