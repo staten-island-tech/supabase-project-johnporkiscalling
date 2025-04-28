@@ -89,7 +89,7 @@ window.addEventListener("keyup", (event)=>
 {
   keys[event.key.toLowerCase()] = false;
 })
-const moveSpeed = 20;
+const moveSpeed = 5;
 function updateDebug()
 {
   coordinates.value =  `
@@ -103,34 +103,6 @@ const delta = [];
 const currentFov = 75;
 const sprintFov = currentFov + 25;
 const adjustmentSpeed = 0.1; 
-function tweakMovement(delta: number) {
-  const forward = new THREE.Vector3();
-  camera.getWorldDirection(forward).normalize();
-  forward.y = 0; 
-  forward.normalize();
-
-  const right = new THREE.Vector3();
-  right.crossVectors(forward, camera.up).normalize();
-  if(!keys["w"]){
-    if(camera.fov>currentFov)
-    {
-      camera.fov-=(camera.fov-currentFov)*0.1;
-      camera.updateProjectionMatrix();
-    }
-  }
-  if (keys["w"]) { 
-    if(camera.fov<sprintFov)
-    {
-      camera.fov+=(sprintFov-camera.fov)* adjustmentSpeed;
-      camera.updateProjectionMatrix();
-    }
-    yawObject.position.add(forward.clone().multiplyScalar(moveSpeed * delta))
-  };
-  if (keys["s"]) yawObject.position.add(forward.clone().multiplyScalar(-moveSpeed * delta));
-  if (keys["a"]) yawObject.position.add(right.clone().multiplyScalar(-moveSpeed * delta));
-  if (keys["d"]) yawObject.position.add(right.clone().multiplyScalar(moveSpeed * delta));
-
-}
 
 
 function init() {
@@ -140,6 +112,7 @@ function init() {
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
         canvasContainer.value.appendChild(renderer.domElement);
     }
+    newPlayer =   new Player(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0));
     requestAnimationFrame(animate);
 }
 function maybeLoadChunks() {
@@ -206,13 +179,14 @@ function chunkLoader()
   }
 }
 let currentTime =  performance.now();
+let newPlayer:Player
 function animate() 
 {
     const delta = (performance.now()-currentTime)/1000;
     currentTime = performance.now()
     maybeLoadChunks();
     updateDebug();
-    tweakMovement(delta);
+    newPlayer.updatePosition(delta);
     stats.begin();
     renderer.render(scene, camera);
     stats.end();
@@ -337,8 +311,11 @@ function updateSave()
   //checks for chunks with dirty flags which will be loaded into a map or the chunk can be marked dirty and then the function will iterate through the orig chunk map to update the save file data 
 
 }
-
-
+let verticalVelocity = 0;
+const gravity = -9.8;
+const jumpStrength = 5;
+let isOnGround = true;
+const groundLevel = 0;
 
 class Player extends Entity
 {
@@ -394,7 +371,19 @@ class Player extends Entity
     if (keys["s"]) yawObject.position.add(forward.clone().multiplyScalar(-moveSpeed * delta));
     if (keys["a"]) yawObject.position.add(right.clone().multiplyScalar(-moveSpeed * delta));
     if (keys["d"]) yawObject.position.add(right.clone().multiplyScalar(moveSpeed * delta));
-    if(keys[" "]) yawObject.position.add
+    if (keys[" "] && isOnGround) {
+      verticalVelocity = jumpStrength;
+      isOnGround = false;
+    }
+    verticalVelocity += gravity * delta;
+    // Update Y position
+    yawObject.position.y += verticalVelocity * delta;
+    // Check ground collision (very basic, replace with your terrain or collision logic)
+    if (yawObject.position.y <= groundLevel) {
+      yawObject.position.y = groundLevel;
+      verticalVelocity = 0;
+      isOnGround = true;
+    }
   }
 
   checkMovement(delta:number)
