@@ -40,7 +40,7 @@ const lacunarity = 2;
 
 const textureLoader = new THREE.TextureLoader();
 const canvasContainer = ref<HTMLElement | null>(null)    
-let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls;
+let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls, lod:THREE.LOD;
 scene = new THREE.Scene();
 camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2048);
 const chunkMeshes:Map<string, THREE.Mesh> = new Map();
@@ -112,7 +112,10 @@ function init() {
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
         canvasContainer.value.appendChild(renderer.domElement);
     }
-    newPlayer =   new Player(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0));
+    newPlayer =   new Player(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0), 75);
+    lod =  new THREE.LOD();
+    lod
+    scene.add(lod);
     requestAnimationFrame(animate);
 }
 function maybeLoadChunks() {
@@ -582,7 +585,9 @@ class WorldChunk
   vertices:Array<number>
   indices:Array<number>
   UVs:Array<number>;
-  offset:number
+  offset:number;
+  chunkData:Array<number>;
+  
   constructor(cCords:Array<number>) 
   {
     this.cCords = cCords
@@ -591,6 +596,7 @@ class WorldChunk
     this.indices = [];
     this.UVs = [];
     this.offset = 0;
+    this.chunkData = [];
   }
   createheights(x: number, z: number): Array<Array<number>> {
     const cX = x * configurationInfo.chunkSize;
@@ -616,36 +622,50 @@ class WorldChunk
         const heights: Array<Array<number>> = this.createheights(this.cCords[0], this.cCords[1]);
         const cX = this.cCords[0] * configurationInfo.chunkSize;
         const cZ = this.cCords[1] * configurationInfo.chunkSize;
+        let chunkData:Array<number> = [];
+        const biome = 1;//get the biome value here
+        const biomeConditions = [] //look at tthe biomereference for the conditions for the biome
+        const noiseParamters = [];//get the noise parameters from biomeReference
+        const primaryBlockType = [];
+        const secondaryBlockType = [];
+        const tertiaryBlockType = [];
+        const features = [];//couple of functions here that dictate the unique features found 
+        const folliage = [];//specify the folliage to be placed here like trees shrubs or flowers
+        //folliage can be a seperate layer considering it generates over the chunks
+        //to generate folliage just use some algorithm and cross reference the generated folliage's coordinates to determine whether that position is valid. 
+        
         for (let x = 1; x < 17; x++) {
             const coX = cX + (x - 1); 
             for (let z = 1; z < 17; z++) {
             const coZ = cZ + (z - 1);
             const height = heights[x][z];
+            let currentYChunk = 0;
                 for (let y = height; y > configurationInfo.maxDepth; y--) {
+                    currentYChunk = Math.ceil(y/16);
                     if (y == height) {
-                    this.addQuad(coX, y, coZ, "top");
+                    this.addQuad(coX, y, coZ, "top", "stone");
                     }
                     if (heights[x - 1][z] < y) {
-                    this.addQuad(coX, y, coZ, "left");
+                    this.addQuad(coX, y, coZ, "left", "bottom");
                     }
                     if (heights[x + 1][z] < y) {
-                    this.addQuad(coX, y, coZ, "right");
+                    this.addQuad(coX, y, coZ, "right", "bottom");
                     }
                     if (heights[x][z + 1] < y) {
-                    this.addQuad(coX, y, coZ, "front");
+                    this.addQuad(coX, y, coZ, "front", "bottom");
                     }
                     if (heights[x][z - 1] < y) {
-                    this.addQuad(coX, y, coZ, "back");
+                    this.addQuad(coX, y, coZ, "back", "bottom");
                     }
                 }
             }
         }
-
+        this.chunkData = chunkData;
         this.buffer.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
         this.buffer.setAttribute('uv', new THREE.Float32BufferAttribute(this.UVs, 2));
         this.buffer.setIndex(this.indices);
     }
-  addQuad(x:number, y:number, z:number, dir:string)
+  addQuad(x:number, y:number, z:number, dir:string, blockType:string)
   {
     const offSetValues = faceDirections[dir];
     this.vertices.push(
@@ -656,7 +676,7 @@ class WorldChunk
     )
 
     this.indices.push(this.offset, this.offset+1, this.offset+2, this.offset+2, this.offset+3, this.offset);
-    const texturew = blockUVs[dir]
+    const texturew = blockUVs[blockType];
     this.UVs.push(...texturew);
     this.offset+=4;
   }
@@ -673,12 +693,15 @@ class WorldChunk
   {
     this.buffer.dispose();
   }
+  getChunkData()
+  {
+    //conver to uint8Array for num efficieny 
+    return new Uint8Array(this.chunkData);
+  }
   //define the whole chunks block types
   //set some rules where if the current y level =  the max height - 8 place another type of block 
 
 }
-
-
 
 
 
