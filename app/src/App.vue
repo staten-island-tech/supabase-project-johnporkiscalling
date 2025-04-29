@@ -31,6 +31,10 @@ function close() {
         <nav>
           <button class="account">
             <img src="./assets/grass.png" alt="Account" :class="{ rotated: open }" @click="spin" />
+            <div class="dropdown" v-if="open">
+              <div class="dropdowncontent">Your Account</div>
+              <div class="dropdowncontent">Settings</div>
+            </div>
           </button>
           <div class="main">
             <div class="border"><RouterLink to="/">Home</RouterLink></div>
@@ -92,16 +96,27 @@ function close() {
   /* image-rendering: crisp-edges; */
   transition: 0.4s ease-out;
 }
-.account img:hover {
+.account img:hover:not(.rotated) {
   transform: scale(1.3);
 }
+
 .account img.rotated {
   transform: rotate(90deg);
 }
 .account img.rotated:hover {
-  transform: rotate(90deg);
+  transform: rotate(90deg) scale(1.3);
 }
-
+.dropdown {
+  position: absolute;
+  transform: translateY(45.5px);
+  background-color: #8b8b8b;
+  border-radius: 5px;
+  transition: 0.4s ease-out;
+}
+.dropdown:hover {
+  position: absolute;
+  transform: translateY(40px);
+}
 .main {
   width: 100%;
   height: 100%;
