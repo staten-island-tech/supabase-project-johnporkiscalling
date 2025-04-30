@@ -16,6 +16,7 @@ import { util3d } from './utils';
 import { Noise } from './noisefunct';
 import { configurationInfo } from './config';
 import { faceDirections } from './stupidlylongvariables';
+import { Sky } from 'three/examples/jsm/objects/Sky.js';
 
 const seed = 121214141414124;
 const noiseMachine =  new Noise(seed);
@@ -104,7 +105,9 @@ const currentFov = 75;
 const sprintFov = currentFov + 25;
 const adjustmentSpeed = 0.1; 
 
-
+let sky:Sky
+const light = new THREE.DirectionalLight(0xffffff, 1);
+let sun = new THREE.Vector3();
 function init() {
     camera.position.set(0, 0, 0);
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -114,10 +117,51 @@ function init() {
     }
     newPlayer =   new Player(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0), 75);
     lod =  new THREE.LOD();
-    lod
     scene.add(lod);
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    scene.add(light);
+    sky = new Sky();
+    sky.scale.setScalar(10000); // Large enough to surround your scene
+    scene.add(sky);
+    const skyUniforms = sky.material.uniforms;
+    skyUniforms['turbidity'].value = 10;
+    skyUniforms['rayleigh'].value = 10;
+    skyUniforms['mieCoefficient'].value = 0.00005;
+    skyUniforms['mieDirectionalG'].value = 0.8;
+    console.log(skyUniforms)
     requestAnimationFrame(animate);
 }
+function animate() 
+{
+    const delta = (performance.now()-currentTime)/1000;
+    currentTime = performance.now()
+    maybeLoadChunks();
+    updateDebug();
+    newPlayer.updatePosition(delta);
+    stats.begin();
+    renderer.render(scene, camera);
+    stats.end();
+    time += 0.01; // Adjust for speed
+    if (time > 1) time = 0;
+
+    // Map time to elevation (sun height)
+    const elevation = Math.sin(time * 2 * Math.PI) * 90;
+    const azimuth = 180 + Math.cos(time * 2 * Math.PI) * 90;
+
+    updateSun(elevation, azimuth);
+    requestAnimationFrame(animate);
+}
+function updateSun(elevation:number, azimuth:number) {
+  const phi = THREE.MathUtils.degToRad(90 - elevation);
+  const theta = THREE.MathUtils.degToRad(azimuth);
+
+  sun.setFromSphericalCoords(1, phi, theta);
+
+  sky.material.uniforms['sunPosition'].value.copy(sun);
+  light.position.copy(sun);
+}
+let time = 0;
+
 function maybeLoadChunks() {
     const chunkX = Math.floor(yawObject.position.x / 16);
     const chunkZ = Math.floor(yawObject.position.z / 16);
@@ -183,18 +227,7 @@ function chunkLoader()
 }
 let currentTime =  performance.now();
 let newPlayer:Player
-function animate() 
-{
-    const delta = (performance.now()-currentTime)/1000;
-    currentTime = performance.now()
-    maybeLoadChunks();
-    updateDebug();
-    newPlayer.updatePosition(delta);
-    stats.begin();
-    renderer.render(scene, camera);
-    stats.end();
-    requestAnimationFrame(animate);
-}
+
 function loadBlockTexture(path:string)
 {
   const tex = textureLoader.load(path);
@@ -315,10 +348,10 @@ function updateSave()
 
 }
 let verticalVelocity = 0;
-const gravity = -9.8;
-const jumpStrength = 5;
+const gravity = -19.6;
+const jumpStrength = 10;
 let isOnGround = true;
-const groundLevel = 0;
+const groundLevel = 1;
 
 class Player extends Entity
 {
@@ -617,54 +650,54 @@ class WorldChunk
             ))
             )
         );
-    }
-    createChunk() {
-        const heights: Array<Array<number>> = this.createheights(this.cCords[0], this.cCords[1]);
-        const cX = this.cCords[0] * configurationInfo.chunkSize;
-        const cZ = this.cCords[1] * configurationInfo.chunkSize;
-        let chunkData:Array<number> = [];
-        const biome = 1;//get the biome value here
-        const biomeConditions = [] //look at tthe biomereference for the conditions for the biome
-        const noiseParamters = [];//get the noise parameters from biomeReference
-        const primaryBlockType = [];
-        const secondaryBlockType = [];
-        const tertiaryBlockType = [];
-        const features = [];//couple of functions here that dictate the unique features found 
-        const folliage = [];//specify the folliage to be placed here like trees shrubs or flowers
-        //folliage can be a seperate layer considering it generates over the chunks
-        //to generate folliage just use some algorithm and cross reference the generated folliage's coordinates to determine whether that position is valid. 
-        
-        for (let x = 1; x < 17; x++) {
-            const coX = cX + (x - 1); 
-            for (let z = 1; z < 17; z++) {
-            const coZ = cZ + (z - 1);
-            const height = heights[x][z];
-            let currentYChunk = 0;
-                for (let y = height; y > configurationInfo.maxDepth; y--) {
-                    currentYChunk = Math.ceil(y/16);
-                    if (y == height) {
-                    this.addQuad(coX, y, coZ, "top", "stone");
-                    }
-                    if (heights[x - 1][z] < y) {
-                    this.addQuad(coX, y, coZ, "left", "bottom");
-                    }
-                    if (heights[x + 1][z] < y) {
-                    this.addQuad(coX, y, coZ, "right", "bottom");
-                    }
-                    if (heights[x][z + 1] < y) {
-                    this.addQuad(coX, y, coZ, "front", "bottom");
-                    }
-                    if (heights[x][z - 1] < y) {
-                    this.addQuad(coX, y, coZ, "back", "bottom");
-                    }
-                }
-            }
-        }
-        this.chunkData = chunkData;
-        this.buffer.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
-        this.buffer.setAttribute('uv', new THREE.Float32BufferAttribute(this.UVs, 2));
-        this.buffer.setIndex(this.indices);
-    }
+  }
+  createChunk() {
+      const heights: Array<Array<number>> = this.createheights(this.cCords[0], this.cCords[1]);
+      const cX = this.cCords[0] * configurationInfo.chunkSize;
+      const cZ = this.cCords[1] * configurationInfo.chunkSize;
+      let chunkData:Array<number> = [];
+      const biome = 1;//get the biome value here
+      const biomeConditions = [] //look at tthe biomereference for the conditions for the biome
+      const noiseParamters = [];//get the noise parameters from biomeReference
+      const primaryBlockType = [];
+      const secondaryBlockType = [];
+      const tertiaryBlockType = [];
+      const features = [];//couple of functions here that dictate the unique features found 
+      const folliage = [];//specify the folliage to be placed here like trees shrubs or flowers
+      //folliage can be a seperate layer considering it generates over the chunks
+      //to generate folliage just use some algorithm and cross reference the generated folliage's coordinates to determine whether that position is valid. 
+      const blocktype = Object.keys(blockUVs)[Math.floor(Math.random() * Object.keys(blockUVs).length)];
+      for (let x = 1; x < 17; x++) {
+          const coX = cX + (x - 1); 
+          for (let z = 1; z < 17; z++) {
+          const coZ = cZ + (z - 1);
+          const height = heights[x][z];
+          let currentYChunk = 0;
+              for (let y = height; y > configurationInfo.maxDepth; y--) {
+                  currentYChunk = Math.ceil(y/16);
+                  if (y == height) {
+                  this.addQuad(coX, y, coZ, "top", blocktype);
+                  }
+                  if (heights[x - 1][z] < y) {
+                  this.addQuad(coX, y, coZ, "left", blocktype);
+                  }
+                  if (heights[x + 1][z] < y) {
+                  this.addQuad(coX, y, coZ, "right", blocktype);
+                  }
+                  if (heights[x][z + 1] < y) {
+                  this.addQuad(coX, y, coZ, "front", blocktype);
+                  }
+                  if (heights[x][z - 1] < y) {
+                  this.addQuad(coX, y, coZ, "back", blocktype);
+                  }
+              }
+          }
+      }
+      this.chunkData = chunkData;
+      this.buffer.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
+      this.buffer.setAttribute('uv', new THREE.Float32BufferAttribute(this.UVs, 2));
+      this.buffer.setIndex(this.indices);
+  }
   addQuad(x:number, y:number, z:number, dir:string, blockType:string)
   {
     const offSetValues = faceDirections[dir];

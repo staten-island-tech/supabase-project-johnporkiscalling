@@ -12,7 +12,7 @@ export const util3d = Object.freeze(
             const right = (x + w) / texWidth;
             const top = 1 - y / texHeigh;
             const bottom = 1 - (y + h) / texHeigh;
-            const padding = 0.000055;
+            const padding = 0.0001;
             return [
                 left + padding, bottom + padding,  // bottom-left
                 right - padding, bottom + padding, // bottom-right
