@@ -52,7 +52,7 @@ yawObject.add(pitchObject);
 pitchObject.add(camera);
 yawObject.position.set(0, 0,0);
 scene.add(yawObject);
-renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer = new THREE.WebGLRenderer({ antialias: false });
 const canvas = renderer.domElement;
 
 canvas.addEventListener('click', () => {
@@ -124,11 +124,15 @@ function init() {
     sky.scale.setScalar(10000); // Large enough to surround your scene
     scene.add(sky);
     const skyUniforms = sky.material.uniforms;
-    skyUniforms['turbidity'].value = 10;
-    skyUniforms['rayleigh'].value = 10;
+    skyUniforms['turbidity'].value = 4;
+    skyUniforms['rayleigh'].value = 2;
     skyUniforms['mieCoefficient'].value = 0.00005;
     skyUniforms['mieDirectionalG'].value = 0.8;
     console.log(skyUniforms)
+    const ambient =  new THREE.AmbientLight(0xffffff, 0.3);
+
+    scene.add(ambient);
+
     requestAnimationFrame(animate);
 }
 function animate() 
@@ -141,7 +145,7 @@ function animate()
     stats.begin();
     renderer.render(scene, camera);
     stats.end();
-    time += 0.01; // Adjust for speed
+    time += 0.0001; // Adjust for speed
     if (time > 1) time = 0;
 
     // Map time to elevation (sun height)
@@ -173,6 +177,11 @@ function maybeLoadChunks() {
     }
 }
 const chunkDataMap:Map<string, Array<number>> =  new Map();
+function voxelRayCast()
+{
+  
+}
+
 
 class SaveLoad
 {
@@ -218,6 +227,7 @@ function chunkLoader()
             chunkTest.destroy();
             const mesh = new THREE.Mesh(buffer, blocksMaterial)
             mesh.receiveShadow = true;
+            mesh.castShadow =  true;
             scene.add(mesh);       
             chunkMeshes.set(stringCords, mesh);
           }
@@ -239,7 +249,7 @@ function loadBlockTexture(path:string)
   return tex;
 };
 const texture0 = loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
-const blocksMaterial = new THREE.MeshBasicMaterial({map:texture0,side: THREE.DoubleSide})
+const blocksMaterial = new THREE.MeshStandardMaterial({map:texture0,side: THREE.DoubleSide, metalness:0.2, roughness:0.8})
 const blockUVs:Record<string,Array<number>> = {
   top: util3d.getUVCords('minecraft:block/grass_block_top'),
   right: util3d.getUVCords('minecraft:block/grass_block_side'),
@@ -646,7 +656,7 @@ class WorldChunk
                 freq,
                 lacunarity,
                 noiseMachine.simplex.bind(noiseMachine)
-                ) * 5
+                ) * 32
             ))
             )
         );
@@ -666,7 +676,8 @@ class WorldChunk
       const folliage = [];//specify the folliage to be placed here like trees shrubs or flowers
       //folliage can be a seperate layer considering it generates over the chunks
       //to generate folliage just use some algorithm and cross reference the generated folliage's coordinates to determine whether that position is valid. 
-      const blocktype = Object.keys(blockUVs)[Math.floor(Math.random() * Object.keys(blockUVs).length)];
+      const blocktype = "desert"
+      const test = Object.keys(blockUVs)[Math.floor(Math.random() * Object.keys(blockUVs).length)];
       for (let x = 1; x < 17; x++) {
           const coX = cX + (x - 1); 
           for (let z = 1; z < 17; z++) {
