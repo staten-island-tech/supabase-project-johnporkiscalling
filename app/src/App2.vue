@@ -129,7 +129,7 @@ function init() {
     skyUniforms['mieCoefficient'].value = 0.00005;
     skyUniforms['mieDirectionalG'].value = 0.8;
     console.log(skyUniforms)
-    const ambient =  new THREE.AmbientLight(0xffffff, 0.3);
+    const ambient =  new THREE.AmbientLight(0xffffff, 1);
 
     scene.add(ambient);
 
@@ -155,6 +155,10 @@ function animate()
     updateSun(elevation, azimuth);
     requestAnimationFrame(animate);
 }
+
+
+
+
 function updateSun(elevation:number, azimuth:number) {
   const phi = THREE.MathUtils.degToRad(90 - elevation);
   const theta = THREE.MathUtils.degToRad(azimuth);
@@ -176,24 +180,62 @@ function maybeLoadChunks() {
         lastChunkZ = chunkZ;
     }
 }
-const chunkDataMap:Map<string, Array<number>> =  new Map();
+interface chunkData { 
+  blockData : Array<number>;
+}
+const chunkDataMap:Map<string, chunkData> =  new Map();
 function voxelRayCast()
 {
-  
+  const cameraOrigin = yawObject.position;
+  const cameraDirection = new THREE.Vector3();
+  yawObject.getWorldDirection(cameraDirection);
+  //current player cords
+  chunkDataMap.get(`${lastChunkX},${lastChunkY},${lastChunkZ}`);
+
+  //do an iterative approach
+  //get the current players chunk coordinate and then cross reference it with the chunk map
+  //
+
 }
-
-
-class SaveLoad
+const dirtyChunks:Set<string> =  new Set();
+function reRender()
 {
-  constructor()
+  for(const chunk of dirtyChunks)
   {
-     
+    //call a function here to rerender  stuff
+
   }
 }
-class WorldChunk2
+let lastChunkY = 0;
+function getVoxel(wCords:Array<number>)
 {
+  //calculate the chunk cords and use that to retrieve the chunk data
+  //then convert the wCords to chunk-relative cords.
+  //finally acess the array thru the chunk-relative cords
+  const {chunkCords, localCords }= gtlCords(...wCords as [number, number, number]);
+  const chunk = chunkDataMap.get(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`);
+  const block = chunk?.blockData[localCords[0] + 16 * (localCords[1] + 16 * localCords[2])]?true:false;
+  return block;
+}//only concerned about whether the block itsef exists or not
+//
+function gtlCords(wX:number, wY:number, wZ:number)
+{
+  const cX = Math.floor(wX/16);
+  const cY = Math.floor(wY/16);
+  const cZ = Math.floor(wZ/16);
+  const chunkCords = [cX, cY, cZ];
+  const lX =  wX%16;
+  const lY =  wY%16;
+  const lZ =  wZ%16;
+  const localCords = [lX, lY, lZ];
+  return { chunkCords, localCords};
 }
+function modifyChunk(wCords:Array<number>)
+{
+  const {chunkCords, localCords }= gtlCords(...wCords as [number, number, number]);
+  
 
+}
 
 function chunkLoader()
 {
@@ -678,14 +720,13 @@ class WorldChunk
       //to generate folliage just use some algorithm and cross reference the generated folliage's coordinates to determine whether that position is valid. 
       const blocktype = "desert"
       const test = Object.keys(blockUVs)[Math.floor(Math.random() * Object.keys(blockUVs).length)];
+      //iterate thru it in chunks 
       for (let x = 1; x < 17; x++) {
           const coX = cX + (x - 1); 
           for (let z = 1; z < 17; z++) {
           const coZ = cZ + (z - 1);
           const height = heights[x][z];
-          let currentYChunk = 0;
               for (let y = height; y > configurationInfo.maxDepth; y--) {
-                  currentYChunk = Math.ceil(y/16);
                   if (y == height) {
                   this.addQuad(coX, y, coZ, "top", blocktype);
                   }
@@ -704,7 +745,7 @@ class WorldChunk
               }
           }
       }
-      this.chunkData = chunkData;
+      chunkDataMap.set(`${cX},${cZ}`, {blockData:[]})
       this.buffer.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
       this.buffer.setAttribute('uv', new THREE.Float32BufferAttribute(this.UVs, 2));
       this.buffer.setIndex(this.indices);
@@ -744,9 +785,39 @@ class WorldChunk
   }
   //define the whole chunks block types
   //set some rules where if the current y level =  the max height - 8 place another type of block 
-
 }
 
+
+
+
+const sound2 = new Noise(seed+1);
+const sound3 = new Noise(seed+2);
+const sound4 = new Noise(seed+3);
+class BiomeGenerator
+{
+  seed:number;
+  constructor(seed:number)
+  { 
+    this.seed = seed;
+  }
+  biomeGenerate(cCrds:Array<number>)
+  {
+    for(let x = 0; x<16; x++)
+    {
+      const currentX =  cCrds[0] + x;
+      for(let z = 0; z<16; z++)
+      {
+        const currentZ =  cCrds[1] +  z;
+        const continentalness  = sound2.simplex(currentX/1000, currentZ/1000);
+        const temperature =  sound3.simplex(currentX/300, currentZ/300);
+        const humidity =  sound4.simplex(currentX/400, currentZ/400);
+
+
+      }
+    }
+  }
+  
+}
 
 
 //use a biome noise function to determine the biomes
