@@ -31,11 +31,17 @@ function close() {
         <nav>
           <button class="account">
             <img src="./assets/grass.png" alt="Account" :class="{ rotated: open }" @click="spin" />
-            <div class="dropdown" v-if="open">
-              <div class="dropdowncontent">Your Account</div>
-              <div class="dropdowncontent">Settings</div>
-            </div>
           </button>
+          <div class="dropdown" v-if="open" @click="(event: MouseEvent) => event.stopPropagation()">
+            <div class="dropdowncontent" id="youraccount" v-if="loggedin">
+              <h1>Your Account</h1>
+            </div>
+            <div class="dropdowncontent" id="youraccount" v-else>
+              <h1>Please Log in to see your account</h1>
+            </div>
+            <div class="dropdowncontent"><h2>Settings</h2></div>
+            <div v-if="!loggedin"><h5>In order to save your settings, please log in</h5></div>
+          </div>
           <div class="main">
             <div class="border"><RouterLink to="/">Home</RouterLink></div>
             <div class="border"><RouterLink to="/about">About</RouterLink></div>
@@ -53,6 +59,8 @@ function close() {
     <RouterView />
   </div>
 </template>
+
+<!-- simplest solution: @click.stop -->
 
 <style scoped>
 /* --------------------logged in = true-------------------- */
@@ -99,7 +107,6 @@ function close() {
 .account img:hover:not(.rotated) {
   transform: scale(1.3);
 }
-
 .account img.rotated {
   transform: rotate(90deg);
 }
@@ -107,16 +114,23 @@ function close() {
   transform: rotate(90deg) scale(1.3);
 }
 .dropdown {
+  height: 40vh;
+  width: 15vw;
   position: absolute;
-  transform: translateY(45.5px);
-  background-color: #8b8b8b;
+  transform: translateY(34px);
+  background-color: #1f1f1f;
   border-radius: 5px;
   transition: 0.4s ease-out;
+  top: 0%;
+  left: 0%;
 }
-.dropdown:hover {
-  position: absolute;
-  transform: translateY(40px);
+.account:hover + .dropdown {
+  transform: translate(-5.5px, 39px);
 }
+#youraccount {
+  border-bottom: 1px solid #ffffff;
+}
+
 .main {
   width: 100%;
   height: 100%;
