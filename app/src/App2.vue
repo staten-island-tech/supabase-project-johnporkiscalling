@@ -135,6 +135,7 @@ function init() {
 
     requestAnimationFrame(animate);
 }
+const currentCursorPos:THREE.Vector3 =  new THREE.Vector3();
 function animate() 
 {
     const delta = (performance.now()-currentTime)/1000;
@@ -151,8 +152,17 @@ function animate()
     // Map time to elevation (sun height)
     const elevation = Math.sin(time * 2 * Math.PI) * 90;
     const azimuth = 180 + Math.cos(time * 2 * Math.PI) * 90;
-
+    const dirvector = new THREE.Vector3();
+    yawObject.getWorldPosition(dirvector);
+    const info = voxelRayCast(dirvector);
     updateSun(elevation, azimuth);
+    if(info.hit == true)
+    {
+      const block = info.position as THREE.Vector3;
+      modifyChunk([block?.x, block?.y, block?.z]);
+      console.log("HIT")
+    }
+
     requestAnimationFrame(animate);
 }
 
@@ -184,19 +194,66 @@ interface chunkData {
   blockData : Array<number>;
 }
 const chunkDataMap:Map<string, chunkData> =  new Map();
-function voxelRayCast()
+const maxReach = 8;
+
+function voxelRayCast(direction:THREE.Vector3):VoxelRayInfo
 {
-  const cameraOrigin = yawObject.position;
-  const cameraDirection = new THREE.Vector3();
-  yawObject.getWorldDirection(cameraDirection);
+  const origin = yawObject.position;
+  const pos = yawObject.position.clone().floor(); //go to a whole int closest
+  yawObject.getWorldDirection(direction);
   //current player cords
-  chunkDataMap.get(`${lastChunkX},${lastChunkY},${lastChunkZ}`);
+  const step = new THREE.Vector3(
+    Math.sign(direction.x),
+    Math.sign(direction.y),
+    Math.sign(direction.z)
+  )//get the direction vector 
+  const tDelta =  new THREE.Vector3(
+    Math.abs(1 / direction.x),
+    Math.abs(1 / direction.y),
+    Math.abs(1 / direction.z)
+  )//ray cost in an axis
+  const next = new THREE.Vector3(
+        (step.x > 0 ? 1 - (origin.x - pos.x) : (origin.x - pos.x)) * tDelta.x,
+        (step.y > 0 ? 1 - (origin.y - pos.y) : (origin.y - pos.y)) * tDelta.y,
+        (step.z > 0 ? 1 - (origin.z - pos.z) : (origin.z - pos.z)) * tDelta.z
+  );
+  let distanceTraveled = 0;
 
-  //do an iterative approach
-  //get the current players chunk coordinate and then cross reference it with the chunk map
-  //
-
+  while(distanceTraveled<maxReach)
+  {
+    if(getVoxel([pos.x, pos.y, pos.z])==true)
+    {
+      return {
+        hit:true,
+        position:pos.clone(),
+        distance:distanceTraveled,
+      }
+    }
+    if (next.x < next.y && next.x < next.z) {
+        pos.x += step.x;
+        distanceTraveled = next.x;
+        next.x += tDelta.x;
+    } else if (next.y < next.z) {
+        pos.y += step.y;
+        distanceTraveled = next.y;
+        next.y += tDelta.y;
+    } else {
+        pos.z += step.z;
+        distanceTraveled = next.z;
+        next.z += tDelta.z;
+    }
+  }
+  return { hit: false }
+  //fix this 
 }
+interface VoxelRayInfo 
+{
+  hit:boolean;
+  position?:THREE.Vector3;
+  distance?:number;
+}
+
+
 const dirtyChunks:Set<string> =  new Set();
 function reRender()
 {
@@ -232,14 +289,27 @@ function gtlCords(wX:number, wY:number, wZ:number)
 }
 function modifyChunk(wCords:Array<number>)
 {
+  const wCordVector = new THREE.Vector3(...wCords as [number, number, number]);
   const {chunkCords, localCords }= gtlCords(...wCords as [number, number, number]);
-  
-
+  dirtyChunks.add(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`);
+  const highlightPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({
+      color: 0xffff00,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false
+    })
+  );
+  highlightPlane.position.copy(wCordVector);
+  scene.add(highlightPlane);
+  //apply a box on top of it 
 }
 
 function chunkLoader()
 {
-  const chunkLoadLimit = 8;
+  const chunkLoadLimit = 32;
   const chunkZ = Math.floor(yawObject.position.z/16)
   const chunkX = Math.floor(yawObject.position.x/16)  
   const nBound = chunkZ - chunkLoadLimit;
