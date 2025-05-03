@@ -32,16 +32,24 @@ function close() {
           <button class="account">
             <img src="./assets/grass.png" alt="Account" :class="{ rotated: open }" @click="spin" />
           </button>
-          <div class="dropdown" v-if="open" @click="(event: MouseEvent) => event.stopPropagation()">
-            <div class="dropdowncontent" id="youraccount" v-if="loggedin">
-              <h1>Your Account</h1>
+          <Transition name="fade-slide">
+            <div
+              class="dropdown"
+              v-if="open"
+              @click="(event: MouseEvent) => event.stopPropagation()"
+            >
+              <!-- <Transition name="fade-fade" mode="out-in"> -->
+              <div class="dropdowncontent" id="youraccount" v-if="loggedin">
+                <h1>Your Account</h1>
+              </div>
+              <div class="dropdowncontent" id="youraccount" v-else>
+                <h1>Please Log in to see your account</h1>
+              </div>
+              <!-- </Transition> -->
+              <div class="dropdowncontent"><h2>Settings</h2></div>
+              <div v-if="!loggedin"><h5>In order to save your settings, please log in</h5></div>
             </div>
-            <div class="dropdowncontent" id="youraccount" v-else>
-              <h1>Please Log in to see your account</h1>
-            </div>
-            <div class="dropdowncontent"><h2>Settings</h2></div>
-            <div v-if="!loggedin"><h5>In order to save your settings, please log in</h5></div>
-          </div>
+          </Transition>
           <div class="main">
             <div class="border"><RouterLink to="/">Home</RouterLink></div>
             <div class="border"><RouterLink to="/about">About</RouterLink></div>
@@ -64,19 +72,22 @@ function close() {
 
 <style scoped>
 /* --------------------logged in = true-------------------- */
-/* @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(90deg);
-  }
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  color: #1f1f1f;
+  transform: translate(-17vw, 40px) !important;
 }
-
-.spin {
-  animation: spin 0.7s ease-out;
+.fade-slide-enter-active {
+  transition: all 0.3s ease-out;
+}
+/* .fade-fade-enter-from,
+.fade-fade-leave-to {
+  opacity: 0;
+}
+.fade-fade-enter-active {
+  transition: all 0.5s ease;
 } */
-
 .wrapper {
   width: 98%;
   height: 100%;
@@ -114,13 +125,14 @@ function close() {
   transform: rotate(90deg) scale(1.3);
 }
 .dropdown {
-  height: 40vh;
-  width: 15vw;
+  height: 75vh;
+  width: 25vw;
   position: absolute;
   transform: translateY(34px);
   background-color: #1f1f1f;
+  box-shadow: 0 0 7px #dadada;
   border-radius: 5px;
-  transition: 0.4s ease-out;
+  transition: 0.3s ease-out;
   top: 0%;
   left: 0%;
 }
@@ -129,6 +141,7 @@ function close() {
 }
 #youraccount {
   border-bottom: 1px solid #ffffff;
+  height: 10%;
 }
 
 .main {
@@ -149,6 +162,7 @@ function close() {
 .v-leave-active {
   transition: all 0.7s ease-out;
 } */
+
 /* --------------------buttons-------------------- */
 header {
   line-height: 1.5;
@@ -206,3 +220,5 @@ a:focus {
   border: 0;
 }
 </style>
+<!-- #aaedee  -->
+<!-- #ddaadd  -->
