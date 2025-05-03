@@ -118,7 +118,6 @@ function init() {
     newPlayer =   new Player(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0), 75);
     lod =  new THREE.LOD();
     scene.add(lod);
-    const light = new THREE.DirectionalLight(0xffffff, 1);
     scene.add(light);
     sky = new Sky();
     sky.scale.setScalar(10000); // Large enough to surround your scene
@@ -135,7 +134,6 @@ function init() {
 
     requestAnimationFrame(animate);
 }
-const currentCursorPos:THREE.Vector3 =  new THREE.Vector3();
 function animate() 
 {
     const delta = (performance.now()-currentTime)/1000;
@@ -464,11 +462,6 @@ class Mob extends Entity
   }
 }
 
-function updateSave()
-{
-  //checks for chunks with dirty flags which will be loaded into a map or the chunk can be marked dirty and then the function will iterate through the orig chunk map to update the save file data 
-
-}
 let verticalVelocity = 0;
 const gravity = -19.6;
 const jumpStrength = 10;
@@ -548,40 +541,6 @@ class Player extends Entity
   {
 
   }
-}
-
-
-
-class entityManager
-{
-  //class to manage entities
-  //
-  entityMap:Map<number,Entity>
-  entityPositions:Map<number, THREE.Vector3>
-  constructor()
-  {
-    this.entityPositions =  new Map();
-    this.entityMap = new Map();
-  }
-  add(entity:Entity, position:THREE.Vector3)
-  {
-    this.entityMap.set(entity.id, entity);
-    this.entityPositions.set(entity.id, position);
-     
-  }
-  remove(id:number)
-  {
-    
-  }
-  get()
-  {
-
-  }
-  update()
-  {
-
-  }
-  
 }
 class BiomeCache
 {
@@ -720,19 +679,6 @@ function sampleBiome(x:number, y:number)
   //then restrict the height of the terrain generated to a given value and carve a hole in the center of it to mimic a geyser/hot srpign
 
 }
-
-const noiseParams = 
-{
-  "volcano":
-  {
-    
-  }
-}
-
-
-
-//
-
 class WorldChunk
 {
   cCords:Array<number>
@@ -777,7 +723,6 @@ class WorldChunk
       const heights: Array<Array<number>> = this.createheights(this.cCords[0], this.cCords[1]);
       const cX = this.cCords[0] * configurationInfo.chunkSize;
       const cZ = this.cCords[1] * configurationInfo.chunkSize;
-      let chunkData:Array<number> = [];
       const biome = 1;//get the biome value here
       const biomeConditions = [] //look at tthe biomereference for the conditions for the biome
       const noiseParamters = [];//get the noise parameters from biomeReference
@@ -791,12 +736,15 @@ class WorldChunk
       const blocktype = "desert"
       const test = Object.keys(blockUVs)[Math.floor(Math.random() * Object.keys(blockUVs).length)];
       //iterate thru it in chunks 
+      let chunkData:Array<number> = [];
+      let chunkMap:Map<string, Array<number>> = new Map
       for (let x = 1; x < 17; x++) {
           const coX = cX + (x - 1); 
           for (let z = 1; z < 17; z++) {
           const coZ = cZ + (z - 1);
           const height = heights[x][z];
               for (let y = height; y > configurationInfo.maxDepth; y--) {
+                  const currentYChunk =  Math.floor(y/16);
                   if (y == height) {
                   this.addQuad(coX, y, coZ, "top", blocktype);
                   }
@@ -812,10 +760,15 @@ class WorldChunk
                   if (heights[x][z - 1] < y) {
                   this.addQuad(coX, y, coZ, "back", blocktype);
                   }
+                  if(y%16 === 0) 
+                  {
+                    chunkDataMap.set(`${cX},${cZ}, ${currentYChunk}`, {blockData:chunkData})
+                    chunkData = [];
+
+                  }
               }
           }
       }
-      chunkDataMap.set(`${cX},${cZ}`, {blockData:[]})
       this.buffer.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
       this.buffer.setAttribute('uv', new THREE.Float32BufferAttribute(this.UVs, 2));
       this.buffer.setIndex(this.indices);
@@ -894,6 +847,11 @@ class BiomeGenerator
 //use parameters set for the biome to generate the terrain values
 //when generating the stuff check the refernce for the main block type in the biome
 //add additional features specific to the biome
+
+
+//rendering process
+//first generate the chunk data like block types etc
+//next
 
 
 class ChunkGeneration

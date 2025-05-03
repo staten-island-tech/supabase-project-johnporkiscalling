@@ -19,7 +19,20 @@ export const util3d = Object.freeze(
                 right - padding, top - padding,    // top-right
                 left + padding, top - padding      // top-left
             ];
+        },
+        gtlCords: function (wX:number, wY:number, wZ:number)
+        {
+            const cX = Math.floor(wX/16);
+            const cY = Math.floor(wY/16);
+            const cZ = Math.floor(wZ/16);
+            const chunkCords = [cX, cY, cZ];
+            const lX =  Math.abs(wX%16);
+            const lY =  Math.abs(wY%16);
+            const lZ =  Math.abs(wZ%16);
+            const localCords = [lX, lY, lZ];
+            return { chunkCords, localCords};
         }
+            
     }
 )
 export const utilMath = Object.freeze(
