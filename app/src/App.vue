@@ -5,13 +5,7 @@ import LogIn from "./components/LogIn1.vue";
 const loggedin = ref(false);
 const wantstologin = ref(false);
 const open = ref(false);
-// const spinimage = ref(false);
 
-// function spin() {
-//   spinimage.value = true;
-//   setTimeout(() => (spinimage.value = false), 5000);
-// }
-// let style = ref({ transform: "rotate(0deg)" });
 function spin(event: MouseEvent) {
   event.stopPropagation(); // prevent triggering document click
   open.value = !open.value;
@@ -38,16 +32,14 @@ function close() {
               v-if="open"
               @click="(event: MouseEvent) => event.stopPropagation()"
             >
-              <!-- <Transition name="fade-fade" mode="out-in"> -->
-              <div class="dropdowncontent" id="youraccount" v-if="loggedin">
-                <h1>Your Account</h1>
+              <div class="youraccount">
+                <h1 class="header" v-if="loggedin">Your Account</h1>
+                <h1 class="header" v-else>Please Log in to see your account</h1>
               </div>
-              <div class="dropdowncontent" id="youraccount" v-else>
-                <h1>Please Log in to see your account</h1>
+              <div class="settings"><h2>Settings</h2></div>
+              <div style="transform: translateY(-15px)" v-if="!loggedin">
+                <h5>In order to save your settings, please log in</h5>
               </div>
-              <!-- </Transition> -->
-              <div class="dropdowncontent"><h2>Settings</h2></div>
-              <div v-if="!loggedin"><h5>In order to save your settings, please log in</h5></div>
             </div>
           </Transition>
           <div class="main">
@@ -72,6 +64,10 @@ function close() {
 
 <style scoped>
 /* --------------------logged in = true-------------------- */
+.settings {
+  height: 93%;
+}
+
 .fade-slide-enter-from,
 .fade-slide-leave-to {
   opacity: 0;
@@ -81,13 +77,6 @@ function close() {
 .fade-slide-enter-active {
   transition: all 0.3s ease-out;
 }
-/* .fade-fade-enter-from,
-.fade-fade-leave-to {
-  opacity: 0;
-}
-.fade-fade-enter-active {
-  transition: all 0.5s ease;
-} */
 .wrapper {
   width: 98%;
   height: 100%;
@@ -139,11 +128,18 @@ function close() {
 .account:hover + .dropdown {
   transform: translate(-5.5px, 39px);
 }
-#youraccount {
-  border-bottom: 1px solid #ffffff;
-  height: 10%;
+.youraccount {
+  height: 7%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
-
+.header {
+  border-bottom: 1.5px solid #ffffff;
+  width: 95%;
+  border-radius: 3px;
+}
 .main {
   width: 100%;
   height: 100%;

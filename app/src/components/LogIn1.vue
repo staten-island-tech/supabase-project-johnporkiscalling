@@ -57,7 +57,7 @@
         <form @submit.prevent="submit">
           <input type="text" placeholder="Email" />
           <input type="text" placeholder="Password" />
-          <button type="submit" @click="loggedin = true">Login!</button>
+          <button type="submit">Login!</button>
         </form>
       </div>
       <div class="sides"></div>
@@ -66,11 +66,10 @@
   </div>
 </template>
 <script setup lang="ts">
+import supabase from "@/supabase";
 import { ref } from "vue";
 
 const emit = defineEmits(["login"]);
-
-const loggedin = ref(false);
 
 const cursor = ref<HTMLElement | null>(null);
 function mouse(e: MouseEvent) {
