@@ -20,19 +20,18 @@ export const util3d = Object.freeze(
                 left + padding, top - padding      // top-left
             ];
         },
-        gtlCords: function (wX:number, wY:number, wZ:number)
-        {
-            const cX = Math.floor(wX/16);
-            const cY = Math.floor(wY/16);
-            const cZ = Math.floor(wZ/16);
+        gtlCords: function (wX: number, wY: number, wZ: number) {
+            const cX = Math.floor(wX / 16);
+            const cY = Math.floor(wY / 16);
+            const cZ = Math.floor(wZ / 16);
             const chunkCords = [cX, cY, cZ];
-            const lX =  Math.abs(wX%16);
-            const lY =  Math.abs(wY%16);
-            const lZ =  Math.abs(wZ%16);
+            const lX = Math.abs(wX % 16);
+            const lY = Math.abs(wY % 16);
+            const lZ = Math.abs(wZ % 16);
             const localCords = [lX, lY, lZ];
-            return { chunkCords, localCords};
+            return { chunkCords, localCords };
         }
-            
+
     }
 )
 export const utilMath = Object.freeze(
@@ -54,6 +53,69 @@ export const utilMath = Object.freeze(
         }
     }
 )
+//max depth =  1 by 1 by 1 voxel
+export class Octree {
+    octree: Array<number>
+    maxDepth: number
+    constructor(boundary: Array<Array<number>>, maxDepth: number) {
+        this.octree = [];
+        this.maxDepth = maxDepth
+    }
+    subdivide(index: number) {
+
+    }
+    private setInitialNode(bounds: Array<number>) {
+        this.octree.push
+    }
+    isLeaf(nodeIndex: number) {
+
+    }
+    depth(nodeIndex: number) {
+
+    }
+    mergeOctrees(o2: Octree) {
+        //only merges if its root node is the same size
+        //if it does get merged it does not perserve the leaf nodes and only combines the root nodes. along with that it'll also create theother 6 nodes of the part of the node
+        //
+        this.octree[0]
+    }
+    private addNode(i: number, data: number) {
+        this.octree[8 * i + 1] = data;
+    }
+    //sets a node at a given position provided data 
 
 
 
+
+}
+export class BiomeStack {
+    private lcgState = 0;
+
+    map: Array<boolean>
+    cache: Map<string, Array<number>>
+    constructor(seed: number) {
+        this.cache = new Map();
+        this.map = [];
+        this.lcgState = seed >>> 0;
+    }
+    initialState() {
+        for (let x = 0; x < 4; x++) {
+            for (let z = 0; z < 4; z++) {
+                const land = this.lcg() % 10 === 0 ? true : false;
+                this.map[4 * x + z] = land;
+            }
+        }
+    }
+    doubleResolution() {
+
+    }
+    private lcg() {
+        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
+        return this.lcgState;
+    }
+
+}
+
+
+
+//in the area where you call the class maintain a depth counter of the current octree node
