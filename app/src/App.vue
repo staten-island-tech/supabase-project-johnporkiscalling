@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
-import LogIn from "./components/LogIn1.vue";
+import LogIn from "./components/test2.vue";
 const loggedin = ref(false);
 const wantstologin = ref(false);
 const open = ref(false);
