@@ -17,7 +17,7 @@
           <div class="l">LOG IN</div>
         </div>
         <form @submit.prevent="submit">
-          <input type="email" placeholder="Email" v-model="email" required />
+          <input type="text" placeholder="Email" v-model="email" required />
           <input type="password" placeholder="Password" v-model="password" required />
           <button type="submit" :disabled="isLoading">Login!</button>
         </form>
@@ -31,6 +31,7 @@
 
 <script setup lang="ts">
 import supabase from "@/supabase";
+import { pass } from "three/tsl";
 import { ref } from "vue";
 
 // Emit event to parent component when logged in
@@ -42,6 +43,7 @@ const password = ref("");
 const isLoading = ref(false);
 const errorMessage = ref("");
 
+console.log(email, "email", password, "password");
 // Handle mouse movement for cursor effect (unchanged from your code)
 const cursor = ref<HTMLElement | null>(null);
 function mouse(e: MouseEvent) {
@@ -51,8 +53,60 @@ function mouse(e: MouseEvent) {
   }
 }
 
-// Submit function for login
 async function submit() {
+  isLoading.value = true;
+  errorMessage.value = "";
+
+  try {
+    // Try logging in
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+      email: email.value,
+      password: password.value,
+    });
+
+    // If login is successful, emit login event
+    if (!loginError) {
+      emit("login");
+      return;
+    }
+
+    // If login failed, try signing up
+    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+      email: email.value,
+      password: password.value,
+    });
+
+    if (signupError) throw signupError;
+
+    // Insert default preferences for the new user
+    const userId = signupData.user?.id;
+    if (userId) {
+      const { error: prefsError } = await supabase.from("user_preferences").upsert({
+        id: userId,
+        options: {
+          render: "8", // Default render value
+          theme: "dark", // Default theme value
+        },
+      });
+
+      if (prefsError) {
+        console.error("Error inserting preferences:", prefsError);
+        throw prefsError;
+      }
+    }
+
+    // Emit login event after signup and preferences insertion
+    emit("login");
+  } catch (error: any) {
+    console.error("Auth error:", error);
+    errorMessage.value = error.message || "Something went wrong.";
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// Submit function for login
+async function submit1() {
   errorMessage.value = "";
 
   if (!email.value || !password.value) {
