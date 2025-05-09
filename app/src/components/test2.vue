@@ -66,8 +66,10 @@ async function submit() {
 
     // If login is successful, emit login event
     if (!loginError) {
+      console.log(loginData);
       emit("login");
       return;
+    } else if (loginError) {
     }
 
     // If login failed, try signing up
@@ -78,14 +80,14 @@ async function submit() {
 
     if (signupError) throw signupError;
 
-    // Insert default preferences for the new user
+    // insert options
     const userId = signupData.user?.id;
     if (userId) {
       const { error: prefsError } = await supabase.from("user_preferences").upsert({
         id: userId,
         options: {
-          render: "8", // Default render value
-          theme: "dark", // Default theme value
+          render: "8",
+          theme: "dark",
         },
       });
 
