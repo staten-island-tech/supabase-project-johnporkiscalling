@@ -115,6 +115,31 @@ export class BiomeStack {
     }
 
 }
+class DLA {
+    private lcgState = 0;
+    dim: number
+    grid: Uint8Array;
+    boundary: Map<string, number>
+    constructor(dim: number) {
+        this.dim = dim;
+        this.grid = new Uint8Array(dim * dim);
+        this.boundary = new Map();
+    }
+    private lcg() {
+        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
+        return this.lcgState;
+    }
+
+    //define a grid that starts at a given size 
+
+}
+
+
+
+
+
+
+
 
 
 

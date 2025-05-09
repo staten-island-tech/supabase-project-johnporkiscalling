@@ -32,11 +32,11 @@ const stats = new Stats();
 document.body.appendChild(stats.dom);
 const coordinates =  ref("SOMETHING");
 const freq = .002;
-const amp = .2;
+const amp = .1;
 const pers = .5;
 const eta = 0.00001;
 const scale = 1;
-const octaves = 4;
+const octaves = 8;
 const lacunarity = 2;
 
 const textureLoader = new THREE.TextureLoader();
@@ -370,6 +370,8 @@ const blockUVs:Record<string,Array<number>> = {
   desert: util3d.getUVCords('minecraft:block/sand'),
   badland: util3d.getUVCords('minecraft:block/red_sand'),
   stone: util3d.getUVCords('minecraft:block/stone'),
+  purp: util3d.getUVCords('minecraft:block/amethyst_block'),
+  green: util3d.getUVCords('minecraft:block/green_concrete')
 };
 
 class Entity
@@ -704,7 +706,7 @@ class WorldChunk
     const cZ = z * configurationInfo.chunkSize;
     return Array.from({ length: 18 }, (_, x) =>
             Array.from({ length: 18 }, (_, z) =>
-        (Math.floor(
+        Math.floor(Math.pow((
                 noiseMachine.octaveNoise(
                 (x + cX + eta - 1) * scale,
                 (z + cZ + eta - 1) * scale,
@@ -714,8 +716,8 @@ class WorldChunk
                 freq,
                 lacunarity,
                 noiseMachine.simplex.bind(noiseMachine)
-                ) * 32
-            ))
+                )
+            ), 4) * 200)
             )
         );
   }
@@ -733,7 +735,6 @@ class WorldChunk
       const folliage = [];//specify the folliage to be placed here like trees shrubs or flowers
       //folliage can be a seperate layer considering it generates over the chunks
       //to generate folliage just use some algorithm and cross reference the generated folliage's coordinates to determine whether that position is valid. 
-      const blocktype = "desert"
       const test = Object.keys(blockUVs)[Math.floor(Math.random() * Object.keys(blockUVs).length)];
       //iterate thru it in chunks 
       let chunkData:Array<number> = [];
@@ -744,6 +745,7 @@ class WorldChunk
           const coZ = cZ + (z - 1);
           const height = heights[x][z];
               for (let y = height; y > configurationInfo.maxDepth; y--) {
+                const blocktype = "purp"
                   const currentYChunk =  Math.floor(y/16);
                   if (y == height) {
                   this.addQuad(coX, y, coZ, "top", blocktype);
@@ -839,7 +841,6 @@ class BiomeGenerator
       }
     }
   }
-  
 }
 
 
@@ -863,11 +864,70 @@ class ChunkGeneration
     this.cCords =  cCords;
     this.vertices =  [];
   }
+
+}
+const zoomLayer1:Uint8Array = new Uint8Array(16);
+const zoomLayer2 = new Uint8Array(64);
+const zoomLayer3 = new Uint8Array(256);
+function testRNG(a:number)
+{
+  return 2342422
 }
 
+function initialLayer()
+{
+  for(let x = 0; x<4; x++)
+  {
+    for(let z = 0; z<4; z++)
+    {
+      const trueF = testRNG(1)%10==1;
+      if(trueF)
+      {
+        zoomLayer1[x+z*4] = 1;
+      }
 
+    }
+  }
+};
+function secondLayer()
+{
+  
+}
 
+class BiomeCacheee
+{
+  private lcgState:number;
+  constructor(seed:number)
+  {
+    this.lcgState = seed;
+  }
+  initialLayer()
+  {
+    const layer = new bool
+  }
+}
+class BitArray {
+  constructor(size:number) {
+    this.size = size;
+    this.array = new Uint8Array(Math.ceil(size / 8));
+  }
 
+  set(index, value) {
+    const byteIndex = index >> 3; // index / 8
+    const bitIndex = index % 8;
+    if (value) {
+      this.array[byteIndex] |= (1 << bitIndex); // set bit
+    } else {
+      this.array[byteIndex] &= ~(1 << bitIndex); // clear bit
+    }
+  }
+
+  get(index) {
+    const byteIndex = index >> 3;
+    const bitIndex = index % 8;
+    return (this.array[byteIndex] & (1 << bitIndex)) !== 0;
+  }
+}
 
 
 onMounted(()=>
