@@ -134,9 +134,31 @@ class DLA {
 
 }
 
+export class BitArray {
+  array:Uint8Array;
+  size:number;
+  constructor(size:number) {
+    this.size = size;
+    this.array = new Uint8Array(Math.ceil(size / 8));
+  }
 
+  set(index:number, value:boolean) {
+    const byteIndex = index >> 3; // index / 8
+    const bitIndex = index % 8;
+    if (value) {
+      this.array[byteIndex] |= (1 << bitIndex); // set bit
+    } else {
+      this.array[byteIndex] &= ~(1 << bitIndex); // clear bit
+    }
+  }
 
+  get(index:number) {
+    const byteIndex = index >> 3;
+    const bitIndex = index % 8;
+    return (this.array[byteIndex] & (1 << bitIndex)) !== 0;
+  }
 
+}
 
 
 

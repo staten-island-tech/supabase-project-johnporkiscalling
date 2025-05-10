@@ -853,7 +853,7 @@ class BiomeGenerator
 //rendering process
 //first generate the chunk data like block types etc
 //next
-
+import { BitArray } from './utils';
 
 class ChunkGeneration
 {
@@ -866,9 +866,9 @@ class ChunkGeneration
   }
 
 }
-const zoomLayer1:Uint8Array = new Uint8Array(16);
-const zoomLayer2 = new Uint8Array(64);
-const zoomLayer3 = new Uint8Array(256);
+const zoomLayer1:BitArray = new BitArray(16);
+const zoomLayer2 = new BitArray(64);
+const zoomLayer3 = new BitArray(256);
 function testRNG(a:number)
 {
   return 2342422
@@ -883,7 +883,7 @@ function initialLayer()
       const trueF = testRNG(1)%10==1;
       if(trueF)
       {
-        zoomLayer1[x+z*4] = 1;
+        zoomLayer1.set(x+z*4, true);
       }
 
     }
@@ -901,33 +901,49 @@ class BiomeCacheee
   {
     this.lcgState = seed;
   }
+  private lcg() 
+  {
+    this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
+    return this.lcgState;
+  }
   initialLayer()
   {
-    const layer = new bool
-  }
-}
-class BitArray {
-  constructor(size:number) {
-    this.size = size;
-    this.array = new Uint8Array(Math.ceil(size / 8));
-  }
+    const layer = new BitArray(16);
+    for(let x = 0; x<4; x++)
+    {
+      for(let z = 0; z<4; z++)
+      {
+        const trueF = this.lcg()%10===1;
+        if(trueF)
+        {
+          layer.set(x+z*4, true);
+        }
 
-  set(index, value) {
-    const byteIndex = index >> 3; // index / 8
-    const bitIndex = index % 8;
-    if (value) {
-      this.array[byteIndex] |= (1 << bitIndex); // set bit
-    } else {
-      this.array[byteIndex] &= ~(1 << bitIndex); // clear bit
+      }
+    }
+    const layer2 = new BitArray(64)
+    {
+      
     }
   }
-
-  get(index) {
-    const byteIndex = index >> 3;
-    const bitIndex = index % 8;
-    return (this.array[byteIndex] & (1 << bitIndex)) !== 0;
+  upscaleArray(fA:BitArray, dim:number, scale:number)
+  {
+    const upscaledDim = dim*scale;
+    const scaledArray =  new BitArray(Math.pow(upscaledDim, 2));
+    for(let x = 0; x<upscaledDim; x++) 
+    {
+      for(let z = 0;z<upscaledDim; z++)
+      {
+        const oX =  Math.floor(x/scale);
+        const oZ =  Math.floor(z/scale);
+        const oIndex = oX+oZ+dim;
+        scaledArray.set(z *upscaledDim + x, fA.get(oIndex));
+      }
+    }
+    return scaledArray;
   }
 }
+
 
 
 onMounted(()=>
