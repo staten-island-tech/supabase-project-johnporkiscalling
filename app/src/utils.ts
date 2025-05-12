@@ -21,13 +21,13 @@ export const util3d = Object.freeze(
             ];
         },
         gtlCords: function (wX: number, wY: number, wZ: number) {
-            const cX = Math.floor(wX / 16);
-            const cY = Math.floor(wY / 16);
-            const cZ = Math.floor(wZ / 16);
+            const cX = wX >> 4;
+            const cY = wY >> 4;
+            const cZ = wZ >> 4;
             const chunkCords = [cX, cY, cZ];
-            const lX = Math.abs(wX % 16);
-            const lY = Math.abs(wY % 16);
-            const lZ = Math.abs(wZ % 16);
+            const lX = Math.abs(wX) & 15;
+            const lY = Math.abs(wY) & 15;
+            const lZ = Math.abs(wZ) & 15;
             const localCords = [lX, lY, lZ];
             return { chunkCords, localCords };
         }
@@ -135,30 +135,43 @@ class DLA {
 }
 
 export class BitArray {
-  array:Uint8Array;
-  size:number;
-  constructor(size:number) {
-    this.size = size;
-    this.array = new Uint8Array(Math.ceil(size / 8));
-  }
-
-  set(index:number, value:boolean) {
-    const byteIndex = index >> 3; // index / 8
-    const bitIndex = index % 8;
-    if (value) {
-      this.array[byteIndex] |= (1 << bitIndex); // set bit
-    } else {
-      this.array[byteIndex] &= ~(1 << bitIndex); // clear bit
+    array:Uint8Array;
+    size:number;
+    constructor(size:number) {
+        this.size = size;
+        this.array = new Uint8Array(Math.ceil(size / 8));
     }
-  }
 
-  get(index:number) {
-    const byteIndex = index >> 3;
-    const bitIndex = index % 8;
-    return (this.array[byteIndex] & (1 << bitIndex)) !== 0;
-  }
+    set(index:number, value:boolean) {
+        const byteIndex = index >> 3;
+        const bitIndex = index  & 7;
+        if (value) {
+        this.array[byteIndex] |= (1 << bitIndex); 
+        } else {
+        this.array[byteIndex] &= ~(1 << bitIndex); 
+        }
+    }
 
+    get(index:number) {
+        const byteIndex = index >> 3;
+        const bitIndex = index % 8;
+        return (this.array[byteIndex] & (1 << bitIndex)) !== 0;
+    }
 }
+export class Random
+{
+    private lcgState:number;
+    constructor(seed:number)
+    {
+        this.lcgState = seed;
+    }
+    lcg() 
+    {
+        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
+        return this.lcgState;
+    }
+}
+
 
 
 
