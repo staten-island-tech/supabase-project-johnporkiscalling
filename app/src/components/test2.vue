@@ -31,7 +31,6 @@
 
 <script setup lang="ts">
 import supabase from "@/supabase";
-import { pass } from "three/tsl";
 import { ref } from "vue";
 
 // Emit event to parent component when logged in
@@ -70,35 +69,44 @@ async function submit() {
       emit("login");
       return;
     } else if (loginError) {
-    }
+      try {
+        // If login failed, try signing up
 
-    // If login failed, try signing up
-    const { data: signupData, error: signupError } = await supabase.auth.signUp({
-      email: email.value,
-      password: password.value,
-    });
+        const { data: signupData, error: signupError } = await supabase.auth.signUp({
+          email: email.value,
+          password: password.value,
+        });
 
-    if (signupError) throw signupError;
+        if (signupError) throw signupError;
 
-    // insert options
-    const userId = signupData.user?.id;
-    if (userId) {
-      const { error: prefsError } = await supabase.from("user_preferences").upsert({
-        id: userId,
-        options: {
-          render: "8",
-          theme: "dark",
-        },
-      });
+        // insert options
 
-      if (prefsError) {
-        console.error("Error inserting preferences:", prefsError);
-        throw prefsError;
+        const userId = signupData.user?.id;
+
+        if (userId) {
+          const { error: prefsError } = await supabase.from("user_preferences").insert({
+            id: userId,
+            options: {
+              render: "8",
+              theme: "dark",
+            },
+          });
+
+          if (prefsError) {
+            console.error("Error inserting preferences:", prefsError);
+            throw prefsError;
+          }
+        }
+
+        // Emit login event after signup and preferences insertion
+        emit("login");
+      } catch (error: any) {
+        console.error("Auth error:", error);
+        errorMessage.value = error.message || "Something went wrong.";
+      } finally {
+        isLoading.value = false;
       }
     }
-
-    // Emit login event after signup and preferences insertion
-    emit("login");
   } catch (error: any) {
     console.error("Auth error:", error);
     errorMessage.value = error.message || "Something went wrong.";

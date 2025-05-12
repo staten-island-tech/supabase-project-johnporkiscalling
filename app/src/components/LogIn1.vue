@@ -57,7 +57,7 @@
         <form @submit.prevent="submit">
           <input type="text" placeholder="Email" />
           <input type="text" placeholder="Password" />
-          <button type="submit">Login!</button>
+          <button type="submit" :disabled="loading">Login!</button>
         </form>
       </div>
       <div class="sides"></div>
@@ -69,8 +69,6 @@
 import supabase from "@/supabase";
 import { ref } from "vue";
 
-const emit = defineEmits(["login"]);
-
 const cursor = ref<HTMLElement | null>(null);
 function mouse(e: MouseEvent) {
   if (cursor.value) {
@@ -79,7 +77,15 @@ function mouse(e: MouseEvent) {
   }
 }
 
-function submit() {
+const emit = defineEmits(["login"]);
+
+const email = ref("");
+const password = ref("");
+
+const loading = ref(false);
+const errorMessage = ref("");
+
+async function submit() {
   emit("login");
 }
 </script>
