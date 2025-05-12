@@ -234,26 +234,26 @@ function chunkLoader()
       chunkMeshMap.delete(key);
     }
   }
-  for(let x =  wBound; x<eBound; x++)
-  {
-      for(let z =  nBound; z<sBound; z++)
-      {
-          const stringCords = `${x},${z}`
-          if(!chunkMeshMap.has(stringCords))
-          {
-            const chunkTest =  new WorldChunk([x,z]);
-            chunkTest.createChunk();
-            const {buffer, UVs, indices, vertices} = chunkTest.returnData();
-            chunkTest.destroy();
-            const mesh = new THREE.Mesh(buffer, blocksMaterial)
-            mesh.receiveShadow = true;
-            mesh.castShadow =  true;
-            scene.add(mesh);       
-            chunkMeshMap.set(stringCords, mesh);
-          }
+    for(let x =  wBound; x<eBound; x++)
+    {
+        for(let z =  nBound; z<sBound; z++)
+        {
+            const stringCords = `${x},${z}`
+            if(!chunkMeshMap.has(stringCords))
+            {
+                const chunkTest =  new WorldChunk([x,z]);
+                chunkTest.createChunk();
+                const {buffer, UVs, indices, vertices} = chunkTest.returnData();
+                chunkTest.destroy();
+                const mesh = new THREE.Mesh(buffer, blocksMaterial)
+                mesh.receiveShadow = true;
+                mesh.castShadow =  true;
+                scene.add(mesh);       
+                chunkMeshMap.set(stringCords, mesh);
+            }
 
-      }
-  }
+        }
+    }
 }
 //detect if the chunk is full blocks or full air
 //if any of those options are true then dont render anything at all
@@ -270,15 +270,17 @@ class VoxelChunk
     indices:Array<number>;
     vertices:Array<number>;
     uvs:Array<number>;
-    constructor(x:number,y:number,z:number, data:Uint8Array)
+    dirty:boolean
+    constructor(x:number,y:number,z:number)
     {
         this.cCords = [x,y,z];
-        this.data =  data;
+        this.data = new Uint8Array(16*16*16);
         this.meshData =  new THREE.Mesh();
         this.offset = 0;
         this.indices = [];
         this.vertices = [];
         this.uvs = [];
+        this.dirty = false;
     }
     getVoxel(x:number, y:number, z:number) {
         if (x < 0 || y < 0 || z < 0 || x >= 16 || y >= 16 || z >= 16) {
@@ -287,7 +289,8 @@ class VoxelChunk
         const index = x + (y * 16) + (z * 16 * 16);
         return this.data[index];
     }
-    setVoxel(x:number, y:number, z:number, type:number) {//the type is a numbber specified 
+    setVoxel(x:number, y:number, z:number, type:number) 
+    {//the type is a numbber specified 
         if (x < 0 || y < 0 || z < 0 || x >= 16 || y >= 16 || z >= 16) {
         return 0; // Out of bounds
         }
@@ -484,7 +487,8 @@ class ChunkManager
         }
         if (chunk.vertices.length > 0) 
         {
-        chunk.returnMesh();
+            chunk.returnMesh();
+            scene.add(chunk.meshData as THREE.Mesh);
         }
     }
     updateChunkMeshes()
@@ -506,7 +510,7 @@ class ChunkManager
         const parsed = JSON.parse(decodedJson);
         for(const [key, data] of parsed)
         {
-            const 
+
         }
         return parsed;
     }
@@ -524,8 +528,71 @@ class ChunkManager
         const encoded = new TextEncoder().encode(jsonString); // => Uint8Array
         const compressed = pako.deflate(encoded);
     }
-}
+    chunkLoad()
+    {
+        const chunkLoadLimit = 8;
+        const chunkZ = Math.floor(yawObject.position.z/16)
+        const chunkX = Math.floor(yawObject.position.x/16)  
+        const nBound = chunkZ - chunkLoadLimit;
+        const sBound = chunkZ + chunkLoadLimit;
+        const wBound = chunkX - chunkLoadLimit;
+        const eBound = chunkX + chunkLoadLimit;    
+        for(const [key, VoxChunk] of this.chunks)
+        {
+            const [x,y] =  key.split(',').map(Number);
+            const mesh = VoxChunk.meshData as THREE.Mesh;
+            if(x<wBound||x>eBound||y<nBound||y>sBound)
+            {
+                VoxChunk.destroyMesh(scene);
+                //if the chunk has been flagged dirty make sure its saved in memory or saved to a save file
+                if(VoxChunk.dirty)
+                {
+                    //save it in memory or smth here
+                }
+            }
+            
+        }
+        for(let x =  wBound; x<eBound; x++)
+        {
+            for(let z =  nBound; z<sBound; z++)
+            {
+                const stringCords = `${x},${z}`
+                if(!chunkMeshMap.has(stringCords))
+                {
+                    const chunkTest =  new WorldChunk([x,z]);
+                    //change this logic to actually utilize the biomeManager
+                    //when the biomeManager gets utilize itll return chunk data which can be sent here to then get the chunkManager to manipulate
 
+                    chunkTest.createChunk();
+                    const {buffer, UVs, indices, vertices} = chunkTest.returnData();
+                    chunkTest.destroy();
+                    const mesh = new THREE.Mesh(buffer, blocksMaterial)
+                    mesh.receiveShadow = true;
+                    mesh.castShadow =  true;
+                    scene.add(mesh);       
+                    chunkMeshMap.set(stringCords, mesh);
+                }
+
+            }
+        }
+
+    }
+    maybeLoadChunks()
+    {
+        const chunkX = Math.floor(yawObject.position.x / 16);
+        const chunkZ = Math.floor(yawObject.position.z / 16);
+
+        if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
+            chunkLoader();
+            lastChunkX = chunkX;
+            lastChunkZ = chunkZ;
+        }        
+    }
+}
+class biomeManager
+{
+    
+}
 
 const chunkManager =  new ChunkManager();
 const maxReach = 8;
