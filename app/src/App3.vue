@@ -10,9 +10,9 @@ import { onMounted, ref, render } from 'vue';
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { util3d } from './utils';    
+import { util3d, BitArray, Random } from './utils';    
 import { Noise } from './noisefunct';
-
+import { faceDirections } from './stupidlylongvariables';
 import { configurationInfo } from './config';
 import { options } from './options';
 import { info } from './playerinfo';
@@ -122,20 +122,7 @@ function updateSun()
 
 //animate loop
 let currentTime = Infinity;
-function animate()
-{
-    stats.begin();
 
-    const delta = (performance.now()-currentTime)/1000;
-    currentTime = performance.now()
-    
-    updateSun();
-    updateDebug();
-
-    renderer.render(scene, camera);
-    stats.end();
-    requestAnimationFrame(animate);
-}
 
 //
 
@@ -175,18 +162,58 @@ const blockUVs:Record<string,Array<number>> = {
 const dirtyChunks:Set<string> = new Set();
 const chunkMeshMap:Map<string, THREE.Mesh> = new Map();
 const maxChunk = options.chunksLoad;
+let lastChunkX = Infinity, lastChunkZ = Infinity;
 
-function checkDirtyChunks()
-{
-    for(const chunk of dirtyChunks)
-    {
-        //look it up in map and then pass it into to be re rendererd
-        
+function maybeLoadChunks() {
+    const chunkX = Math.floor(yawObject.position.x / 16);
+    const chunkZ = Math.floor(yawObject.position.z / 16);
+
+    if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
+        chunkLoader();
+        lastChunkX = chunkX;
+        lastChunkZ = chunkZ;
     }
 }
-function updateChunks()
+function chunkLoad(c:ChunkManager)
 {
+    const chunkLoadLimit = 32;
+    const chunkZ = Math.floor(yawObject.position.z/16)
+    const chunkX = Math.floor(yawObject.position.x/16)  
+    const nBound = chunkZ - chunkLoadLimit;
+    const sBound = chunkZ + chunkLoadLimit;
+    const wBound = chunkX - chunkLoadLimit;
+    const eBound = chunkX + chunkLoadLimit;
+    for(const [key, VoxChunk] of c.chunks)
+    {
+        const [x,y] =  key.split(',').map(Number);
+        const mesh = VoxChunk.meshData as THREE.Mesh;
+        if(x<wBound||x>eBound||y<nBound||y>sBound)
+        {
+            scene.remove(mesh);
+            mesh.geometry.dispose();
+            chunkMeshMap.delete(key);
+        }
+    }
+    for(let x =  wBound; x<eBound; x++)
+    {
+        for(let z =  nBound; z<sBound; z++)
+        {
+            const stringCords = `${x},${z}`
+            if(!chunkMeshMap.has(stringCords))
+            {
+                const chunkTest =  new WorldChunk([x,z]);
+                chunkTest.createChunk();
+                const {buffer, UVs, indices, vertices} = chunkTest.returnData();
+                chunkTest.destroy();
+                const mesh = new THREE.Mesh(buffer, blocksMaterial)
+                mesh.receiveShadow = true;
+                mesh.castShadow =  true;
+                scene.add(mesh);       
+                chunkMeshMap.set(stringCords, mesh);
+            }
 
+        }
+    }
 }
 function chunkLoader()
 {
@@ -234,22 +261,361 @@ function chunkLoader()
 //
 
 //chunk generation
+class VoxelChunk
+{
+    cCords:Array<number>
+    data:Uint8Array
+    meshData:THREE.Mesh | null;
+    offset:number;
+    indices:Array<number>;
+    vertices:Array<number>;
+    uvs:Array<number>;
+    constructor(x:number,y:number,z:number, data:Uint8Array)
+    {
+        this.cCords = [x,y,z];
+        this.data =  data;
+        this.meshData =  new THREE.Mesh();
+        this.offset = 0;
+        this.indices = [];
+        this.vertices = [];
+        this.uvs = [];
+    }
+    getVoxel(x:number, y:number, z:number) {
+        if (x < 0 || y < 0 || z < 0 || x >= 16 || y >= 16 || z >= 16) {
+        return 0; // Out of bounds
+        }
+        const index = x + (y * 16) + (z * 16 * 16);
+        return this.data[index];
+    }
+    setVoxel(x:number, y:number, z:number, type:number) {//the type is a numbber specified 
+        if (x < 0 || y < 0 || z < 0 || x >= 16 || y >= 16 || z >= 16) {
+        return 0; // Out of bounds
+        }
+        const index = x + (y * 16) + (z * 16 * 16);
+        this.data[index] =  type;
+        return true
+    }
+    addFace(x:number, y:number, z:number, blockType:number, dir:string)
+    {
+        const offSetValues = faceDirections[dir];
+        this.vertices.push(
+        x + offSetValues[0], y + offSetValues[1], z + offSetValues[2],
+        x + offSetValues[3], y + offSetValues[4], z + offSetValues[5],
+        x + offSetValues[6], y + offSetValues[7], z + offSetValues[8],
+        x + offSetValues[9], y + offSetValues[10], z + offSetValues[11],
+        )
+
+        this.indices.push(this.offset, this.offset+1, this.offset+2, this.offset+2, this.offset+3, this.offset);
+        const texturew = blockUVs[blockType];
+        this.uvs.push(...texturew);
+        this.offset+=4;
+    }
+    returnMesh()
+    {
+        const buffer  = new THREE.BufferGeometry();
+        buffer.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
+        buffer.setAttribute('uv', new THREE.Float32BufferAttribute(this.uvs,2));
+        buffer.setIndex(this.indices);
+        this.meshData = new THREE.Mesh(buffer, blocksMaterial);
+    }
+    destroyMesh(scene:THREE.Scene)
+    {
+        scene.remove(this.meshData!);
+        this.meshData!.geometry.dispose();
+        this.meshData = null;
+        this.vertices = [];
+        this.indices = [];
+        this.uvs = [];
+    }
+}
+import pako from 'pako';
+//get the  
 
 
+class ChunkManager
+{
+    chunks:Map<string, VoxelChunk>;
+    dirtyChunks:Set<string>
+    constructor()
+    {
+        this.chunks = new Map();
+        this.dirtyChunks =  new Set();
+    }
+    getChunkKey(x:number, y:number, z:number)
+    {
+        return `${x},${y},${z}`;
+    }
+    //probably dont even need this
+    getChunk(x:number, y:number, z:number)
+    {
+        return this.chunks.get(this.getChunkKey(x,y,z));
+    }
+    getOrCreateChunk(x:number, y:number, z:number)
+    {
+        const key =  this.getChunkKey(x,y,z)
+        if(!this.chunks.has(key))
+        {
+        const chunk = new VoxelChunk(x,y,z);
+        this.chunks.set(key, chunk);
+        this.dirtyChunks.add(key);
+        }
+        return this.chunks.get(key);
+    }
+    getVoxel(x:number, y:number, z:number)
+    {
+        const { chunkCords, localCords } =  util3d.gtlCords(x,y,z);
+        const chunk = this.getChunk(chunkCords[0],chunkCords[1],chunkCords[2]);
+        if(!chunk) return null;
+        return chunk.getVoxel(localCords[0],localCords[1],localCords[2]);
+    }
+    setVoxel(x:number, y:number, z:number, type:number)
+    {
+        const { chunkCords, localCords } = util3d.gtlCords(x,y,z);
+        const chunk =  this.getOrCreateChunk(chunkCords[0], chunkCords[1], chunkCords[2]) as VoxelChunk;
+        chunk.setVoxel(localCords[0], localCords[1], localCords[2], type);
+        this.dirtyChunks.add(this.getChunkKey(chunkCords[0],chunkCords[1],chunkCords[2]));
+        if (localCords[0] === 0) this.markChunkDirty(chunkCords[0] - 1, chunkCords[1], chunkCords[2]);
+        if (localCords[1] === 0) this.markChunkDirty(chunkCords[0], chunkCords[1] - 1, chunkCords[2]);
+        if (localCords[2] === 0) this.markChunkDirty(chunkCords[0], chunkCords[1], chunkCords[2] - 1);
+        if (localCords[0] === 15) this.markChunkDirty(chunkCords[0] + 1, chunkCords[1], chunkCords[2]);
+        if (localCords[1] === 15) this.markChunkDirty(chunkCords[0], chunkCords[1] + 1, chunkCords[2]);
+        if (localCords[2] === 15) this.markChunkDirty(chunkCords[0], chunkCords[1], chunkCords[2] + 1);
+    }
+    markChunkDirty(x:number, y:number, z:number)
+    {
+        const key =  this.getChunkKey(x,y,z);
+        if(this.chunks.has(key))
+        {
+        this.dirtyChunks.add(key);
+        }
+    }
+    getAdjacentVoxel(chunkCords:Array<number>, localCords:Array<number>)
+    { 
+        if (localCords[0] >= 0 && localCords[0] < 16 && 
+            localCords[1] >= 0 && localCords[1] < 16 && 
+            localCords[2] >= 0 && localCords[2] < 16) 
+        {
+        const chunk = this.getChunk(chunkCords[0], chunkCords[1], chunkCords[2]);
+        return chunk ? chunk.getVoxel(localCords[0], localCords[1], localCords[2]) : 0;
+        }
+        let adjChunkX = chunkCords[0];
+        let adjChunkY = chunkCords[1];
+        let adjChunkZ = chunkCords[2];
+        let adjLocalX = localCords[0];
+        let adjLocalY = localCords[1];
+        let adjLocalZ = localCords[2];
+        if (localCords[0] < 0) 
+        {
+            adjChunkX--;
+            adjLocalX = 16 + localCords[0];
+        } 
+        else if (localCords[0] >= 16) 
+        {
+            adjChunkX++;
+            adjLocalX = localCords[0] - 16;
+        }
+        
+        if (localCords[1] < 0) 
+        {
+            adjChunkY--;
+            adjLocalY = 16 + localCords[1];
+        } 
+        else if (localCords[1] >= 16) 
+        {
+            adjChunkY++;
+            adjLocalY = localCords[1] - 16;
+        }
+        
+        if (localCords[2] < 0) 
+        {
+            adjChunkZ--;
+            adjLocalZ = 16 + localCords[2];
+        } 
+        else if (localCords[2] >= 16) 
+        {
+            adjChunkZ++;
+            adjLocalZ = localCords[2] - 16;
+        }
+        
+        const adjChunk = this.getChunk(adjChunkX, adjChunkY, adjChunkZ);
+        return adjChunk ? adjChunk.getVoxel(adjLocalX, adjLocalY, adjLocalZ) : 0;
+    }
+    generateChunkMesh(chunk:VoxelChunk)
+    {
+        if(chunk.meshData)
+        {
+            chunk.destroyMesh(scene);
+        }
+        const cCords = chunk.cCords;
+        for (let x = 0; x < 16; x++) 
+        {
+            for (let y = 0; y < 16; y++) 
+            {
+                for (let z = 0; z < 16; z++)
+                {
+                    const voxelType = chunk.getVoxel(x, y, z);
+                    if(!voxelType) continue;
+                    if (this.getAdjacentVoxel(cCords, [x + 1, y, z]) === 0) 
+                    {
+                        chunk.addFace(x, y, z, voxelType, "right"); 
+                    }
+                    if (this.getAdjacentVoxel(cCords, [x - 1, y, z]) === 0) 
+                    {
+                        chunk.addFace(x, y, z, voxelType, "left");
+                    }
+                    if (this.getAdjacentVoxel(cCords, [x, y + 1, z]) === 0) 
+                    {
+                        chunk.addFace(x, y, z, voxelType, "top");
+                    }
+                    if (this.getAdjacentVoxel(cCords, [x, y - 1, z]) === 0) 
+                    {
+                        chunk.addFace(x, y, z, voxelType, "bottom");
+                    }
+                    if (this.getAdjacentVoxel(cCords, [x, y, z + 1]) === 0) 
+                    {
+                        chunk.addFace(x, y, z, voxelType, "front");
+                    }        
+                    if (this.getAdjacentVoxel(cCords, [x, y, z - 1]) === 0) 
+                    {
+                        chunk.addFace(x, y, z, voxelType, "back");
+                    }
+                }
+            }
+        }
+        if (chunk.vertices.length > 0) 
+        {
+        chunk.returnMesh();
+        }
+    }
+    updateChunkMeshes()
+    {
+        for(const key of this.dirtyChunks)
+        {
+        const chunk =  this.chunks.get(key);
+        if(chunk)
+        {
+            this.generateChunkMesh(chunk);
+        }
+        }
+        this.dirtyChunks.clear();
+    }
+    loadSaveFile(compressed:Uint8Array)
+    {
+        const decompressed = pako.inflate(compressed);
+        const decodedJson = new TextDecoder().decode(decompressed);
+        const parsed = JSON.parse(decodedJson);
+        for(const [key, data] of parsed)
+        {
+            const 
+        }
+        return parsed;
+    }
+    generateSaveFile()
+    {
+        const saveFile:Record<string, Uint8Array> = 
+        {
+
+        }
+        for(const [key, voxChunk] of this.chunks)
+        {
+            saveFile[key] = voxChunk.data;
+        }        
+        const jsonString = JSON.stringify(saveFile);
+        const encoded = new TextEncoder().encode(jsonString); // => Uint8Array
+        const compressed = pako.deflate(encoded);
+    }
+}
+
+
+const chunkManager =  new ChunkManager();
+const maxReach = 8;
+
+function voxelRayCast(direction:THREE.Vector3):VoxelRayInfo
+{
+    const origin = yawObject.position;
+    const pos = yawObject.position.clone().floor(); //go to a whole int closest
+    yawObject.getWorldDirection(direction);
+    //current player cords
+    const step = new THREE.Vector3(
+        Math.sign(direction.x),
+        Math.sign(direction.y),
+        Math.sign(direction.z)
+    )//get the direction vector 
+    const tDelta =  new THREE.Vector3(
+        Math.abs(1 / direction.x),
+        Math.abs(1 / direction.y),
+        Math.abs(1 / direction.z)
+    )//ray cost in an axis
+    const next = new THREE.Vector3(
+            (step.x > 0 ? 1 - (origin.x - pos.x) : (origin.x - pos.x)) * tDelta.x,
+            (step.y > 0 ? 1 - (origin.y - pos.y) : (origin.y - pos.y)) * tDelta.y,
+            (step.z > 0 ? 1 - (origin.z - pos.z) : (origin.z - pos.z)) * tDelta.z
+    );
+    let distanceTraveled = 0;
+
+    while(distanceTraveled<maxReach)
+    {
+        if(chunkManager.getVoxel(pos.x, pos.y, pos.z))
+        {
+        return {
+            hit:true,
+            position:pos.clone(),
+            distance:distanceTraveled,
+        }
+        }
+        if (next.x < next.y && next.x < next.z) {
+            pos.x += step.x;
+            distanceTraveled = next.x;
+            next.x += tDelta.x;
+        } else if (next.y < next.z) {
+            pos.y += step.y;
+            distanceTraveled = next.y;
+            next.y += tDelta.y;
+        } else {
+            pos.z += step.z;
+            distanceTraveled = next.z;
+            next.z += tDelta.z;
+        }
+    }
+    return { hit: false }
+    //fix this 
+}
+interface VoxelRayInfo 
+{
+    hit:boolean;
+    position?:THREE.Vector3;
+    distance?:number;
+}
 
 //
+const blocksMaterial = new THREE.MeshStandardMaterial({map:texture0,side: THREE.DoubleSide, metalness:0.2, roughness:0.8})
 
 //entity initiliazing
 
 //
+function animate()
+{
+    stats.begin();
 
+    const delta = (performance.now()-currentTime)/1000;
+    currentTime = performance.now()
+    
+    updateSun();
+    updateDebug();
 
-
+    renderer.render(scene, camera);
+    stats.end();
+    requestAnimationFrame(animate);
+};
 function init()
 {
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
         canvasContainer.value.appendChild(renderer.domElement);
-    }//if statement cuz ts freaks out   
+    }
+    const chunkManager =  new ChunkManager();
+    chunkLoad(chunkManager);
+    
+
     requestAnimationFrame(animate);
 }
 onMounted(()=>
