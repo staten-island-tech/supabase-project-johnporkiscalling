@@ -1,8 +1,46 @@
-<!-- chatgpt output -->
 <template>
   <div class="background">
     <div class="squares">
-      <!-- Add your squares as before -->
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
+      <div class="square"></div>
     </div>
     <div class="cursor" ref="cursor"></div>
   </div>
@@ -33,17 +71,6 @@
 import supabase from "@/supabase";
 import { ref } from "vue";
 
-// Emit event to parent component when logged in
-const emit = defineEmits(["login"]);
-
-// Reactive references for form data
-const email = ref("");
-const password = ref("");
-const isLoading = ref(false);
-const errorMessage = ref("");
-
-console.log(email, "email", password, "password");
-// Handle mouse movement for cursor effect (unchanged from your code)
 const cursor = ref<HTMLElement | null>(null);
 function mouse(e: MouseEvent) {
   if (cursor.value) {
@@ -52,61 +79,52 @@ function mouse(e: MouseEvent) {
   }
 }
 
+const emit = defineEmits(["login"]);
+
+const email = ref("");
+const password = ref("");
+const isLoading = ref(false);
+const errorMessage = ref("");
+
+console.log(email, "email", password, "password");
+
 async function submit() {
   isLoading.value = true;
   errorMessage.value = "";
 
   try {
-    // Try logging in
     const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
       email: email.value,
       password: password.value,
     });
 
-    // If login is successful, emit login event
     if (!loginError) {
       console.log(loginData);
       emit("login");
       return;
-    } else if (loginError) {
-      try {
-        // If login failed, try signing up
-
-        const { data: signupData, error: signupError } = await supabase.auth.signUp({
-          email: email.value,
-          password: password.value,
-        });
-
-        if (signupError) throw signupError;
-
-        // insert options
-
-        const userId = signupData.user?.id;
-
-        if (userId) {
-          const { error: prefsError } = await supabase.from("user_preferences").insert({
-            id: userId,
-            options: {
-              render: "8",
-              theme: "dark",
-            },
-          });
-
-          if (prefsError) {
-            console.error("Error inserting preferences:", prefsError);
-            throw prefsError;
-          }
-        }
-
-        // Emit login event after signup and preferences insertion
-        emit("login");
-      } catch (error: any) {
-        console.error("Auth error:", error);
-        errorMessage.value = error.message || "Something went wrong.";
-      } finally {
-        isLoading.value = false;
-      }
     }
+
+    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+      email: email.value,
+      password: password.value,
+    });
+
+    if (signupError) throw signupError;
+
+    const userId = signupData.user?.id;
+    if (userId) {
+      const { error: prefsError } = await supabase.from("user_preferences").insert({
+        id: userId,
+        options: {
+          render: "8",
+          theme: "dark",
+        },
+      });
+
+      if (prefsError) throw prefsError;
+    }
+
+    emit("login");
   } catch (error: any) {
     console.error("Auth error:", error);
     errorMessage.value = error.message || "Something went wrong.";
@@ -115,81 +133,19 @@ async function submit() {
   }
 }
 
-// Submit function for login
-async function submit1() {
-  errorMessage.value = "";
+const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+  email: email.value,
+  password: password.value,
+});
 
-  if (!email.value || !password.value) {
-    errorMessage.value = "Please provide both email and password.";
-    return;
-  }
+if (authError) throw authError;
 
-  isLoading.value = true;
-
-  try {
-    // Try signing in
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: email.value,
-      password: password.value,
-    });
-
-    // If sign-in fails due to user not existing, try to sign up
-    if (authError?.message?.includes("Invalid login credentials")) {
-      const { data: signupData, error: signupError } = await supabase.auth.signUp({
-        email: email.value,
-        password: password.value,
-      });
-
-      if (signupError) throw signupError;
-
-      // Optional: wait for confirmation email before proceeding
-      const userId = signupData.user?.id;
-      if (!userId) throw new Error("Signup failed, no user ID returned.");
-
-      // Create default preferences
-      const { error: insertError } = await supabase.from("user_preferences").insert({
-        id: userId,
-        options: { render: "8" },
-      });
-
-      if (insertError) throw insertError;
-
-      emit("login");
-      return;
-    }
-
-    if (authError) throw authError;
-
-    const userId = authData.user.id;
-
-    // Check preferences
-    const { data: prefs, error: prefsError } = await supabase
-      .from("user_preferences")
-      .select("id")
-      .eq("id", userId)
-      .single();
-
-    if (prefsError && prefsError.code !== "PGRST116") {
-      throw prefsError;
-    }
-
-    if (!prefs) {
-      const { error: insertError } = await supabase.from("user_preferences").insert({
-        id: userId,
-        options: { render: "8" },
-      });
-
-      if (insertError) throw insertError;
-    }
-
-    emit("login");
-  } catch (error: any) {
-    console.error("Error during login or signup:", error);
-    errorMessage.value = error.message || "An error occurred. Please try again.";
-  } finally {
-    isLoading.value = false;
-  }
-}
+const userId = authData.user.id;
+const { data: prefs, error: prefsError } = await supabase
+  .from("user_preferences")
+  .select("id")
+  .eq("id", userId)
+  .single();
 </script>
 
 <style scoped>

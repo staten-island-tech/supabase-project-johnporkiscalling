@@ -55,8 +55,8 @@
           <div class="l">LOG IN</div>
         </div>
         <form @submit.prevent="submit">
-          <input type="text" placeholder="Email" />
-          <input type="text" placeholder="Password" />
+          <input type="text" placeholder="Email" v-model="email" required />
+          <input type="text" placeholder="Password" v-model="password" required />
           <button type="submit" :disabled="loading">Login!</button>
         </form>
       </div>
@@ -81,12 +81,52 @@ const emit = defineEmits(["login"]);
 
 const email = ref("");
 const password = ref("");
-
 const loading = ref(false);
 const errorMessage = ref("");
 
 async function submit() {
-  emit("login");
+  loading.value = true;
+  errorMessage.value = "";
+
+  try {
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+      email: email.value,
+      password: password.value,
+    });
+
+    if (!loginError) {
+      console.log(loginData);
+      emit("login");
+      return;
+    }
+
+    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+      email: email.value,
+      password: password.value,
+    });
+
+    if (signupError) throw signupError;
+
+    const userId = signupData.user?.id;
+    if (userId) {
+      const { error: prefsError } = await supabase.from("user_preferences").insert({
+        id: userId,
+        options: {
+          render: "8",
+          theme: "dark",
+        },
+      });
+
+      if (prefsError) throw prefsError;
+    }
+
+    emit("login");
+  } catch (error: any) {
+    console.error("Auth error:", error);
+    errorMessage.value = error.message || "Something went wrong.";
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 

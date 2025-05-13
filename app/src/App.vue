@@ -2,9 +2,11 @@
 import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
 import LogIn from "./components/test2.vue";
+import supabase from "./supabase";
 const loggedin = ref(false);
 const wantstologin = ref(false);
 const open = ref(false);
+const errorMessage = ref("");
 
 function spin(event: MouseEvent) {
   event.stopPropagation(); // prevent triggering document click
@@ -12,6 +14,17 @@ function spin(event: MouseEvent) {
 }
 function close() {
   if (open.value) open.value = false;
+}
+async function logout() {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+
+    console.log("Signed out successfully.");
+  } catch (error: any) {
+    console.error("Sign-out error:", error);
+    errorMessage.value = error.message || "Failed to sign out.";
+  }
 }
 </script>
 
@@ -47,7 +60,9 @@ function close() {
             <div class="border"><RouterLink to="/about">About</RouterLink></div>
 
             <div class="border" v-if="loggedin">
-              <a href="" @click.prevent="(loggedin = false), (wantstologin = false)">Log out</a>
+              <a href="" @click.prevent="(loggedin = false), (wantstologin = false), logout()"
+                >Log out</a
+              >
             </div>
             <div class="border" v-if="!loggedin">
               <a href="" @click.prevent="wantstologin = true">Log in</a>
