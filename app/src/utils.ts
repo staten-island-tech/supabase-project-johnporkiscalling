@@ -135,43 +135,39 @@ class DLA {
 }
 
 export class BitArray {
-    array:Uint8Array;
-    size:number;
-    constructor(size:number) {
+    array: Uint8Array;
+    size: number;
+    constructor(size: number) {
         this.size = size;
         this.array = new Uint8Array(Math.ceil(size / 8));
     }
 
-    set(index:number, value:boolean) {
+    set(index: number, value: boolean) {
         const byteIndex = index >> 3;
-        const bitIndex = index  & 7;
+        const bitIndex = index & 7;
         if (value) {
-        this.array[byteIndex] |= (1 << bitIndex); 
+            this.array[byteIndex] |= (1 << bitIndex);
         } else {
-        this.array[byteIndex] &= ~(1 << bitIndex); 
+            this.array[byteIndex] &= ~(1 << bitIndex);
         }
     }
 
-    get(index:number) {
+    get(index: number) {
         const byteIndex = index >> 3;
         const bitIndex = index % 8;
         return (this.array[byteIndex] & (1 << bitIndex)) !== 0;
     }
 }
-export class Random
-{
-    private lcgState:number;
-    constructor(seed:number)
-    {
+export class Random {
+    private lcgState: number;
+    constructor(seed: number) {
         this.lcgState = seed;
     }
-    lcg() 
-    {
+    lcg() {
         this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
         return this.lcgState;
     }
 }
-
 
 
 

@@ -516,10 +516,7 @@ class ChunkManager
     }
     generateSaveFile()
     {
-        const saveFile:Record<string, Uint8Array> = 
-        {
-
-        }
+        const saveFile:Record<string, Uint8Array> = {}
         for(const [key, voxChunk] of this.chunks)
         {
             saveFile[key] = voxChunk.data;
@@ -527,6 +524,7 @@ class ChunkManager
         const jsonString = JSON.stringify(saveFile);
         const encoded = new TextEncoder().encode(jsonString); // => Uint8Array
         const compressed = pako.deflate(encoded);
+        return compressed; 
     }
     chunkLoad()
     {
@@ -588,11 +586,85 @@ class ChunkManager
             lastChunkZ = chunkZ;
         }        
     }
-}
-class biomeManager
-{
     
 }
+enum biomes
+{
+    "Plains", 
+    "Desert", 
+    "Arctic",
+    "Coast",
+    "Jungles",
+    "Forest",
+    "Oceans"
+    //rivers arent gonna be a biome they're a direct result of erosion simulation. 
+    //
+}
+//air =  null or 0 
+enum blocks
+{
+    "dirt",
+    "grass",
+    "sand",
+    "grassBlock",
+    "ice",
+    "water",
+    "stone",
+    "leaves",
+    "wood",
+    "lava",
+    "flowers", //idk which flowers
+
+}
+import { Worm } from './noisefunct'
+class biomeManager extends Random
+{
+    cache:Record<string, Uint8Array>
+    constructor()
+    {
+        super(seed);       
+        this.cache = {};
+    }
+    chunkBiome(x:number, y:number, z:number)
+    {
+        const wormMap:Map<string, Worm> =  new Map();
+        //the key for this map will record the chunk the worm currently presides in
+        //if it ever crosses a chunk it'll return the chunk coordinate it has passed into
+        //the code will then set the key to the new chunk the worm resides in
+        //during world gen the thing will take a look at the wormMap for the current chunk its generating
+        //if the worm does exist take it and continue carving it during the chunks carving
+        //this will repeat continously until it hits the render dist or the depth of the worm hits the limit set by the world generator
+        
+        const worm = new Worm(seed,[0,0,0]);
+        
+        //kill the worm when its done being used
+        //remove it from the map
+        //generate the whole chunk
+        //run the worm on it if worms are allowed to form here
+        //when starting new chunk generation check if theres a worm that'll bisect the current chunk
+        //use an elevation approach for the types of caves generated
+        //lower elevation bigger caves 
+        //higher elevation smaller more noddle like caves
+    }
+}
+class WorldGeneration extends Random
+{
+    constructor()
+    {
+        super(seed);
+        
+    }
+    carver(x:number, y:number, z:number)
+    {
+        //initialize a new Worm instance
+    }   
+
+
+    
+}
+
+
+
 
 const chunkManager =  new ChunkManager();
 const maxReach = 8;
