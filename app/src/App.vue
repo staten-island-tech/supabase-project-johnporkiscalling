@@ -1,12 +1,31 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from "vue-router";
-import { ref } from "vue";
-import LogIn from "./components/test2.vue";
+import { ref, onMounted } from "vue";
+import LogIn from "./components/LogIn1.vue";
 import supabase from "./supabase";
 const loggedin = ref(false);
 const wantstologin = ref(false);
 const open = ref(false);
 const errorMessage = ref("");
+let useremail = ref<string | null>(null);
+
+onMounted(async () => {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    if (data?.user) {
+      loggedin.value = true;
+      useremail.value = data.user.email;
+    }
+  } catch (err) {
+    console.error("Error getting user:", err);
+  }
+});
+
+// while (error) {
+//   console.log(error);
+//   break;
+// }
 
 function spin(event: MouseEvent) {
   event.stopPropagation(); // prevent triggering document click
@@ -46,8 +65,11 @@ async function logout() {
               @click="(event: MouseEvent) => event.stopPropagation()"
             >
               <div class="youraccount">
-                <h1 class="header" v-if="loggedin">Your Account</h1>
-                <h1 class="header" v-else>Please Log in to see your account</h1>
+                <div v-if="loggedin">
+                  <h1 class="header">Your Account</h1>
+                  <h1>{{ useremail }}</h1>
+                </div>
+                <div v-else><h1 class="header">Please Log in to see your account</h1></div>
               </div>
               <div class="settings"><h2>Settings</h2></div>
               <div style="transform: translateY(-15px)" v-if="!loggedin">
