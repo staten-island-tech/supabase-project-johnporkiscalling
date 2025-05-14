@@ -127,6 +127,9 @@ export class Noise {
 
         return 70 * (contrib0 + contrib1 + contrib2);
     }
+    Simplex3(x: number, y: number) {
+
+    }
 
 }
 

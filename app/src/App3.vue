@@ -164,97 +164,6 @@ const chunkMeshMap:Map<string, THREE.Mesh> = new Map();
 const maxChunk = options.chunksLoad;
 let lastChunkX = Infinity, lastChunkZ = Infinity;
 
-function maybeLoadChunks() {
-    const chunkX = Math.floor(yawObject.position.x / 16);
-    const chunkZ = Math.floor(yawObject.position.z / 16);
-
-    if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
-        chunkLoader();
-        lastChunkX = chunkX;
-        lastChunkZ = chunkZ;
-    }
-}
-function chunkLoad(c:ChunkManager)
-{
-    const chunkLoadLimit = 32;
-    const chunkZ = Math.floor(yawObject.position.z/16)
-    const chunkX = Math.floor(yawObject.position.x/16)  
-    const nBound = chunkZ - chunkLoadLimit;
-    const sBound = chunkZ + chunkLoadLimit;
-    const wBound = chunkX - chunkLoadLimit;
-    const eBound = chunkX + chunkLoadLimit;
-    for(const [key, VoxChunk] of c.chunks)
-    {
-        const [x,y] =  key.split(',').map(Number);
-        const mesh = VoxChunk.meshData as THREE.Mesh;
-        if(x<wBound||x>eBound||y<nBound||y>sBound)
-        {
-            scene.remove(mesh);
-            mesh.geometry.dispose();
-            chunkMeshMap.delete(key);
-        }
-    }
-    for(let x =  wBound; x<eBound; x++)
-    {
-        for(let z =  nBound; z<sBound; z++)
-        {
-            const stringCords = `${x},${z}`
-            if(!chunkMeshMap.has(stringCords))
-            {
-                const chunkTest =  new WorldChunk([x,z]);
-                chunkTest.createChunk();
-                const {buffer, UVs, indices, vertices} = chunkTest.returnData();
-                chunkTest.destroy();
-                const mesh = new THREE.Mesh(buffer, blocksMaterial)
-                mesh.receiveShadow = true;
-                mesh.castShadow =  true;
-                scene.add(mesh);       
-                chunkMeshMap.set(stringCords, mesh);
-            }
-
-        }
-    }
-}
-function chunkLoader()
-{
-  const chunkLoadLimit = 32;
-  const chunkZ = Math.floor(yawObject.position.z/16)
-  const chunkX = Math.floor(yawObject.position.x/16)  
-  const nBound = chunkZ - chunkLoadLimit;
-  const sBound = chunkZ + chunkLoadLimit;
-  const wBound = chunkX - chunkLoadLimit;
-  const eBound = chunkX + chunkLoadLimit;
-  for(const [key, mesh] of chunkMeshMap.entries())
-  {
-    const [x,y] =  key.split(',').map(Number);
-    if(x<wBound||x>eBound||y<nBound||y>sBound)
-    {
-      scene.remove(mesh);
-      mesh.geometry.dispose();
-      chunkMeshMap.delete(key);
-    }
-  }
-    for(let x =  wBound; x<eBound; x++)
-    {
-        for(let z =  nBound; z<sBound; z++)
-        {
-            const stringCords = `${x},${z}`
-            if(!chunkMeshMap.has(stringCords))
-            {
-                const chunkTest =  new WorldChunk([x,z]);
-                chunkTest.createChunk();
-                const {buffer, UVs, indices, vertices} = chunkTest.returnData();
-                chunkTest.destroy();
-                const mesh = new THREE.Mesh(buffer, blocksMaterial)
-                mesh.receiveShadow = true;
-                mesh.castShadow =  true;
-                scene.add(mesh);       
-                chunkMeshMap.set(stringCords, mesh);
-            }
-
-        }
-    }
-}
 //detect if the chunk is full blocks or full air
 //if any of those options are true then dont render anything at all
 
@@ -581,7 +490,7 @@ class ChunkManager
         const chunkZ = Math.floor(yawObject.position.z / 16);
 
         if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
-            chunkLoader();
+            this.chunkLoad();
             lastChunkX = chunkX;
             lastChunkZ = chunkZ;
         }        
@@ -596,11 +505,73 @@ enum biomes
     "Coast",
     "Jungles",
     "Forest",
-    "Oceans"
+    "Oceans",
+    "Mountains"
     //rivers arent gonna be a biome they're a direct result of erosion simulation. 
     //
 }
+const layer = new Noise(seed+1);
+const layer1 =  new Noise(seed+2);
+const layer2 = new Noise(seed+3);
+const biomeObjLookup = 
+{
+    "high":
+    {
+        "high"://temp
+        {
+            "high"://humidity
+            {
+                
+            },
+            "low":
+            {
+                    
+            }
+        },
+        "low":
+        {
+            "high":
+            {
+
+            },
+            "low":
+            {
+                    
+            }
+        }
+    },
+    "low":
+    {
+        "high":
+        {
+            "high":
+            {
+
+            },
+            "low":
+            {
+                    
+            }
+        },
+        "low":
+        {
+            "high":
+            {
+
+            },
+            "low":
+            {
+                    
+            }
+        }
+    },
+}
+
 //air =  null or 0 
+//put smth that reads from the biomeObjLookup and returns the specified primary blocks and other composing blocks of it
+//some biomes might have unique generation parameters in the noise function
+//put those in there
+
 enum blocks
 {
     "dirt",
@@ -619,13 +590,73 @@ enum blocks
 import { Worm } from './noisefunct'
 class biomeManager extends Random
 {
-    cache:Record<string, Uint8Array>
+    cache:Map<string, Uint8Array>
     constructor()
     {
         super(seed);       
-        this.cache = {};
+        this.cache = new Map();
+        
     }
-    chunkBiome(x:number, y:number, z:number)
+
+    chunkBiome(x:number, z:number)
+    {
+        const key = util3d.getChunkKey([x,z]);
+        const attempt = this.cache.get(key);
+        if(attempt)
+        {
+            return attempt;
+        }
+        const chunkBiomes = new Uint8Array(256);
+        for(let i = 0; i<16; i++)
+        {
+            for(let j = 0; j<16; j++)
+            {
+                const continentalness = layer.simplex(i,j);
+                const humidity = layer1.simplex(i,j);
+                const temperature = layer2.simplex(i,j);
+                //put some if statements ehre to 
+                const biome = 1
+                //look up in the biome obhject lookup for te biome
+                chunkBiomes[16*i+j] =  biome; 
+                //put stuff into the cache chunk
+                //evaluate it at a 
+
+            }
+        }
+        this.cache.set(key, chunkBiomes);
+        return attempt;
+
+    }   
+
+    biomeStack()    
+    {
+
+    }
+}
+class WorldGeneration extends Random
+{
+    chunkLookUp:Map<string, Uint8Array>;
+    HeightCache:Map<string, Uint8Array>;
+    constructor()
+    {
+        super(seed);
+        this.chunkLookUp =  new Map();
+        this.HeightCache = new Map();
+    }
+    baseHeightMap(x:number, z:number)
+    {
+        return  noiseMachine.octaveNoise(
+                (x + eta) * scale,
+                (z + eta) * scale,
+                octaves,
+                pers,
+                amp,
+                freq,
+                lacunarity,
+                noiseMachine.simplex.bind(noiseMachine)
+        )
+    }
+    carver(x:number, y:number, z:number)
     {
         const wormMap:Map<string, Worm> =  new Map();
         //the key for this map will record the chunk the worm currently presides in
@@ -636,7 +667,10 @@ class biomeManager extends Random
         //this will repeat continously until it hits the render dist or the depth of the worm hits the limit set by the world generator
         
         const worm = new Worm(seed,[0,0,0]);
-        
+        //generate a base heightmap for the given area
+        //this will be modified by the biome values where the initial height values of the heightmap are added to with values from the noise function that has the tweaked parameters set by  the biome obj lookup
+
+
         //kill the worm when its done being used
         //remove it from the map
         //generate the whole chunk
@@ -645,20 +679,25 @@ class biomeManager extends Random
         //use an elevation approach for the types of caves generated
         //lower elevation bigger caves 
         //higher elevation smaller more noddle like caves
-    }
-}
-class WorldGeneration extends Random
-{
-    constructor()
-    {
-        super(seed);
-        
-    }
-    carver(x:number, y:number, z:number)
-    {
-        //initialize a new Worm instance
+            
     }   
-
+    baseChunk(x:number, z:number)
+    {
+        const chunkHeights = new Uint8Array(256);
+        const csX = x*16;
+        const csZ = z*16;
+        for(let i = 0; i<16; i++)
+        {
+            for(let j = 0; j<16; j++)
+            {
+                const height = this.baseHeightMap(i+csX,j+csZ);
+                chunkHeights[16*i+j] = height;
+                
+            }
+        }
+        this.HeightCache.set(util3d.getChunkKey([x,z]), chunkHeights);
+    }
+    //generates the base height map for other stufd to work off of 
 
     
 }
@@ -666,7 +705,6 @@ class WorldGeneration extends Random
 
 
 
-const chunkManager =  new ChunkManager();
 const maxReach = 8;
 
 function voxelRayCast(direction:THREE.Vector3):VoxelRayInfo
@@ -752,9 +790,6 @@ function init()
         canvasContainer.value.appendChild(renderer.domElement);
     }
     const chunkManager =  new ChunkManager();
-    chunkLoad(chunkManager);
-    
-
     requestAnimationFrame(animate);
 }
 onMounted(()=>

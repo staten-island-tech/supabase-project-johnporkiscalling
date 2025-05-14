@@ -30,6 +30,13 @@ export const util3d = Object.freeze(
             const lZ = Math.abs(wZ) & 15;
             const localCords = [lX, lY, lZ];
             return { chunkCords, localCords };
+        },
+        getChunkKey(coords: Array<number>) {
+            let string = ``
+            coords.forEach((number) => {
+                string += `${number}`
+            })
+            return string
         }
 
     }
