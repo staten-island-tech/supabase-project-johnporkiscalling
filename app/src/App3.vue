@@ -6,16 +6,19 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, render } from 'vue';
+import { onMounted, ref } from 'vue';
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { util3d, BitArray, Random } from './utils';    
+import { util3d, BitArray, Random, BiomeStack } from './utils';    
 import { Noise } from './noisefunct';
 import { faceDirections } from './stupidlylongvariables';
 import { configurationInfo } from './config';
 import { options } from './options';
 import { info } from './playerinfo';
+import { Worm } from './noisefunct'
+import { biomeObjLookup, biomes, blocks } from './biomeconsts';
+import pako from 'pako';
 
 const seed = 11111111;
 const noiseMachine =  new Noise(seed);
@@ -179,7 +182,7 @@ class VoxelChunk
     indices:Array<number>;
     vertices:Array<number>;
     uvs:Array<number>;
-    dirty:boolean
+    dirty:boolean;
     constructor(x:number,y:number,z:number)
     {
         this.cCords = [x,y,z];
@@ -211,10 +214,10 @@ class VoxelChunk
     {
         const offSetValues = faceDirections[dir];
         this.vertices.push(
-        x + offSetValues[0], y + offSetValues[1], z + offSetValues[2],
-        x + offSetValues[3], y + offSetValues[4], z + offSetValues[5],
-        x + offSetValues[6], y + offSetValues[7], z + offSetValues[8],
-        x + offSetValues[9], y + offSetValues[10], z + offSetValues[11],
+            x + offSetValues[0], y + offSetValues[1], z + offSetValues[2],
+            x + offSetValues[3], y + offSetValues[4], z + offSetValues[5],
+            x + offSetValues[6], y + offSetValues[7], z + offSetValues[8],
+            x + offSetValues[9], y + offSetValues[10], z + offSetValues[11],
         )
 
         this.indices.push(this.offset, this.offset+1, this.offset+2, this.offset+2, this.offset+3, this.offset);
@@ -240,7 +243,6 @@ class VoxelChunk
         this.uvs = [];
     }
 }
-import pako from 'pako';
 //get the  
 
 
@@ -435,7 +437,7 @@ class ChunkManager
         const compressed = pako.deflate(encoded);
         return compressed; 
     }
-    chunkLoad()
+    chunkLoad(biomeManager:biomeManager)
     {
         const chunkLoadLimit = 8;
         const chunkZ = Math.floor(yawObject.position.z/16)
@@ -466,128 +468,42 @@ class ChunkManager
                 const stringCords = `${x},${z}`
                 if(!chunkMeshMap.has(stringCords))
                 {
-                    const chunkTest =  new WorldChunk([x,z]);
-                    //change this logic to actually utilize the biomeManager
-                    //when the biomeManager gets utilize itll return chunk data which can be sent here to then get the chunkManager to manipulate
 
-                    chunkTest.createChunk();
-                    const {buffer, UVs, indices, vertices} = chunkTest.returnData();
-                    chunkTest.destroy();
-                    const mesh = new THREE.Mesh(buffer, blocksMaterial)
-                    mesh.receiveShadow = true;
-                    mesh.castShadow =  true;
-                    scene.add(mesh);       
-                    chunkMeshMap.set(stringCords, mesh);
+                    const y = 1;
+                    const rewrite = new VoxelChunk(x,y,z);
+                    rewrite.data = new Uint8Array(16*16*16);
+                    this.generateChunkMesh(rewrite);
+                    rewrite.returnMesh();   
                 }
-
             }
         }
 
     }
-    maybeLoadChunks()
+    maybeLoadChunks(biomeManager:biomeManager)
     {
         const chunkX = Math.floor(yawObject.position.x / 16);
         const chunkZ = Math.floor(yawObject.position.z / 16);
 
         if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
-            this.chunkLoad();
+            this.chunkLoad(biomeManager);
             lastChunkX = chunkX;
             lastChunkZ = chunkZ;
         }        
     }
-    
+
 }
-enum biomes
-{
-    "Plains", 
-    "Desert", 
-    "Arctic",
-    "Coast",
-    "Jungles",
-    "Forest",
-    "Oceans",
-    "Mountains"
-    //rivers arent gonna be a biome they're a direct result of erosion simulation. 
-    //
-}
+
+
+
 const layer = new Noise(seed+1);
 const layer1 =  new Noise(seed+2);
 const layer2 = new Noise(seed+3);
-const biomeObjLookup = 
-{
-    "high":
-    {
-        "high"://temp
-        {
-            "high"://humidity
-            {
-                
-            },
-            "low":
-            {
-                    
-            }
-        },
-        "low":
-        {
-            "high":
-            {
-
-            },
-            "low":
-            {
-                    
-            }
-        }
-    },
-    "low":
-    {
-        "high":
-        {
-            "high":
-            {
-
-            },
-            "low":
-            {
-                    
-            }
-        },
-        "low":
-        {
-            "high":
-            {
-
-            },
-            "low":
-            {
-                    
-            }
-        }
-    },
-}
-
 //air =  null or 0 
 //put smth that reads from the biomeObjLookup and returns the specified primary blocks and other composing blocks of it
 //some biomes might have unique generation parameters in the noise function
 //put those in there
 
-enum blocks
-{
-    "dirt",
-    "grass",
-    "sand",
-    "grassBlock",
-    "ice",
-    "water",
-    "stone",
-    "leaves",
-    "wood",
-    "lava",
-    "flowers", //idk which flowers
 
-}
-import { Worm } from './noisefunct'
 class biomeManager extends Random
 {
     cache:Map<string, Uint8Array>
@@ -617,16 +533,15 @@ class biomeManager extends Random
                 //put some if statements ehre to 
                 const biome = 1
                 //look up in the biome obhject lookup for te biome
-                chunkBiomes[16*i+j] =  biome; 
+                chunkBiomes[16*i+j] =  biome;
                 //put stuff into the cache chunk
                 //evaluate it at a 
-
             }
         }
         this.cache.set(key, chunkBiomes);
         return attempt;
-
     }   
+    
 
     biomeStack()    
     {
@@ -666,15 +581,15 @@ class WorldGeneration extends Random
     }
     baseHeightMap(x:number, z:number)
     {
-        return  noiseMachine.octaveNoise(
-                (x + eta) * scale,
-                (z + eta) * scale,
-                octaves,
-                pers,
-                amp,
-                freq,
-                lacunarity,
-                noiseMachine.simplex.bind(noiseMachine)
+            return  noiseMachine.octaveNoise(
+                    (x + eta) * scale,
+                    (z + eta) * scale,
+                    octaves,
+                    pers,
+                    amp,
+                    freq,
+                    lacunarity,
+                    noiseMachine.simplex.bind(noiseMachine)
         )
     }
     carver(x:number, y:number, z:number)
@@ -808,16 +723,24 @@ const blocksMaterial = new THREE.MeshStandardMaterial({map:texture0,side: THREE.
 //entity initiliazing
 
 //
+
+
+let chunkManager:ChunkManager;
+let skibidMaaager:biomeManager;
+let wGen:WorldGeneration;
 function animate()
 {
     stats.begin();
 
     const delta = (performance.now()-currentTime)/1000;
     currentTime = performance.now()
-    
+    //check if chunk loading is necsary
+    skibidMaaager =  new biomeManager();
+    chunkManager.maybeLoadChunks(skibidMaaager);
+
+
     updateSun();
     updateDebug();
-
     renderer.render(scene, camera);
     stats.end();
     requestAnimationFrame(animate);
@@ -827,7 +750,7 @@ function init()
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
         canvasContainer.value.appendChild(renderer.domElement);
     }
-    const chunkManager =  new ChunkManager();
+    chunkManager =  new ChunkManager();
     requestAnimationFrame(animate);
 }
 onMounted(()=>

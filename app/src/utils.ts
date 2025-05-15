@@ -38,11 +38,10 @@ export const util3d = Object.freeze(
             })
             return string
         },
-        euclideanDistance(a:Array<number>, b:Array<number>)
-        {
+        euclideanDistance(a: Array<number>, b: Array<number>) {
             const x = a[0] - b[0];
             const y = a[1] - b[1];
-            return Math.sqrt(x*x+y*y);
+            return Math.sqrt(x * x + y * y);
         }
 
     }
@@ -96,20 +95,24 @@ export class Octree {
         this.octree[8 * i + 1] = data;
     }
     //sets a node at a given position provided data 
-
-
-
-
 }
-export class BiomeStack {
-    private lcgState = 0;
-
+export class Random {
+    private lcgState: number;
+    constructor(seed: number) {
+        this.lcgState = seed;
+    }
+    lcg() {
+        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
+        return this.lcgState;
+    }
+}
+export class BiomeStack extends Random {
     map: Array<boolean>
     cache: Map<string, Array<number>>
     constructor(seed: number) {
+        super(seed);
         this.cache = new Map();
         this.map = [];
-        this.lcgState = seed >>> 0;
     }
     initialState() {
         for (let x = 0; x < 4; x++) {
@@ -122,10 +125,7 @@ export class BiomeStack {
     doubleResolution() {
 
     }
-    private lcg() {
-        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
-        return this.lcgState;
-    }
+
 
 }
 class DLA {
@@ -171,17 +171,6 @@ export class BitArray {
         return (this.array[byteIndex] & (1 << bitIndex)) !== 0;
     }
 }
-export class Random {
-    private lcgState: number;
-    constructor(seed: number) {
-        this.lcgState = seed;
-    }
-    lcg() {
-        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
-        return this.lcgState;
-    }
-}
-
 
 
 
