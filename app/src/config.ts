@@ -1,7 +1,7 @@
 const configurationInfo =
 {
-    maxDepth: -100,
-    maxHeight: 100,
+    maxDepth: -128,
+    maxHeight: 128,
     chunkSize: 16,
     currentFov: 75,
 }

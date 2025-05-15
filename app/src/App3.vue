@@ -419,10 +419,6 @@ class ChunkManager
         const decompressed = pako.inflate(compressed);
         const decodedJson = new TextDecoder().decode(decompressed);
         const parsed = JSON.parse(decodedJson);
-        for(const [key, data] of parsed)
-        {
-
-        }
         return parsed;
     }
     generateSaveFile()
@@ -531,7 +527,7 @@ class biomeManager extends Random
                 const humidity = layer1.simplex(i,j);
                 const temperature = layer2.simplex(i,j);
                 //put some if statements ehre to 
-                const biome = 1
+                const biome = 0
                 //look up in the biome obhject lookup for te biome
                 chunkBiomes[16*i+j] =  biome;
                 //put stuff into the cache chunk
@@ -541,8 +537,6 @@ class biomeManager extends Random
         this.cache.set(key, chunkBiomes);
         return attempt;
     }   
-    
-
     biomeStack()    
     {
 
@@ -568,7 +562,7 @@ class biomeManager extends Random
 //the branches will contaion radial leaves
 //for coasts just use a threshold value for the
 
-
+//maybe create a inherited cache class 
 class WorldGeneration extends Random
 {
     chunkLookUp:Map<string, Uint8Array>;
@@ -617,11 +611,48 @@ class WorldGeneration extends Random
         //higher elevation smaller more noddle like caves
             
     }   
+    placeTrees(x:number, y:number, z:number)
+    {
+        //can only place trees if the spot actually has enough space for a tree to exist
+        //top layer chunks only so those will have some level of priority over lower chunks
+        //if it extends into another chunk place it somewher else
+        for(let x = 0; x < 16; x++)
+        {
+            for(let z = 0; z < 16; z++)
+            {
+                const placeTree = this.lcg()%100==1?true:false;
+                if(!placeTree)continue;
+                const newTree = 1;
+                //specify the 
+            }
+        }
+    }
+    actualTree(size:number, height:number, oX:number, oY:number)//this can be defintely be improved
+    {
+        //offsets all the generated values by the origin value where the tree will be placed
+        //oZ and Oy are word crods not local cords
+        //how to combine this
+        //iterathe thru it
+        //start with a trunk
+        const worldCoords:Record<string, number> = {};
+
+        for(let a = 0; a<height; a++)
+        {
+            const key = `${a},${oX}`
+            worldCoords[key] = 1;
+        }
+        return worldCoords;
+    }
     baseChunk(x:number, z:number)
     {
         const chunkHeights = new Uint8Array(256);
         const csX = x*16;
         const csZ = z*16;
+        const key =  util3d.getChunkKey([x,z]);
+        if(this.HeightCache.has(key))
+        {
+            return this.HeightCache.get(key);
+        }
         for(let i = 0; i<16; i++)
         {
             for(let j = 0; j<16; j++)
@@ -631,19 +662,33 @@ class WorldGeneration extends Random
                 
             }
         }
-        this.HeightCache.set(util3d.getChunkKey([x,z]), chunkHeights);
+        this.HeightCache.set(key, chunkHeights);
     }
-    fullChunk(x:number, z:number)
+    fullChunk(x:number, z:number)//does it on a grid based approach of the x z plane
     {
-
+        this.baseChunk(x,z);
         const heightData = this.HeightCache.get(util3d.getChunkKey([x,z]))
-        for(let x = 0; x<16; x++)
+        if(!heightData) return;
+        const maxChunk = Math.ceil(heightData[0]/16);
+        const minChunk = configurationInfo.maxDepth/16;
+        for(let h = minChunk; h<maxChunk; h++)
         {
-            for(let z = 0; z<16; z++)
+            const currentBuffer = new Uint8Array(16*16*16);
+            const key = util3d.getChunkKey([x,h,z]);
+
+            for(let x = 0; x<16; x++)
             {
-                
-            }
+                for(let z = 0; z<16; z++)
+                {
+                    for(let y = 0; y<16; y++)
+                    {
+                        
+                    }
+                }
+            }            
+            this.chunkLookUp.set(key, currentBuffer);
         }
+
         
     }
     chicken()

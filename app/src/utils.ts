@@ -42,6 +42,12 @@ export const util3d = Object.freeze(
             const x = a[0] - b[0];
             const y = a[1] - b[1];
             return Math.sqrt(x * x + y * y);
+        },
+        voxelSphere(x:number, y:number, z:number, radius:number)
+        {
+            const coordinates:Array<number> = [];
+            const r2 = radius*radius;
+            return coordinates;
         }
 
     }
