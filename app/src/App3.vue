@@ -633,6 +633,27 @@ class biomeManager extends Random
 
     }
 }
+//basic idea for world gen
+//first generate a default height map
+//not too many outliers in terms of sudden rises and drops just a really small change in eleavtiojnm
+//this will act as the template for the other stuff to operate off of
+//determine whether the area is water or land
+//if its water dw about it too much besides temperature
+//land is dependent on humidity and temperature values
+//those will range widely and ahve different biomes
+//for example high humidity, high temp = jungle 
+//most notable feature is the amount of trees and stuff
+//for cave generation determine if a chunk is a valid candidate for a worm to be placed there
+//if the worm is placed let it tunnel thru the chunk until its next target is in another chunk. 
+//maintain the position the worm will be in in the new chunk
+//since the neighboring chunks will be loaded the worm can continue tunneling until the limits set are met
+//for stuff like ravines use 3d noise
+//for stuff like quifers do some weird stuff with 3d noise
+//trees are based on branching off of truinks
+//the branches will contaion radial leaves
+//for coasts just use a threshold value for the
+
+
 class WorldGeneration extends Random
 {
     chunkLookUp:Map<string, Uint8Array>;
@@ -696,6 +717,23 @@ class WorldGeneration extends Random
             }
         }
         this.HeightCache.set(util3d.getChunkKey([x,z]), chunkHeights);
+    }
+    fullChunk(x:number, z:number)
+    {
+
+        const heightData = this.HeightCache.get(util3d.getChunkKey([x,z]))
+        for(let x = 0; x<16; x++)
+        {
+            for(let z = 0; z<16; z++)
+            {
+                
+            }
+        }
+        
+    }
+    chicken()
+    {
+
     }
     //generates the base height map for other stufd to work off of 
 
