@@ -37,6 +37,12 @@ export const util3d = Object.freeze(
                 string += `${number}`
             })
             return string
+        },
+        euclideanDistance(a:Array<number>, b:Array<number>)
+        {
+            const x = a[0] - b[0];
+            const y = a[1] - b[1];
+            return Math.sqrt(x*x+y*y);
         }
 
     }

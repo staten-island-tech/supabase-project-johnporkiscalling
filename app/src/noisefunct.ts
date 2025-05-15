@@ -1,4 +1,4 @@
-import { utilMath } from "./utils";
+import { util3d, utilMath } from "./utils";
 const gradients = [
     [1, 1], [-1, 1], [1, -1], [-1, -1],
     [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -300,4 +300,58 @@ export class Worm extends Noise {
         //carve it here
     }
 
+}
+export class Voronoi 
+{
+    seed:number
+    cache:Map<string, Array<number>>
+    constructor(seed:number)
+    {
+        this.seed = seed;
+        this.cache =  new Map();
+    }
+    seededHash2d(x:number, y:number)
+    {
+        let h = x * 374761393 + y * 668265263 + this.seed * 982451653;
+        h = (h ^ (h >> 13)) * 1274126177;
+        h ^= (h >> 16);
+
+        const rand1 = ((h & 0xffff) / 0xffff);
+        const rand2 = (((h >> 16) & 0xffff) / 0xffff); 
+
+        return [rand1, rand2];
+    }
+    getFeaturePoint(x:number, y:number):Array<number>
+    {
+        const key = `${x},${y}`;
+        if(this.cache.has(key))
+        {
+            return this.cache.get(key) as Array<number>;
+        }
+        if(this.cache.size>1000) {this.cache = new Map()};
+        const [rand1, rand2] = this.seededHash2d(x,y);
+        const featurePoint = [x+rand1, y+rand2];
+        this.cache.set(key, featurePoint);
+        return featurePoint;
+    }
+    voronoiNoise(x:number, y:number)
+    {
+        const cX =  Math.floor(x);
+        const cY = Math.floor(y);
+        let minDist = Infinity;
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+            const neighborX = cX + dx;
+            const neighborY = cY + dy;
+
+            // Use the cached feature point for the neighbor
+            const featurePoint = this.getFeaturePoint(neighborX, neighborY);
+
+            const dist = util3d.euclideanDistance([x, y], featurePoint);
+            if (dist < minDist) {
+                minDist = dist;
+            }
+            }
+        }
+    }
 }
