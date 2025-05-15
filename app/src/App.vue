@@ -7,7 +7,7 @@ const loggedin = ref(false);
 const wantstologin = ref(false);
 const open = ref(false);
 const errorMessage = ref("");
-let useremail = ref<string | null>(null);
+let useremail = ref<string | null>(null) ?? "Guest";
 
 onMounted(async () => {
   try {
@@ -15,7 +15,7 @@ onMounted(async () => {
     if (error) throw error;
     if (data?.user) {
       loggedin.value = true;
-      useremail.value = data.user.email;
+      useremail.value = data.user.email ?? null;
     }
   } catch (err) {
     console.error("Error getting user:", err);
