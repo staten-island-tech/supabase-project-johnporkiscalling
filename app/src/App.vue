@@ -9,7 +9,9 @@ const open = ref(false);
 const errorMessage = ref("");
 let useremail = ref<string | null>(null) ?? "Guest";
 
-onMounted(async () => {
+let data = ref([]);
+
+async function userdata() {
   try {
     const { data, error } = await supabase.auth.getUser();
     if (error) throw error;
@@ -20,12 +22,7 @@ onMounted(async () => {
   } catch (err) {
     console.error("Error getting user:", err);
   }
-});
-
-// while (error) {
-//   console.log(error);
-//   break;
-// }
+}
 
 function spin(event: MouseEvent) {
   event.stopPropagation(); // prevent triggering document click
@@ -38,7 +35,8 @@ async function logout() {
   try {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-
+    useremail.value = null;
+    console.log(useremail);
     console.log("Signed out successfully.");
   } catch (error: any) {
     console.error("Sign-out error:", error);
@@ -49,7 +47,7 @@ async function logout() {
 
 <template>
   <div class="login" v-if="wantstologin">
-    <LogIn @login="(loggedin = true), (wantstologin = false)" />
+    <LogIn @login="(loggedin = true), (wantstologin = false), userdata(), console.log(useremail)" />
   </div>
   <div v-else-if="!wantstologin || loggedin">
     <header>
@@ -65,11 +63,13 @@ async function logout() {
               @click="(event: MouseEvent) => event.stopPropagation()"
             >
               <div class="youraccount">
-                <div v-if="loggedin">
-                  <h1 class="header">Your Account</h1>
+                <div class="header" v-if="loggedin">
+                  <h1>Your Account</h1>
                   <h1>{{ useremail }}</h1>
                 </div>
-                <div v-else><h1 class="header">Please Log in to see your account</h1></div>
+                <div class="header" v-else>
+                  <h1>Please Log in to see your account</h1>
+                </div>
               </div>
               <div class="settings"><h2>Settings</h2></div>
               <div style="transform: translateY(-15px)" v-if="!loggedin">
@@ -109,7 +109,7 @@ async function logout() {
 .fade-slide-leave-to {
   opacity: 0;
   color: #1f1f1f;
-  transform: translate(-17vw, 40px) !important;
+  transform: translate(-17vw, 45px) !important;
 }
 .fade-slide-enter-active {
   transition: all 0.3s ease-out;
@@ -139,7 +139,7 @@ async function logout() {
   border-radius: 5px;
   transform-origin: center;
   /* image-rendering: crisp-edges; */
-  transition: 0.4s ease-out;
+  transition: 0.3s ease-out;
 }
 .account img:hover:not(.rotated) {
   transform: scale(1.3);
@@ -154,7 +154,7 @@ async function logout() {
   height: 75vh;
   width: 25vw;
   position: absolute;
-  transform: translateY(34px);
+  transform: translateY(39px);
   background-color: #1f1f1f;
   box-shadow: 0 0 7px #dadada;
   border-radius: 5px;
@@ -163,7 +163,7 @@ async function logout() {
   left: 0%;
 }
 .account:hover + .dropdown {
-  transform: translate(-5.5px, 39px);
+  transform: translate(-5.5px, 44px);
 }
 .youraccount {
   height: 7%;
@@ -173,7 +173,8 @@ async function logout() {
   align-items: center;
 }
 .header {
-  border-bottom: 1.5px solid #ffffff;
+  border-bottom: 0px solid #ffffff;
+  box-shadow: 0 3px 3px -3px #dadada;
   width: 95%;
   border-radius: 3px;
 }
@@ -195,7 +196,6 @@ async function logout() {
 .v-leave-active {
   transition: all 0.7s ease-out;
 } */
-
 /* --------------------buttons-------------------- */
 header {
   line-height: 1.5;
