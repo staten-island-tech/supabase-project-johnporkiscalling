@@ -499,7 +499,6 @@ const layer2 = new Noise(seed+3);
 //some biomes might have unique generation parameters in the noise function
 //put those in there
 
-
 class biomeManager extends Random
 {
     cache:Map<string, Uint8Array>
@@ -558,11 +557,31 @@ class biomeManager extends Random
 //since the neighboring chunks will be loaded the worm can continue tunneling until the limits set are met
 //for stuff like ravines use 3d noise
 //for stuff like quifers do some weird stuff with 3d noise
-//trees are based on branching off of truinks
+//trees are based on branching off of trunks
 //the branches will contaion radial leaves
 //for coasts just use a threshold value for the
 
-//maybe create a inherited cache class 
+
+type Tree = "pineTree" | "tropicTree" | "tree" | "jungleTree" | "petrifiedTree" | "none"
+interface BiomeInfo 
+{
+    treeType:Tree,
+    biomeParameters:Array<number>,//unique features are set here
+    primaryBlock:number,   
+}
+
+const actualBiomeLookup:Record<number, BiomeInfo> = {
+    1:{},
+    2:{},
+    3:{},
+    4:{},
+    5:{},
+    6:{},
+    7:{},
+    8:{},
+}
+
+
 class WorldGeneration extends Random
 {
     chunkLookUp:Map<string, Uint8Array>;
@@ -573,7 +592,7 @@ class WorldGeneration extends Random
         this.chunkLookUp =  new Map();
         this.HeightCache = new Map();
     }
-    baseHeightMap(x:number, z:number)
+    baseHeightMap(x:number, z:number):number
     {
             return  noiseMachine.octaveNoise(
                     (x + eta) * scale,
@@ -586,7 +605,7 @@ class WorldGeneration extends Random
                     noiseMachine.simplex.bind(noiseMachine)
         )
     }
-    carver(x:number, y:number, z:number)
+    carver(x:number, y:number, z:number):void
     {
         const wormMap:Map<string, Worm> =  new Map();
         //the key for this map will record the chunk the worm currently presides in
@@ -611,8 +630,12 @@ class WorldGeneration extends Random
         //higher elevation smaller more noddle like caves
             
     }   
-    placeTrees(x:number, y:number, z:number)
+    placeTrees(x:number, y:number, z:number, biome:number):void
     {
+        //specify the tree type in the biomeObjlookup 
+        
+
+
         //can only place trees if the spot actually has enough space for a tree to exist
         //top layer chunks only so those will have some level of priority over lower chunks
         //if it extends into another chunk place it somewher else
@@ -627,21 +650,26 @@ class WorldGeneration extends Random
             }
         }
     }
-    actualTree(size:number, height:number, oX:number, oY:number)//this can be defintely be improved
-    {
-        //offsets all the generated values by the origin value where the tree will be placed
-        //oZ and Oy are word crods not local cords
-        //how to combine this
-        //iterathe thru it
-        //start with a trunk
-        const worldCoords:Record<string, number> = {};
-
-        for(let a = 0; a<height; a++)
+    biomeLoad(x:number, z:number):number
+    {   
+        const continentalness = noiseMachine.simplex(x,z);
+        const temperature = layer1.simplex(x,z);
+        const humidity = layer2.simplex(x,z);
+        let currentBiomeCounter = 1;
+        if(continentalness<-0.25)//tweak this later
         {
-            const key = `${a},${oX}`
-            worldCoords[key] = 1;
+            currentBiomeCounter+=1;
         }
-        return worldCoords;
+        if(temperature)
+        {
+            currentBiomeCounter+=1;
+        }
+        if(humidity)
+        {
+            currentBiomeCounter+=1;
+        }
+        //the biome returned is a number that coorelates to a value in the biomeobjllokup
+        return 1; 
     }
     baseChunk(x:number, z:number)
     {
@@ -663,7 +691,14 @@ class WorldGeneration extends Random
             }
         }
         this.HeightCache.set(key, chunkHeights);
-    }
+    }//store heightdata in a 256 item format for efficient lookup and usage 
+    //base terrain gets stored instead of the actual tallest block
+    //the heightdata only coorelates to the tallest points in a given chunk
+    //set a limit for tree gen where it only does it at the selected ground level 
+    //must be a limit of around 2 chunks to avoid querying too many of thme from the cache
+
+
+
     fullChunk(x:number, z:number)//does it on a grid based approach of the x z plane
     {
         this.baseChunk(x,z);
@@ -682,23 +717,45 @@ class WorldGeneration extends Random
                 {
                     for(let y = 0; y<16; y++)
                     {
-                        
+                        const biome = this.biomeLoad(x,z);
+                        const biomeInfo = actualBiomeLookup[biome];
                     }
                 }
             }            
             this.chunkLookUp.set(key, currentBuffer);
-        }
-
-        
+        }   
     }
     chicken()
     {
 
     }
-    //generates the base height map for other stufd to work off of 
 
-    
+    //generates the base height map for other stufd to work off of 
 }
+const coolTrees =  Object.freeze(
+    {
+        basicTree(oX:number, oY:number, oZ:number)
+        {
+
+        },
+        pineTree()
+        {
+
+        },
+        jungleTree()
+        {
+
+        },
+        tropicTree()
+        {
+
+        },
+        petrifiedTree()
+        {
+
+        }
+    }
+)
 
 
 
@@ -776,14 +833,10 @@ let wGen:WorldGeneration;
 function animate()
 {
     stats.begin();
-
     const delta = (performance.now()-currentTime)/1000;
     currentTime = performance.now()
     //check if chunk loading is necsary
-    skibidMaaager =  new biomeManager();
     chunkManager.maybeLoadChunks(skibidMaaager);
-
-
     updateSun();
     updateDebug();
     renderer.render(scene, camera);
@@ -796,6 +849,7 @@ function init()
         canvasContainer.value.appendChild(renderer.domElement);
     }
     chunkManager =  new ChunkManager();
+    skibidMaaager =  new biomeManager();
     requestAnimationFrame(animate);
 }
 onMounted(()=>
