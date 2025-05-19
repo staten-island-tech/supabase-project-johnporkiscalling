@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from "vue-router";
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import LogIn from "./components/LogIn1.vue";
 import supabase from "./supabase";
 const loggedin = ref(false);
@@ -12,15 +12,17 @@ let useremail = ref<string | null>(null) ?? "Guest";
 let data = ref([]);
 
 async function userdata() {
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    if (data?.user) {
-      loggedin.value = true;
-      useremail.value = data.user.email ?? null;
+  if (loggedin) {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      if (data?.user) {
+        loggedin.value = true;
+        useremail.value = data.user.email ?? null;
+      }
+    } catch (err) {
+      console.error("Error getting user:", err);
     }
-  } catch (err) {
-    console.error("Error getting user:", err);
   }
 }
 
@@ -30,6 +32,8 @@ function spin(event: MouseEvent) {
 }
 function close() {
   if (open.value) open.value = false;
+
+  update(); //---------update
 }
 async function logout() {
   try {
@@ -41,6 +45,39 @@ async function logout() {
   } catch (error: any) {
     console.error("Sign-out error:", error);
     errorMessage.value = error.message || "Failed to sign out.";
+  }
+}
+async function update() {
+  if (loggedin) {
+    updatePreferences();
+  } else {
+    console.log("not logged in");
+  }
+}
+
+async function updatePreferences() {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    console.error("Error fetching user:", userError?.message);
+    return;
+  }
+
+  const { error: prefsError } = await supabase.from("user_preferences").upsert({
+    id: user.id,
+    options: {
+      render: "9680897",
+      theme: "dark",
+    },
+  });
+
+  if (prefsError) {
+    console.error("Error updating preferences:", prefsError.message);
+  } else {
+    console.log("Preferences updated successfully");
   }
 }
 </script>
