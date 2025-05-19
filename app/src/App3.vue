@@ -732,33 +732,66 @@ class WorldGeneration extends Random
 
     //generates the base height map for other stufd to work off of 
 }
-const coolTrees =  Object.freeze(
+class WorldGenerationTwo extends Random
+{
+    layer1:Noise = new Noise(seed);
+    layer2:Noise =  new Noise(seed+1);
+    layer3:Noise =  new Noise(seed+2);
+    constructor()
     {
-        basicTree(oX:number, oY:number, oZ:number)
-        {
-
-        },
-        pineTree()
-        {
-
-        },
-        jungleTree()
-        {
-
-        },
-        tropicTree()
-        {
-
-        },
-        petrifiedTree()
-        {
-
-        }
+        super(seed);
     }
-)
+    biomeArea(x:number,y:number)
+    {
+        const biomeNums:Array<number> = [];
+        const continentalness = this.layer1.simplex(x,y); //replace this with the octave version for varaibility 
+        const temperature =  this.layer2.simplex(x,y);
+        const signedTemp = Math.sign(temperature); //determines whether its cold or not
+        const humidity =  this.layer3.simplex(x,y) * signedTemp;//temperature will affect humidity where colder temp values causes humidity to drop
+        if(continentalness<=0.1 && continentalness>0)
+        {
+            biomeNums.push(0);
+        }
+        else if(continentalness>0.1)
+        {
+            biomeNums.push(1);
+        }
+        else if(continentalness<0)
+        {
+            biomeNums.push(2);
+        }
+        if(temeprature<)
+        //current ideas
+        //reduce the noise values to a number defined by a range
+        //look up the values in an object for reference
+        //within the biome object lookup tihngie the biome thingie should have the parameters set in place for the noise function like the freq, amplitude etc
+        //use octaveSimplex for the continentlaness noise map
+        //everything else just use regular simplex
+        return []
+    }
+    carver()
+    {
+        //carves one whole chunk from top limit to bottom limit;
+    }
+    decor()
+    {
 
+    }
+    river()
+    {
 
-
+    }
+    superFlat()
+    {
+        //test to see if it properly rerenders stuff
+        //use this for prototyping the raytracing function
+    }
+}
+type biomeName
+interface Biome
+{
+    name:
+}
 
 const maxReach = 8;
 

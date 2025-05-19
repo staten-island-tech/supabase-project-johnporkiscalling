@@ -464,7 +464,7 @@ let verticalVelocity = 0;
 const gravity = -19.6;
 const jumpStrength = 10;
 let isOnGround = true;
-const groundLevel = 1;
+const groundLevel = 2;
 
 class Player extends Entity
 {
@@ -675,8 +675,45 @@ function sampleBiome(x:number, y:number)
   //add a bit of detail by putting random stuff and then extend thhe bottom with some function
   //for hotsprings same thing as mesa where you raise the noise functiokn value output to even power to prevent negative values
   //then restrict the height of the terrain generated to a given value and carve a hole in the center of it to mimic a geyser/hot srpign
-
 }
+const aoOffsets: Record<string, Array<[number, number, number][]>> = {
+    top: [
+      [[-1, 0, 0], [0, 0, -1], [-1, 0, -1]],
+      [[1, 0, 0], [0, 0, -1], [1, 0, -1]],
+      [[1, 0, 0], [0, 0, 1], [1, 0, 1]],
+      [[-1, 0, 0], [0, 0, 1], [-1, 0, 1]],
+    ],
+    bottom: [
+      [[-1, 0, 0], [0, 0, -1], [-1, 0, -1]],
+      [[1, 0, 0], [0, 0, -1], [1, 0, -1]],
+      [[1, 0, 0], [0, 0, 1], [1, 0, 1]],
+      [[-1, 0, 0], [0, 0, 1], [-1, 0, 1]],
+    ],
+    left: [
+      [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
+      [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
+      [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
+      [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
+    ],
+    right: [
+      [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
+      [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
+      [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
+      [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
+    ],
+    front: [
+      [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
+      [[1, 0, 0], [0, -1, 0], [1, -1, 0]],
+      [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
+      [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
+    ],
+    back: [
+      [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
+      [[1, 0, 0], [0, -1, 0], [1, -1, 0]],
+      [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
+      [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
+    ],
+  };
 class WorldChunk
 {
   cCords:Array<number>
@@ -715,44 +752,6 @@ computeAO(x: number, y: number, z: number, dir: string): number[] {
   const ao = [];
 
   // Predefined neighbor offsets for each corner of a face
-  const aoOffsets: Record<string, Array<[number, number, number][]>> = {
-    top: [
-      [[-1, 0, 0], [0, 0, -1], [-1, 0, -1]],
-      [[1, 0, 0], [0, 0, -1], [1, 0, -1]],
-      [[1, 0, 0], [0, 0, 1], [1, 0, 1]],
-      [[-1, 0, 0], [0, 0, 1], [-1, 0, 1]],
-    ],
-    bottom: [
-      [[-1, 0, 0], [0, 0, -1], [-1, 0, -1]],
-      [[1, 0, 0], [0, 0, -1], [1, 0, -1]],
-      [[1, 0, 0], [0, 0, 1], [1, 0, 1]],
-      [[-1, 0, 0], [0, 0, 1], [-1, 0, 1]],
-    ],
-    left: [
-      [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
-      [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
-      [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
-      [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
-    ],
-    right: [
-      [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
-      [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
-      [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
-      [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
-    ],
-    front: [
-      [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
-      [[1, 0, 0], [0, -1, 0], [1, -1, 0]],
-      [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
-      [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
-    ],
-    back: [
-      [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
-      [[1, 0, 0], [0, -1, 0], [1, -1, 0]],
-      [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
-      [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
-    ],
-  };
 
   const neighbors = aoOffsets[dir];
   if (!neighbors) return [1, 1, 1, 1];
