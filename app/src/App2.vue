@@ -128,10 +128,6 @@ function init() {
     skyUniforms['mieCoefficient'].value = 0.00005;
     skyUniforms['mieDirectionalG'].value = 0.8;
     console.log(skyUniforms)
-    const ambient =  new THREE.AmbientLight(0xffffff, 1);
-
-    scene.add(ambient);
-
     requestAnimationFrame(animate);
 }
 function animate() 
@@ -307,7 +303,7 @@ function modifyChunk(wCords:Array<number>)
 
 function chunkLoader()
 {
-  const chunkLoadLimit = 32;
+  const chunkLoadLimit = 8;
   const chunkZ = Math.floor(yawObject.position.z/16)
   const chunkX = Math.floor(yawObject.position.x/16)  
   const nBound = chunkZ - chunkLoadLimit;
@@ -359,7 +355,7 @@ function loadBlockTexture(path:string)
   return tex;
 };
 const texture0 = loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
-const blocksMaterial = new THREE.MeshStandardMaterial({map:texture0,side: THREE.DoubleSide, metalness:0.2, roughness:0.8})
+const blocksMaterial = new THREE.MeshBasicMaterial({map:texture0,side: THREE.DoubleSide, vertexColors:true})
 const blockUVs:Record<string,Array<number>> = {
   top: util3d.getUVCords('minecraft:block/grass_block_top'),
   right: util3d.getUVCords('minecraft:block/grass_block_side'),
@@ -690,7 +686,8 @@ class WorldChunk
   UVs:Array<number>;
   offset:number;
   chunkData:Array<number>;
-  
+  colors:Array<number>;
+  currentLocalHeightMap:Array<Array<number>>;
   constructor(cCords:Array<number>) 
   {
     this.cCords = cCords
@@ -700,7 +697,89 @@ class WorldChunk
     this.UVs = [];
     this.offset = 0;
     this.chunkData = [];
+    this.colors = [];
+    this.currentLocalHeightMap = [];
   }
+  isSolid(x: number, y: number, z: number): boolean {
+  // Assuming `currentLocalHeightMap` is 18x18 and covers (1..16)
+  const localX = x - (this.cCords[0] * configurationInfo.chunkSize) + 1;
+  const localZ = z - (this.cCords[1] * configurationInfo.chunkSize) + 1;
+
+  // Clamp and check height
+  if (localX < 0 || localX >= 18 || localZ < 0 || localZ >= 18) return false;
+  const height = this.currentLocalHeightMap[localX][localZ];
+  return y <= height; // True if this block is inside the terrain
+}
+
+computeAO(x: number, y: number, z: number, dir: string): number[] {
+  const ao = [];
+
+  // Predefined neighbor offsets for each corner of a face
+  const aoOffsets: Record<string, Array<[number, number, number][]>> = {
+    top: [
+      [[-1, 0, 0], [0, 0, -1], [-1, 0, -1]],
+      [[1, 0, 0], [0, 0, -1], [1, 0, -1]],
+      [[1, 0, 0], [0, 0, 1], [1, 0, 1]],
+      [[-1, 0, 0], [0, 0, 1], [-1, 0, 1]],
+    ],
+    bottom: [
+      [[-1, 0, 0], [0, 0, -1], [-1, 0, -1]],
+      [[1, 0, 0], [0, 0, -1], [1, 0, -1]],
+      [[1, 0, 0], [0, 0, 1], [1, 0, 1]],
+      [[-1, 0, 0], [0, 0, 1], [-1, 0, 1]],
+    ],
+    left: [
+      [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
+      [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
+      [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
+      [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
+    ],
+    right: [
+      [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
+      [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
+      [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
+      [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
+    ],
+    front: [
+      [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
+      [[1, 0, 0], [0, -1, 0], [1, -1, 0]],
+      [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
+      [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
+    ],
+    back: [
+      [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
+      [[1, 0, 0], [0, -1, 0], [1, -1, 0]],
+      [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
+      [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
+    ],
+  };
+
+  const neighbors = aoOffsets[dir];
+  if (!neighbors) return [1, 1, 1, 1];
+
+  for (let i = 0; i < 4; i++) {
+    const [side1, side2, corner] = neighbors[i];
+    const side1Solid = this.isSolid(x + side1[0], y + side1[1], z + side1[2]);
+    const side2Solid = this.isSolid(x + side2[0], y + side2[1], z + side2[2]);
+    const cornerSolid = this.isSolid(x + corner[0], y + corner[1], z + corner[2]);
+
+    let brightness = 1.0;
+    if (side1Solid && side2Solid) {
+      brightness = 0.4;
+    } else {
+      let reduction = 0;
+      if (side1Solid) reduction += 0.2;
+      if (side2Solid) reduction += 0.2;
+      if (cornerSolid) reduction += 0.1;
+      brightness -= reduction;
+    }
+
+    ao.push(brightness);
+  }
+
+  return ao;
+}
+
   createheights(x: number, z: number): Array<Array<number>> {
     const cX = x * configurationInfo.chunkSize;
     const cZ = z * configurationInfo.chunkSize;
@@ -723,6 +802,7 @@ class WorldChunk
   }
   createChunk() {
       const heights: Array<Array<number>> = this.createheights(this.cCords[0], this.cCords[1]);
+      this.currentLocalHeightMap = heights;
       const cX = this.cCords[0] * configurationInfo.chunkSize;
       const cZ = this.cCords[1] * configurationInfo.chunkSize;
       const biome = 1;//get the biome value here
@@ -745,7 +825,7 @@ class WorldChunk
           const coZ = cZ + (z - 1);
           const height = heights[x][z];
               for (let y = height; y > configurationInfo.maxDepth; y--) {
-                const blocktype = "purp"
+                const blocktype = "desert"
                   const currentYChunk =  Math.floor(y/16);
                   if (y == height) {
                   this.addQuad(coX, y, coZ, "top", blocktype);
@@ -774,10 +854,12 @@ class WorldChunk
       this.buffer.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
       this.buffer.setAttribute('uv', new THREE.Float32BufferAttribute(this.UVs, 2));
       this.buffer.setIndex(this.indices);
+      this.buffer.setAttribute('color', new THREE.Float32BufferAttribute(this.colors, 3));
   }
   addQuad(x:number, y:number, z:number, dir:string, blockType:string)
   {
     const offSetValues = faceDirections[dir];
+    const aoData =  this.computeAO(x,y,z,dir);
     this.vertices.push(
       x + offSetValues[0], y + offSetValues[1], z + offSetValues[2],
       x + offSetValues[3], y + offSetValues[4], z + offSetValues[5],
@@ -789,6 +871,11 @@ class WorldChunk
     const texturew = blockUVs[blockType];
     this.UVs.push(...texturew);
     this.offset+=4;
+    for(let i = 0; i<4; i++)
+    {
+      const ao =  aoData[i];
+      this.colors.push(ao, ao, ao);
+    }
   }
   returnData()
   {
