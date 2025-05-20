@@ -13,11 +13,8 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { util3d, BitArray, Random, BiomeStack } from './utils';    
 import { Noise } from './noisefunct';
 import { faceDirections } from './stupidlylongvariables';
-import { configurationInfo } from './config';
 import { options } from './options';
-import { info } from './playerinfo';
-import { Worm } from './noisefunct'
-import { biomeObjLookup, biomes, blocks } from './biomeconsts';
+
 import pako from 'pako';
 
 const seed = 11111111;
@@ -433,7 +430,7 @@ class ChunkManager
         const compressed = pako.deflate(encoded);
         return compressed; 
     }
-    chunkLoad(biomeManager:biomeManager)
+    chunkLoad()
     {
         const chunkLoadLimit = 8;
         const chunkZ = Math.floor(yawObject.position.z/16)
@@ -475,13 +472,13 @@ class ChunkManager
         }
 
     }
-    maybeLoadChunks(biomeManager:biomeManager)
+    maybeLoadChunks()
     {
         const chunkX = Math.floor(yawObject.position.x / 16);
         const chunkZ = Math.floor(yawObject.position.z / 16);
 
         if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
-            this.chunkLoad(biomeManager);
+            this.chunkLoad();
             lastChunkX = chunkX;
             lastChunkZ = chunkZ;
         }        
@@ -489,58 +486,11 @@ class ChunkManager
 
 }
 
-
-
-const layer = new Noise(seed+1);
-const layer1 =  new Noise(seed+2);
-const layer2 = new Noise(seed+3);
 //air =  null or 0 
 //put smth that reads from the biomeObjLookup and returns the specified primary blocks and other composing blocks of it
 //some biomes might have unique generation parameters in the noise function
 //put those in there
 
-class biomeManager extends Random
-{
-    cache:Map<string, Uint8Array>
-    constructor()
-    {
-        super(seed);       
-        this.cache = new Map();
-        
-    }
-
-    chunkBiome(x:number, z:number)
-    {
-        const key = util3d.getChunkKey([x,z]);
-        const attempt = this.cache.get(key);
-        if(attempt)
-        {
-            return attempt;
-        }
-        const chunkBiomes = new Uint8Array(256);
-        for(let i = 0; i<16; i++)
-        {
-            for(let j = 0; j<16; j++)
-            {
-                const continentalness = layer.simplex(i,j);
-                const humidity = layer1.simplex(i,j);
-                const temperature = layer2.simplex(i,j);
-                //put some if statements ehre to 
-                const biome = 0
-                //look up in the biome obhject lookup for te biome
-                chunkBiomes[16*i+j] =  biome;
-                //put stuff into the cache chunk
-                //evaluate it at a 
-            }
-        }
-        this.cache.set(key, chunkBiomes);
-        return attempt;
-    }   
-    biomeStack()    
-    {
-
-    }
-}
 //basic idea for world gen
 //first generate a default height map
 //not too many outliers in terms of sudden rises and drops just a really small change in eleavtiojnm
@@ -560,237 +510,252 @@ class biomeManager extends Random
 //trees are based on branching off of trunks
 //the branches will contaion radial leaves
 //for coasts just use a threshold value for the
-
-
-type Tree = "pineTree" | "tropicTree" | "tree" | "jungleTree" | "petrifiedTree" | "none"
-interface BiomeInfo 
-{
-    treeType:Tree,
-    biomeParameters:Array<number>,//unique features are set here
-    primaryBlock:number,   
-}
-
-const actualBiomeLookup:Record<number, BiomeInfo> = {
-    1:{},
-    2:{},
-    3:{},
-    4:{},
-    5:{},
-    6:{},
-    7:{},
-    8:{},
-}
-
-
-class WorldGeneration extends Random
-{
-    chunkLookUp:Map<string, Uint8Array>;
-    HeightCache:Map<string, Uint8Array>;
-    constructor()
-    {
+import { BIOMES } from "./biome";
+import type { Biome, BiomeName } from './biome';
+class WorldGenerator extends Random {
+    private temperatureNoise: Noise;
+    private humidityNoise: Noise;
+    private continentalnessNoise: Noise;
+    private detailNoise: Noise;
+    
+    constructor(seed: number) {
         super(seed);
-        this.chunkLookUp =  new Map();
-        this.HeightCache = new Map();
+        this.temperatureNoise = new Noise(seed + 1);
+        this.humidityNoise = new Noise(seed + 2);
+        this.continentalnessNoise = new Noise(seed + 3);
+        this.detailNoise = new Noise(seed + 4);
     }
-    baseHeightMap(x:number, z:number):number
-    {
-            return  noiseMachine.octaveNoise(
-                    (x + eta) * scale,
-                    (z + eta) * scale,
-                    octaves,
-                    pers,
-                    amp,
-                    freq,
-                    lacunarity,
-                    noiseMachine.simplex.bind(noiseMachine)
-        )
-    }
-    carver(x:number, y:number, z:number):void
-    {
-        const wormMap:Map<string, Worm> =  new Map();
-        //the key for this map will record the chunk the worm currently presides in
-        //if it ever crosses a chunk it'll return the chunk coordinate it has passed into
-        //the code will then set the key to the new chunk the worm resides in
-        //during world gen the thing will take a look at the wormMap for the current chunk its generating
-        //if the worm does exist take it and continue carving it during the chunks carving
-        //this will repeat continously until it hits the render dist or the depth of the worm hits the limit set by the world generator
+
+    getBiomeAt(x: number, z: number): Biome {
+        // Scale coordinates to get appropriate biome sizes
+        const scale = 0.01;
+        const xScaled = x * scale;
+        const zScaled = z * scale;
         
-        const worm = new Worm(seed,[0,0,0]);
-        //generate a base heightmap for the given area
-        //this will be modified by the biome values where the initial height values of the heightmap are added to with values from the noise function that has the tweaked parameters set by  the biome obj lookup
-
-
-        //kill the worm when its done being used
-        //remove it from the map
-        //generate the whole chunk
-        //run the worm on it if worms are allowed to form here
-        //when starting new chunk generation check if theres a worm that'll bisect the current chunk
-        //use an elevation approach for the types of caves generated
-        //lower elevation bigger caves 
-        //higher elevation smaller more noddle like caves
+        // Get base noise values (normalized to -1..1)
+        const continentalness = this.continentalnessNoise.octaveNoise(
+            xScaled, zScaled, 
+            4, 0.5, 1.0, 1.0, 2.0, 
+            this.continentalnessNoise.simplex
+        );
+        
+        const temperature = this.temperatureNoise.octaveNoise(
+            xScaled, zScaled, 
+            3, 0.5, 1.0, 1.0, 2.0, 
+            this.temperatureNoise.simplex
+        );
+        
+        const humidity = this.humidityNoise.octaveNoise(
+            xScaled, zScaled, 
+            3, 0.5, 1.0, 1.0, 2.0, 
+            this.humidityNoise.simplex
+        ) * Math.sign(temperature); // Cold reduces humidity
+        
+        // Find matching biome
+        for (const biomeName in BIOMES) {
+            const biome = BIOMES[biomeName as BiomeName];
             
-    }   
-    placeTrees(x:number, y:number, z:number, biome:number):void
-    {
-        //specify the tree type in the biomeObjlookup 
+            if (continentalness >= biome.continentalness[0] && 
+                continentalness <= biome.continentalness[1] &&
+                temperature >= biome.temperature[0] && 
+                temperature <= biome.temperature[1] &&
+                humidity >= biome.humidity[0] && 
+                humidity <= biome.humidity[1]) {
+                return biome;
+            }
+        }
         
-
-
-        //can only place trees if the spot actually has enough space for a tree to exist
-        //top layer chunks only so those will have some level of priority over lower chunks
-        //if it extends into another chunk place it somewher else
-        for(let x = 0; x < 16; x++)
-        {
-            for(let z = 0; z < 16; z++)
-            {
-                const placeTree = this.lcg()%100==1?true:false;
-                if(!placeTree)continue;
-                const newTree = 1;
-                //specify the 
-            }
-        }
+        // Default to plains if no biome matches perfectly
+        return BIOMES.plains;
     }
-    biomeLoad(x:number, z:number):number
-    {   
-        const continentalness = noiseMachine.simplex(x,z);
-        const temperature = layer1.simplex(x,z);
-        const humidity = layer2.simplex(x,z);
-        let currentBiomeCounter = 1;
-        if(continentalness<-0.25)//tweak this later
-        {
-            currentBiomeCounter+=1;
-        }
-        if(temperature)
-        {
-            currentBiomeCounter+=1;
-        }
-        if(humidity)
-        {
-            currentBiomeCounter+=1;
-        }
-        //the biome returned is a number that coorelates to a value in the biomeobjllokup
-        return 1; 
+
+    getTerrainHeightAt(x: number, z: number): number {
+        const biome = this.getBiomeAt(x, z);
+        
+        // Large scale terrain shape
+        const baseShape = this.continentalnessNoise.octaveNoise(
+            x * 0.005, z * 0.005, 
+            6, 0.5, 1.0, 1.0, 2.0, 
+            this.continentalnessNoise.simplex
+        );
+        
+        // Medium scale details
+        const mediumDetails = this.detailNoise.octaveNoise(
+            x * 0.02, z * 0.02, 
+            4, 0.5, 0.3, 1.0, 2.0, 
+            this.detailNoise.simplex
+        );
+        
+        // Small scale details
+        const smallDetails = this.detailNoise.octaveNoise(
+            x * 0.1, z * 0.1, 
+            2, 0.5, 0.1, 1.0, 2.0, 
+            this.detailNoise.simplex
+        );
+        
+        // Combine all noise layers
+        let height = baseShape * 0.7 + mediumDetails * 0.2 + smallDetails * 0.1;
+        
+        // Normalize to 0..1
+        height = (height + 1) / 2;
+        
+        // Apply biome-specific height adjustments
+        height = biome.baseHeight + (height - 0.5) * biome.heightVariation;
+        
+        // Scale to world height (assuming 0-256 range)
+        return Math.floor(height * 256);
     }
-    baseChunk(x:number, z:number)
-    {
-        const chunkHeights = new Uint8Array(256);
-        const csX = x*16;
-        const csZ = z*16;
-        const key =  util3d.getChunkKey([x,z]);
-        if(this.HeightCache.has(key))
-        {
-            return this.HeightCache.get(key);
-        }
-        for(let i = 0; i<16; i++)
-        {
-            for(let j = 0; j<16; j++)
-            {
-                const height = this.baseHeightMap(i+csX,j+csZ);
-                chunkHeights[16*i+j] = height;
+
+    generateChunk(chunkX: number, chunkZ: number): number[][][] {
+        const chunkSize = 16;
+        const worldHeight = 256;
+        const chunkBlocks: number[][][] = [];
+        
+        // Generate blocks for each column in the chunk
+        for (let x = 0; x < chunkSize; x++) {
+            chunkBlocks[x] = [];
+            for (let z = 0; z < chunkSize; z++) {
+                const worldX = chunkX * chunkSize + x;
+                const worldZ = chunkZ * chunkSize + z;
                 
-            }
-        }
-        this.HeightCache.set(key, chunkHeights);
-    }//store heightdata in a 256 item format for efficient lookup and usage 
-    //base terrain gets stored instead of the actual tallest block
-    //the heightdata only coorelates to the tallest points in a given chunk
-    //set a limit for tree gen where it only does it at the selected ground level 
-    //must be a limit of around 2 chunks to avoid querying too many of thme from the cache
-
-
-
-    fullChunk(x:number, z:number)//does it on a grid based approach of the x z plane
-    {
-        this.baseChunk(x,z);
-        const heightData = this.HeightCache.get(util3d.getChunkKey([x,z]))
-        if(!heightData) return;
-        const maxChunk = Math.ceil(heightData[0]/16);
-        const minChunk = configurationInfo.maxDepth/16;
-        for(let h = minChunk; h<maxChunk; h++)
-        {
-            const currentBuffer = new Uint8Array(16*16*16);
-            const key = util3d.getChunkKey([x,h,z]);
-
-            for(let x = 0; x<16; x++)
-            {
-                for(let z = 0; z<16; z++)
-                {
-                    for(let y = 0; y<16; y++)
-                    {
-                        const biome = this.biomeLoad(x,z);
-                        const biomeInfo = actualBiomeLookup[biome];
+                const biome = this.getBiomeAt(worldX, worldZ);
+                const surfaceHeight = this.getTerrainHeightAt(worldX, worldZ);
+                
+                chunkBlocks[x][z] = [];
+                for (let y = 0; y < worldHeight; y++) {
+                    if (y === 0) {
+                        // Bedrock layer
+                        chunkBlocks[x][z][y] = this.getBlockId(biome.blockTypes.bedrock);
+                    } else if (y < surfaceHeight - 4) {
+                        // Stone layer
+                        chunkBlocks[x][z][y] = this.getBlockId("stone");
+                    } else if (y < surfaceHeight - 1) {
+                        // Subsurface layer
+                        chunkBlocks[x][z][y] = this.getBlockId(biome.blockTypes.subsurface);
+                    } else if (y < surfaceHeight) {
+                        // Surface layer
+                        chunkBlocks[x][z][y] = this.getBlockId(biome.blockTypes.surface);
+                    } else if (y < 64 && biome.name === "ocean" || biome.name === "river") {
+                        // Water for ocean/river biomes
+                        chunkBlocks[x][z][y] = this.getBlockId("water");
+                    } else {
+                        // Air
+                        chunkBlocks[x][z][y] = 0; // Assuming 0 is air
                     }
                 }
-            }            
-            this.chunkLookUp.set(key, currentBuffer);
-        }   
-    }
-    chicken()
-    {
-
-    }
-
-    //generates the base height map for other stufd to work off of 
-}
-class WorldGenerationTwo extends Random
-{
-    layer1:Noise = new Noise(seed);
-    layer2:Noise =  new Noise(seed+1);
-    layer3:Noise =  new Noise(seed+2);
-    constructor()
-    {
-        super(seed);
-    }
-    biomeArea(x:number,y:number)
-    {
-        const biomeNums:Array<number> = [];
-        const continentalness = this.layer1.simplex(x,y); //replace this with the octave version for varaibility 
-        const temperature =  this.layer2.simplex(x,y);
-        const signedTemp = Math.sign(temperature); //determines whether its cold or not
-        const humidity =  this.layer3.simplex(x,y) * signedTemp;//temperature will affect humidity where colder temp values causes humidity to drop
-        if(continentalness<=0.1 && continentalness>0)
-        {
-            biomeNums.push(0);
+            }
         }
-        else if(continentalness>0.1)
-        {
-            biomeNums.push(1);
-        }
-        else if(continentalness<0)
-        {
-            biomeNums.push(2);
-        }
-        if(temeprature<)
-        //current ideas
-        //reduce the noise values to a number defined by a range
-        //look up the values in an object for reference
-        //within the biome object lookup tihngie the biome thingie should have the parameters set in place for the noise function like the freq, amplitude etc
-        //use octaveSimplex for the continentlaness noise map
-        //everything else just use regular simplex
-        return []
+        
+        return chunkBlocks;
     }
-    carver()
-    {
-        //carves one whole chunk from top limit to bottom limit;
-    }
-    decor()
-    {
 
+    private getBlockId(blockName: string): number {
+        // This would map block names to numeric IDs
+        // Implement your own block registry here
+        const blockRegistry: Record<string, number> = {
+            "air": 0,
+            "stone": 1,
+            "grass_block": 2,
+            "dirt": 3,
+            "sand": 4,
+            "water": 5,
+            "snow_block": 6,
+            "sandstone": 7
+        };
+        
+        return blockRegistry[blockName] || 0;
     }
-    river()
-    {
 
+    generateRivers(chunkX: number, chunkZ: number, heightmap: number[][]): number[][] {
+        const chunkSize = 16;
+        const riverMap: number[][] = Array(chunkSize).fill(0).map(() => Array(chunkSize).fill(0));
+        
+        for (let x = 0; x < chunkSize; x++) {
+            for (let z = 0; z < chunkSize; z++) {
+                const worldX = chunkX * chunkSize + x;
+                const worldZ = chunkZ * chunkSize + z;
+                
+                // River noise - creates winding paths
+                const riverValue = this.humidityNoise.octaveNoise(
+                    worldX * 0.01, worldZ * 0.01,
+                    3, 0.5, 1.0, 1.0, 2.0,
+                    this.humidityNoise.simplex
+                );
+                
+                // Threshold for river generation
+                if (Math.abs(riverValue) < 0.1) {
+                    riverMap[x][z] = 1; // Mark as river
+                    // Lower the height for river beds
+                    heightmap[x][z] = Math.max(40, heightmap[x][z] - 5);
+                }
+            }
+        }
+        
+        return riverMap;
     }
-    superFlat()
-    {
-        //test to see if it properly rerenders stuff
-        //use this for prototyping the raytracing function
+
+    decorateChunk(chunkBlocks: number[][][], biome: Biome, chunkX: number, chunkZ: number) {
+        const chunkSize = 16;
+        
+        for (let x = 0; x < chunkSize; x++) {
+            for (let z = 0; z < chunkSize; z++) {
+                const worldX = chunkX * chunkSize + x;
+                const worldZ = chunkZ * chunkSize + z;
+                const surfaceY = this.findSurfaceY(chunkBlocks, x, z);
+                
+                if (surfaceY <= 0) continue;
+                
+                // Tree generation in forest biome
+                if (biome.name === "forest" && 
+                    this.lcg() % 100 < 2 && 
+                    chunkBlocks[x][z][surfaceY] === this.getBlockId("grass_block")) {
+                    
+                    // Generate a simple tree
+                    const treeHeight = 4 + this.lcg() % 3;
+                    for (let y = 1; y <= treeHeight; y++) {
+                        if (surfaceY + y < chunkBlocks[0][0].length) {
+                            chunkBlocks[x][z][surfaceY + y] = this.getBlockId("oak_log");
+                        }
+                    }
+                    
+                    // Add leaves
+                    for (let ly = treeHeight - 1; ly <= treeHeight + 1; ly++) {
+                        for (let lx = -2; lx <= 2; lx++) {
+                            for (let lz = -2; lz <= 2; lz++) {
+                                if ((lx !== 0 || lz !== 0) && 
+                                    x + lx >= 0 && x + lx < chunkSize &&
+                                    z + lz >= 0 && z + lz < chunkSize &&
+                                    surfaceY + ly < chunkBlocks[0][0].length) {
+                                    chunkBlocks[x + lx][z + lz][surfaceY + ly] = this.getBlockId("oak_leaves");
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Desert features
+                if (biome.name === "desert" && this.lcg() % 100 < 1) {
+                    // Generate cactus
+                    const cactusHeight = 1 + this.lcg() % 2;
+                    for (let y = 1; y <= cactusHeight; y++) {
+                        if (surfaceY + y < chunkBlocks[0][0].length) {
+                            chunkBlocks[x][z][surfaceY + y] = this.getBlockId("cactus");
+                        }
+                    }
+                }
+            }
+        }
     }
-}
-type biomeName
-interface Biome
-{
-    name:
+
+    private findSurfaceY(chunkBlocks: number[][][], x: number, z: number): number {
+        for (let y = chunkBlocks[0][0].length - 1; y >= 0; y--) {
+            if (chunkBlocks[x][z][y] !== this.getBlockId("air") && 
+                chunkBlocks[x][z][y] !== this.getBlockId("water")) {
+                return y;
+            }
+        }
+        return -1;
+    }
 }
 
 const maxReach = 8;
@@ -861,15 +826,13 @@ const blocksMaterial = new THREE.MeshStandardMaterial({map:texture0,side: THREE.
 
 
 let chunkManager:ChunkManager;
-let skibidMaaager:biomeManager;
-let wGen:WorldGeneration;
 function animate()
 {
     stats.begin();
     const delta = (performance.now()-currentTime)/1000;
     currentTime = performance.now()
     //check if chunk loading is necsary
-    chunkManager.maybeLoadChunks(skibidMaaager);
+    chunkManager.maybeLoadChunks();
     updateSun();
     updateDebug();
     renderer.render(scene, camera);
@@ -882,7 +845,6 @@ function init()
         canvasContainer.value.appendChild(renderer.domElement);
     }
     chunkManager =  new ChunkManager();
-    skibidMaaager =  new biomeManager();
     requestAnimationFrame(animate);
 }
 onMounted(()=>
