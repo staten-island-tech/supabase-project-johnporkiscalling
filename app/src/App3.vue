@@ -180,10 +180,10 @@ class VoxelChunk
     vertices:Array<number>;
     uvs:Array<number>;
     dirty:boolean;
-    constructor(x:number,y:number,z:number)
+    constructor(x:number,y:number,z:number, chunkData?:Uint8Array)
     {
+        this.data = chunkData?chunkData:new Uint8Array(16*16*16);
         this.cCords = [x,y,z];
-        this.data = new Uint8Array(16*16*16);
         this.meshData =  new THREE.Mesh();
         this.offset = 0;
         this.indices = [];
@@ -191,9 +191,10 @@ class VoxelChunk
         this.uvs = [];
         this.dirty = false;
     }
-    getVoxel(x:number, y:number, z:number) {
-        if (x < 0 || y < 0 || z < 0 || x >= 16 || y >= 16 || z >= 16) {
-        return 0; // Out of bounds
+    getVoxel(x:number, y:number, z:number) {//operates on a chunk local approach
+        if (x < 0 || y < 0 || z < 0 || x >= 16 || y >= 16 || z >= 16) 
+        {
+            return 0;
         }
         const index = x + (y * 16) + (z * 16 * 16);
         return this.data[index];
@@ -246,7 +247,7 @@ class VoxelChunk
 class ChunkManager
 {
     chunks:Map<string, VoxelChunk>;
-    dirtyChunks:Set<string>
+    dirtyChunks:Set<string>;
     constructor()
     {
         this.chunks = new Map();
@@ -266,9 +267,9 @@ class ChunkManager
         const key =  this.getChunkKey(x,y,z)
         if(!this.chunks.has(key))
         {
-        const chunk = new VoxelChunk(x,y,z);
-        this.chunks.set(key, chunk);
-        this.dirtyChunks.add(key);
+            const chunk = new VoxelChunk(x,y,z);
+            this.chunks.set(key, chunk);
+            this.dirtyChunks.add(key);
         }
         return this.chunks.get(key);
     }
@@ -297,7 +298,7 @@ class ChunkManager
         const key =  this.getChunkKey(x,y,z);
         if(this.chunks.has(key))
         {
-        this.dirtyChunks.add(key);
+            this.dirtyChunks.add(key);
         }
     }
     getAdjacentVoxel(chunkCords:Array<number>, localCords:Array<number>)
@@ -306,8 +307,8 @@ class ChunkManager
             localCords[1] >= 0 && localCords[1] < 16 && 
             localCords[2] >= 0 && localCords[2] < 16) 
         {
-        const chunk = this.getChunk(chunkCords[0], chunkCords[1], chunkCords[2]);
-        return chunk ? chunk.getVoxel(localCords[0], localCords[1], localCords[2]) : 0;
+            const chunk = this.getChunk(chunkCords[0], chunkCords[1], chunkCords[2]);
+            return chunk ? chunk.getVoxel(localCords[0], localCords[1], localCords[2]) : 0;
         }
         let adjChunkX = chunkCords[0];
         let adjChunkY = chunkCords[1];
@@ -325,7 +326,6 @@ class ChunkManager
             adjChunkX++;
             adjLocalX = localCords[0] - 16;
         }
-        
         if (localCords[1] < 0) 
         {
             adjChunkY--;
@@ -399,15 +399,15 @@ class ChunkManager
             scene.add(chunk.meshData as THREE.Mesh);
         }
     }
-    updateChunkMeshes()
+    updateChunkMeshes()//works off of the assunption that the voxel defined exists and can be rerendered
     {
         for(const key of this.dirtyChunks)
         {
-        const chunk =  this.chunks.get(key);
-        if(chunk)
-        {
-            this.generateChunkMesh(chunk);
-        }
+            const chunk =  this.chunks.get(key);
+            if(chunk)
+            {
+                this.generateChunkMesh(chunk);
+            }
         }
         this.dirtyChunks.clear();
     }
@@ -441,14 +441,21 @@ class ChunkManager
         const eBound = chunkX + chunkLoadLimit;    
         for(const [key, VoxChunk] of this.chunks)
         {
-            const [x,y] =  key.split(',').map(Number);
+            const [x,y,z] =  key.split(',').map(Number);
             const mesh = VoxChunk.meshData as THREE.Mesh;
             if(x<wBound||x>eBound||y<nBound||y>sBound)
             {
                 VoxChunk.destroyMesh(scene);
+                this.updateChunkMeshes();//rerender the dirty stuff
+                //call the world generator method here if you're loading uncached chunks
+                //unloaded chunks will get sent to the save system
+                //determine whether you needa rerender or
                 //if the chunk has been flagged dirty make sure its saved in memory or saved to a save file
                 if(VoxChunk.dirty)
                 {
+                    this.getOrCreateChunk(x,y,z)
+                    //recreate it
+                    //this will handle actual new chunks so no regeneration of chunks
                     //save it in memory or smth here
                 }
             }
@@ -510,6 +517,15 @@ class ChunkManager
 //trees are based on branching off of trunks
 //the branches will contaion radial leaves
 //for coasts just use a threshold value for the
+
+//basic idea
+//abstract the mesh and the block data into its own class
+//have a thingie to manage said chunks
+//the manager can determine what block is in the chunk
+//if the block is in the chunk then move it into 
+
+
+
 import { BIOMES } from "./biome";
 import type { Biome, BiomeName } from './biome';
 class WorldGenerator extends Random {
@@ -845,6 +861,7 @@ function init()
         canvasContainer.value.appendChild(renderer.domElement);
     }
     chunkManager =  new ChunkManager();
+
     requestAnimationFrame(animate);
 }
 onMounted(()=>
