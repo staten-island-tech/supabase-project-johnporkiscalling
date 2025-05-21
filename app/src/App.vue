@@ -10,6 +10,9 @@ const errorMessage = ref("");
 let useremail = ref<string | null>(null) ?? "Guest";
 
 let data = ref([]);
+// let x = true;
+// while (x) {
+setTimeout(() => {}, 1000);
 
 async function userdata() {
   if (loggedin) {
@@ -33,8 +36,9 @@ function spin(event: MouseEvent) {
 function close() {
   if (open.value) open.value = false;
 
-  update(); //---------update
+  update(); //---------update---------------------------------------------move this asap
 }
+
 async function logout() {
   try {
     const { error } = await supabase.auth.signOut();
@@ -60,6 +64,7 @@ async function updatePreferences() {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
+  console.log(data, userError);
 
   if (userError || !user) {
     console.error("Error fetching user:", userError?.message);
@@ -87,12 +92,15 @@ async function updatePreferences() {
     <LogIn @login="(loggedin = true), (wantstologin = false), userdata(), console.log(useremail)" />
   </div>
   <div v-else-if="!wantstologin || loggedin">
+    <div class="overlay" v-if="open"></div>
+
     <header>
       <div class="wrapper" @click="close">
         <nav>
           <button class="account">
             <img src="./assets/grass.png" alt="Account" :class="{ rotated: open }" @click="spin" />
           </button>
+
           <Transition name="fade-slide">
             <div
               class="dropdown"
@@ -114,6 +122,7 @@ async function updatePreferences() {
               </div>
             </div>
           </Transition>
+
           <div class="main">
             <div class="border"><RouterLink to="/">Home</RouterLink></div>
             <div class="border"><RouterLink to="/about">About</RouterLink></div>
@@ -121,6 +130,17 @@ async function updatePreferences() {
             <div class="border" v-if="loggedin">
               <a href="" @click.prevent="(loggedin = false), (wantstologin = false), logout()"
                 >Log out</a
+              >
+            </div>
+            <div class="border">
+              <a
+                href=""
+                @click.prevent="
+                  console.log('this is loggedin value:', loggedin);
+                  console.log('this is wantstologin value:', wantstologin);
+                  console.log('this is open value:', open);
+                "
+                >Test</a
               >
             </div>
             <div class="border" v-if="!loggedin">
@@ -138,6 +158,16 @@ async function updatePreferences() {
 
 <style scoped>
 /* --------------------logged in = true-------------------- */
+.overlay {
+  height: 100vh;
+  width: 100vw;
+  position: absolute;
+  background-color: rgba(178, 255, 243, 0.26);
+  top: 0%;
+  left: 0%;
+  z-index: 10;
+}
+
 .settings {
   height: 93%;
 }
@@ -284,6 +314,7 @@ a:focus {
   border-left: 1.5px solid var(--color-border);
   text-decoration: none;
   height: 100%;
+  z-index: 119999999999 !important;
 }
 
 .border:first-of-type {
