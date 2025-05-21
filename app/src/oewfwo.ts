@@ -79,6 +79,30 @@ class VoxelChunk {
         this.uvs = [];
     }
 }
+const deltas = [
+    [1, 0, 0], [-1, 0, 0],
+    [0, 1, 0], [0, -1, 0],
+    [0, 0, 1], [0, 0, -1],
+];
+let CX = Infinity;
+let CZ =Infinity;
+let CY = Infinity;
+class SaveSystem//this system basically operates on the idea that when a player unloads a chunk the world data for that unloadd chunk gets saved here
+//otherwise the loaded chunks are fine and when the player quits the game or generates a save file they read from the chunkManager
+{
+    save:Map<string,Uint8Array>
+    constructor()
+    {
+        this.save =  new Map();
+    }
+    writeToSaveFile()
+    {
+        
+    }
+}
+let saveSystem =  new SaveSystem();
+
+
 class ChunkManager {
     chunks: Map<string, VoxelChunk>
     dirtyChunks: Set<string>
@@ -98,25 +122,39 @@ class ChunkManager {
         }
     }
     //possible seperation of cache render distance and regular render distance to otpimize face culling
-    generateChunkMesh(chunk: VoxelChunk) {
+    generateChunkMesh(chunk: VoxelChunk) { //this is responsible for generating meshes instead of actual chunks
         //first check if niehgobirng chunk data exists if not atleast set the data instead of generating the full mesh
         //if the neighboring chunk data that is meant to be retrieved exists outjside thte range of the render distance 
         //just get the edge of the voxel block which prevents massive calls that wont be used
         //or cache the unrendered results
         const [x, y, z] = chunk.key.split(",").map(Number)//determine the neighbors
-        const deltas = [
-            [1, 0, 0], [-1, 0, 0],
-            [0, 1, 0], [0, -1, 0],
-            [0, 0, 1], [0, 0, -1],
-        ];
+
         const neighbors = deltas.map(([dx, dy, dz]) => [x + dx, y + dy, z + dz]);
         for (let i = 0; i < neighbors.length; i++) {
             const key = neighbors[i].toString();
             const exists = this.chunks.has(key);
+            if(!exists) this.loadWorldData(key);
+            const data = this.chunks.get(key);
+            
             //get the thingie to render the worldData
         }
     }
-    loadWorldData(key: string) {
+    getNeighbors(key:string)
+    {
+        
+    }
+    setVoxel(keys:string)
+    {
+        
+    }
+    getVoxel(x:number, y:number, z:number)
+    {
+        const {chunkCords, localCords} = util3d.gtlCords(x,y,z);
+        const [cX, cY, cZ ] = chunkCords; 
+        const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]}, ${chunkCords[2]}`) as VoxelChunk;
+        return chunk.data[cX+16*(cY+16*cZ)]
+    }
+    renderNew() {
         //call the save system here 
         //ask if theres any pre existing chunk stored in it
         //also air chunks will be marked with an empty uint8array so when checking make sure the array isnt length 0 before working with it
@@ -124,14 +162,80 @@ class ChunkManager {
         //otherwise
         //call the world generator here
         //itll upload the data but not the mesh
+        const chunkLoadLimit = 8;
+        const chunkZ = Math.floor(yawObject.position.z/16)
+        const chunkX = Math.floor(yawObject.position.x/16) 
+        const chunkY = Math.floor(yawObject.position.x/16)
+        const uBound = chunkY + chunkLoadLimit;
+        const dBound = chunkY - chunkLoadLimit;
+        const nBound = chunkZ - chunkLoadLimit;
+        const sBound = chunkZ + chunkLoadLimit;
+        const wBound = chunkX - chunkLoadLimit;
+        const eBound = chunkX + chunkLoadLimit;
 
+        //add another bound for going down or up 
 
+        //first pass removes chunks that are outside of the limit
+        for(const [key, VoxChunk] of this.chunks)
+        {
+            const [x,y,z] =  key.split(',').map(Number);
+            if(x<wBound||x>eBound||y<nBound||y>sBound)
+            {
+                VoxChunk.destroyMesh(scene);
+                //removes the mesh from the scene automatically
+                //data is still perserved to be able to be read by the save system
+            }
+        }//second pass determines whether or not to rerender dirty chunks
+        for(let x =  wBound; x<eBound; x++)//third pass loads new chunks
+        {
+            for(let y = dBound; y<uBound; y++)
+            {
+                for(let z =  nBound; z<sBound; z++)
+                {
+                    const stringCords = `${x},${y},${z}`
+                    if(!this.chunks.has(stringCords))
+                    {
+                        const rewrite = new VoxelChunk(stringCords);
+                        //initialize the world generator so it can be used globally
+                        //
+                        rewrite.data = new Uint8Array(16*16*16);
+                        this.generateChunkMesh(rewrite);
+                        rewrite.returnMesh();   
+                    }
+                }                
+            }
+        }
     }
+    maybeLoad()
+    {
+        this.reloadDirty();
+        //this will always be called regardless of whether the player has changed chunks or not
+        const chunkX = Math.floor(yawObject.position.x / 16);
+        const chunkZ = Math.floor(yawObject.position.z / 16);
+        const chunkY = Math.floor(yawObject.position.y / 16);
 
-
+        if (chunkX !== CX || chunkZ !== CZ || chunkY !== CY ) {
+            this.renderNew();
+            CX = chunkX;
+            CZ = chunkZ;
+            CY = chunkY;
+        }        
+    }
+    reloadDirty()
+    {
+        for(let key of this.dirtyChunks)
+        {
+            const chunk = this.chunks.get(key) as VoxelChunk;
+            this.generateChunkMesh(chunk);
+        }
+    }
 }
+
+
+
 import { Random } from './utils';
 import { Noise } from './noisefunct';
+import { string } from 'three/tsl';
 class WorldGenerator extends Random {
     private temperatureNoise: Noise;
     private humidityNoise: Noise;
@@ -144,5 +248,4 @@ class WorldGenerator extends Random {
         this.continentalnessNoise = new Noise(seed + 3);
         this.detailNoise = new Noise(seed + 4);
     }
-    getBiome
 }
