@@ -1,7 +1,83 @@
 import * as THREE from 'three';
 import { faceDirections } from './stupidlylongvariables';
 import { util3d } from './utils';
+import { Random } from './utils';
+import { Noise } from './noisefunct';
+const seed = 101021034100323;
+const blockRegistry: Array<string> = ["air", "stone", "dirt", "grass"]
+//first pass differentiates between whats solid and not
+
+class WorldGenerator extends Random {
+    private temperatureNoise: Noise;
+    private humidityNoise: Noise;
+    private continentalnessNoise: Noise;
+    private detailNoise: Noise;
+    heightMapCache: Map<string, Uint8Array>
+    constructor(seed: number) {
+        super(seed);
+        this.temperatureNoise = new Noise(seed + 1);
+        this.humidityNoise = new Noise(seed + 2);
+        this.continentalnessNoise = new Noise(seed + 3);
+        this.detailNoise = new Noise(seed + 4);
+        this.heightMapCache = new Map();
+    }
+    generateChunkData(x: number, z: number) {
+        const data = this.generateBaseHeight(x, z);
+        const biome = this.getBiome(x, z);
+        //construct all the final heights and append it to the list
+        //this operastes off of the base height thingie and then another noise function based off of whethert the biome calls for such
+        //if yes then add the heights otherwise continue
+        const fullChunkData: Map<string, Uint8Array> = new Map();
+        const finalheights: Uint8Array = new Uint8Array(256);
+        for (let x = 0; x < 16; x++) {
+            for (let z = 0; z < 16; z++) {
+                const top = finalheights[x * 16 + z];
+                let chunkData = new Uint8Array(256 * 16)
+                for (let y = 0; y <= top; y++) {
+                    const currentY = Math.floor(y / 16);
+                    const blockType = y == top ? 1 : y > top - 8 ? 2 : 0;
+                    //change this to later use the biome preferences like the primaryblock , etc
+                    chunkData[x + 16 * (y + 16 * z)] = blockType;
+                    if (currentY % 16 == 0) {
+                        fullChunkData.set(`${y}`, chunkData);
+                        chunkData = new Uint8Array(256 * 16);
+                    }
+                    //get the top chunk
+                    //everytime y goes to another chunk write it to the the
+                }
+            }
+            //find the nearest chunk
+        }
+    }
+    getBiome(x: number, z: number) {
+        const biomeMap: Uint8Array = new Uint8Array(256);
+        const xStart = x * 16;
+        const zStart = z * 16;
+        for (let x = 0; x < 16; x++) {
+            for (let z = 0; z < 16; z++) {
+                //placeholder for the biomeselector
+                biomeMap[x * 16 + z] = this.detailNoise.simplex(x + xStart, z + zStart);
+            }
+        }
+        return biomeMap;
+    }
+    generateBaseHeight(x: number, z: number) {
+        const heightMap: Uint8Array = new Uint8Array(256);
+        const xStart = x * 16;
+        const zStart = z * 16;
+        for (let x = 0; x < 16; x++) {
+            for (let z = 0; z < 16; z++) {
+                heightMap[x * 16 + z] = Math.floor(this.detailNoise.simplex(x + xStart, z + zStart) * 32);
+            }
+        }
+        this.heightMapCache.set(`${x},${z}`, heightMap);
+        return heightMap;
+    }
+
+}
+
 const scene = new THREE.Scene;
+const yawObject: THREE.Object3D = new THREE.Object3D()
 const textureLoader = new THREE.TextureLoader();
 function loadBlockTexture(path: string) {
     const tex = textureLoader.load(path);
@@ -23,6 +99,7 @@ const blockUVs: Record<string, Array<number>> = {
     red_sand: util3d.getUVCords('minecraft:block/red_sand'),
     stone: util3d.getUVCords('minecraft:block/stone'),
 };
+const worldGen = new WorldGenerator(seed);
 class VoxelChunk {
     data: Uint8Array
     key: string
@@ -85,22 +162,20 @@ const deltas = [
     [0, 0, 1], [0, 0, -1],
 ];
 let CX = Infinity;
-let CZ =Infinity;
+let CZ = Infinity;
 let CY = Infinity;
 class SaveSystem//this system basically operates on the idea that when a player unloads a chunk the world data for that unloadd chunk gets saved here
 //otherwise the loaded chunks are fine and when the player quits the game or generates a save file they read from the chunkManager
 {
-    save:Map<string,Uint8Array>
-    constructor()
-    {
-        this.save =  new Map();
+    save: Map<string, Uint8Array>
+    constructor() {
+        this.save = new Map();
     }
-    writeToSaveFile()
-    {
-        
+    writeToSaveFile() {
+
     }
 }
-let saveSystem =  new SaveSystem();
+let saveSystem = new SaveSystem();
 
 
 class ChunkManager {
@@ -123,36 +198,46 @@ class ChunkManager {
     }
     //possible seperation of cache render distance and regular render distance to otpimize face culling
     generateChunkMesh(chunk: VoxelChunk) { //this is responsible for generating meshes instead of actual chunks
-        //first check if niehgobirng chunk data exists if not atleast set the data instead of generating the full mesh
-        //if the neighboring chunk data that is meant to be retrieved exists outjside thte range of the render distance 
-        //just get the edge of the voxel block which prevents massive calls that wont be used
-        //or cache the unrendered results
+        //basic idea
+        //example chunk 000
+        //get the face adjacent neighbors
+
+
+
         const [x, y, z] = chunk.key.split(",").map(Number)//determine the neighbors
 
         const neighbors = deltas.map(([dx, dy, dz]) => [x + dx, y + dy, z + dz]);
         for (let i = 0; i < neighbors.length; i++) {
             const key = neighbors[i].toString();
             const exists = this.chunks.has(key);
-            if(!exists) this.loadWorldData(key);
+            if (!exists) this.loadWorldData(key);
             const data = this.chunks.get(key);
-            
+            //since loadWorldData only operates on a grid based approach instead of a 3d based grid you must pass in the vonNeuman neighbors instead
             //get the thingie to render the worldData
         }
     }
-    getNeighbors(key:string)
-    {
-        
+    getNeighbors(key: string) {
+        //first checks if the neighbor is cached already
+        //if not then call the worldgenerator for the output
+        //if the output is full of 0 return air or smth
+
     }
-    setVoxel(keys:string)
-    {
-        
-    }
-    getVoxel(x:number, y:number, z:number)
-    {
-        const {chunkCords, localCords} = util3d.gtlCords(x,y,z);
-        const [cX, cY, cZ ] = chunkCords; 
+    setVoxel(x: number, y: number, z: number, block: number) { //takes in a block id as the identifier
+        const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
+        const [cX, cY, cZ] = localCords;
         const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]}, ${chunkCords[2]}`) as VoxelChunk;
-        return chunk.data[cX+16*(cY+16*cZ)]
+        chunk.data[cX + 16 * (cY + 16 * cZ)] = block;
+    }
+    loadWorldData(x: number, z: number) {
+        return worldGen.generateChunkData;
+    }
+    getVoxel(x: number, y: number, z: number) {
+        const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
+        const [cX, cY, cZ] = localCords;
+        const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]}, ${chunkCords[2]}`) as VoxelChunk;
+        return chunk.data[cX + 16 * (cY + 16 * cZ)]
+        //returns the data
+
     }
     renderNew() {
         //call the save system here 
@@ -163,9 +248,9 @@ class ChunkManager {
         //call the world generator here
         //itll upload the data but not the mesh
         const chunkLoadLimit = 8;
-        const chunkZ = Math.floor(yawObject.position.z/16)
-        const chunkX = Math.floor(yawObject.position.x/16) 
-        const chunkY = Math.floor(yawObject.position.x/16)
+        const chunkZ = Math.floor(yawObject.position.z / 16)
+        const chunkX = Math.floor(yawObject.position.x / 16)
+        const chunkY = Math.floor(yawObject.position.x / 16)
         const uBound = chunkY + chunkLoadLimit;
         const dBound = chunkY - chunkLoadLimit;
         const nBound = chunkZ - chunkLoadLimit;
@@ -176,55 +261,46 @@ class ChunkManager {
         //add another bound for going down or up 
 
         //first pass removes chunks that are outside of the limit
-        for(const [key, VoxChunk] of this.chunks)
-        {
-            const [x,y,z] =  key.split(',').map(Number);
-            if(x<wBound||x>eBound||y<nBound||y>sBound)
-            {
+        for (const [key, VoxChunk] of this.chunks) {
+            const [x, y, z] = key.split(',').map(Number);
+            if (x < wBound || x > eBound || y < nBound || y > sBound) {
                 VoxChunk.destroyMesh(scene);
                 //removes the mesh from the scene automatically
                 //data is still perserved to be able to be read by the save system
             }
         }//second pass determines whether or not to rerender dirty chunks
-        for(let x =  wBound; x<eBound; x++)//third pass loads new chunks
-        {
-            for(let y = dBound; y<uBound; y++)
-            {
-                for(let z =  nBound; z<sBound; z++)
-                {
+        for (let x = wBound; x < eBound; x++) {
+            for (let y = dBound; y < uBound; y++) {
+                for (let z = nBound; z < sBound; z++) {
                     const stringCords = `${x},${y},${z}`
-                    if(!this.chunks.has(stringCords))
-                    {
+                    if (!this.chunks.has(stringCords)) {
                         const rewrite = new VoxelChunk(stringCords);
                         //initialize the world generator so it can be used globally
                         //
-                        rewrite.data = new Uint8Array(16*16*16);
+                        rewrite.data = new Uint8Array(16 * 16 * 16);
                         this.generateChunkMesh(rewrite);
-                        rewrite.returnMesh();   
+                        rewrite.returnMesh();
                     }
-                }                
+                }
             }
         }
     }
-    maybeLoad()
-    {
+    maybeLoad() {
         this.reloadDirty();
         //this will always be called regardless of whether the player has changed chunks or not
         const chunkX = Math.floor(yawObject.position.x / 16);
         const chunkZ = Math.floor(yawObject.position.z / 16);
         const chunkY = Math.floor(yawObject.position.y / 16);
 
-        if (chunkX !== CX || chunkZ !== CZ || chunkY !== CY ) {
+        if (chunkX !== CX || chunkZ !== CZ || chunkY !== CY) {
             this.renderNew();
             CX = chunkX;
             CZ = chunkZ;
             CY = chunkY;
-        }        
+        }
     }
-    reloadDirty()
-    {
-        for(let key of this.dirtyChunks)
-        {
+    reloadDirty() {
+        for (let key of this.dirtyChunks) {
             const chunk = this.chunks.get(key) as VoxelChunk;
             this.generateChunkMesh(chunk);
         }
@@ -233,19 +309,3 @@ class ChunkManager {
 
 
 
-import { Random } from './utils';
-import { Noise } from './noisefunct';
-import { string } from 'three/tsl';
-class WorldGenerator extends Random {
-    private temperatureNoise: Noise;
-    private humidityNoise: Noise;
-    private continentalnessNoise: Noise;
-    private detailNoise: Noise;
-    constructor(seed: number) {
-        super(seed);
-        this.temperatureNoise = new Noise(seed + 1);
-        this.humidityNoise = new Noise(seed + 2);
-        this.continentalnessNoise = new Noise(seed + 3);
-        this.detailNoise = new Noise(seed + 4);
-    }
-}
