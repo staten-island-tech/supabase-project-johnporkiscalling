@@ -4,50 +4,161 @@ import { util3d } from './utils';
 import { Random } from './utils';
 import { Noise } from './noisefunct';
 const seed = 101021034100323;
-const blockRegistry: Array<string> = ["air", "stone", "dirt", "grass"]
 //first pass differentiates between whats solid and not
 
+
+
+const BIOME_IDS = {
+    OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, DESERT: 4, MOUNTAINS: 5,
+    SNOWY_PEAKS: 6, TAIGA: 7, JUNGLE: 8, BADLANDS: 9,
+};
+const BLOCK_TYPES = {
+    AIR: 0, STONE: 1, GRASS: 2, DIRT: 3, WATER: 9, SAND: 12, SANDSTONE: 13,
+    SNOW_BLOCK: 14, ICE: 15, WOOD_LOG: 17, LEAVES: 18, GRAVEL: 19, CLAY: 82,
+    TERRACOTTA_RED: 159,
+};
+const BiomeData = {
+    [BIOME_IDS.OCEAN]: { id: BIOME_IDS.OCEAN, name: "Ocean", primaryBlock: BLOCK_TYPES.WATER, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 3, baseHeightOffset: -30, heightVariation: 5, },
+    [BIOME_IDS.BEACH]: { id: BIOME_IDS.BEACH, name: "Beach", primaryBlock: BLOCK_TYPES.SAND, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.SANDSTONE, soilDepth: 4, baseHeightOffset: 1, heightVariation: 1, },
+    [BIOME_IDS.PLAINS]: { id: BIOME_IDS.PLAINS, name: "Plains", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 3, baseHeightOffset: 2, heightVariation: 5, },
+    [BIOME_IDS.FOREST]: { id: BIOME_IDS.FOREST, name: "Forest", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 4, baseHeightOffset: 4, heightVariation: 10, },
+    [BIOME_IDS.DESERT]: { id: BIOME_IDS.DESERT, name: "Desert", primaryBlock: BLOCK_TYPES.SAND, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.SANDSTONE, soilDepth: 5, baseHeightOffset: 2, heightVariation: 3, },
+    [BIOME_IDS.MOUNTAINS]: { id: BIOME_IDS.MOUNTAINS, name: "Mountains", primaryBlock: BLOCK_TYPES.STONE, secondaryBlock: BLOCK_TYPES.STONE, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 1, baseHeightOffset: 30, heightVariation: 50, },
+    [BIOME_IDS.SNOWY_PEAKS]: { id: BIOME_IDS.SNOWY_PEAKS, name: "Snowy Peaks", primaryBlock: BLOCK_TYPES.SNOW_BLOCK, secondaryBlock: BLOCK_TYPES.STONE, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 2, baseHeightOffset: 40, heightVariation: 40, },
+    [BIOME_IDS.TAIGA]: { id: BIOME_IDS.TAIGA, name: "Taiga", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 3, baseHeightOffset: 3, heightVariation: 8, },
+    [BIOME_IDS.JUNGLE]: { id: BIOME_IDS.JUNGLE, name: "Jungle", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 5, baseHeightOffset: 5, heightVariation: 20, },
+    [BIOME_IDS.BADLANDS]: { id: BIOME_IDS.BADLANDS, name: "Badlands", primaryBlock: BLOCK_TYPES.TERRACOTTA_RED, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 10, baseHeightOffset: 10, heightVariation: 25, },
+};
 class WorldGenerator extends Random {
-    private temperatureNoise: Noise;
-    private humidityNoise: Noise;
-    private continentalnessNoise: Noise;
-    private detailNoise: Noise;
+    temperatureNoise: Noise;
+    humidityNoise: Noise;
+    continentalnessNoise: Noise;
+    detailNoise: Noise;
+    mountainNoise: Noise;
     heightMapCache: Map<string, Uint8Array>
     constructor(seed: number) {
         super(seed);
-        this.temperatureNoise = new Noise(seed + 1);
-        this.humidityNoise = new Noise(seed + 2);
-        this.continentalnessNoise = new Noise(seed + 3);
-        this.detailNoise = new Noise(seed + 4);
+        this.temperatureNoise = new Noise(this.lcg());
+        this.humidityNoise = new Noise(this.lcg());
+        this.continentalnessNoise = new Noise(this.lcg());
+        this.detailNoise = new Noise(this.lcg());
+        this.mountainNoise = new Noise(this.lcg());
         this.heightMapCache = new Map();
     }
-    generateChunkData(x: number, z: number) {
-        const data = this.generateBaseHeight(x, z);
-        const biome = this.getBiome(x, z);
-        //construct all the final heights and append it to the list
-        //this operastes off of the base height thingie and then another noise function based off of whethert the biome calls for such
-        //if yes then add the heights otherwise continue
-        const fullChunkData: Map<string, Uint8Array> = new Map();
-        const finalheights: Uint8Array = new Uint8Array(256);
-        for (let x = 0; x < 16; x++) {
-            for (let z = 0; z < 16; z++) {
-                const top = finalheights[x * 16 + z];
-                let chunkData = new Uint8Array(256 * 16)
-                for (let y = 0; y <= top; y++) {
-                    const currentY = Math.floor(y / 16);
-                    const blockType = y == top ? 1 : y > top - 8 ? 2 : 0;
-                    //change this to later use the biome preferences like the primaryblock , etc
-                    chunkData[x + 16 * (y + 16 * z)] = blockType;
-                    if (currentY % 16 == 0) {
-                        fullChunkData.set(`${y}`, chunkData);
-                        chunkData = new Uint8Array(256 * 16);
+    seaLevel = 62;
+    cThresh = 0.48; 
+    mFactor = 0.6;
+    getColumnData(x:number, z:number)//uses world corrds
+    {
+        const continentalness = this.continentalnessNoise.simplex(x/2000, z/2000);
+        const temperature =  this.temperatureNoise.simplex(x/1500, z/1500);
+        const humidity = this.humidityNoise.simplex(x/1200, z/1200);
+        const detailInfluence =  this.detailNoise.simplex(x/150, z/150);
+        const mountainInfluence = this.mountainNoise.simplex(x/500, z/500);
+        let biome;
+        let baseHeight;
+        if(continentalness<this.cThresh)
+        {
+            biome = BiomeData[BIOME_IDS.OCEAN];
+            const depthFactor = 1.0-(continentalness/this.cThresh)
+            baseHeight = this.seaLevel+biome.baseHeightOffset*depthFactor;
+            baseHeight+=(detailInfluence*2-1) * biome.heightVariation;
+        }
+        else
+        {
+            const landElevationFactor = (continentalness - this.cThresh ) / (1-this.cThresh);
+            const altitudeEffect = landElevationFactor * 0.6;
+            let effectiveTemperature =  temperature * (1-altitudeEffect);
+            effectiveTemperature = util3d.clamp(0,1,effectiveTemperature);
+            if (effectiveTemperature < 0.15) { // Very Cold
+                if (landElevationFactor > 0.5 && mountainInfluence > this.mFactor * 0.8) biome = BiomeData[BIOME_IDS.SNOWY_PEAKS];
+                else biome = BiomeData[BIOME_IDS.TAIGA];
+            } else if (effectiveTemperature < 0.4) { // cold
+                if (landElevationFactor > 0.4 && mountainInfluence > this.mFactor * 0.7) biome = BiomeData[BIOME_IDS.MOUNTAINS];
+                else biome = BiomeData[BIOME_IDS.TAIGA];
+            } else if (effectiveTemperature < 0.7) { // average
+                if (landElevationFactor > 0.5 && mountainInfluence > this.mFactor) biome = BiomeData[BIOME_IDS.MOUNTAINS];
+                else if (humidity < 0.3) biome = BiomeData[BIOME_IDS.PLAINS];
+                else if (humidity < 0.6) biome = BiomeData[BIOME_IDS.PLAINS]; 
+                else biome = BiomeData[BIOME_IDS.FOREST];
+            } else {//HOT
+                if (humidity < 0.15) {
+                    if (landElevationFactor > 0.3 && mountainInfluence > this.mFactor * 0.5) biome = BiomeData[BIOME_IDS.BADLANDS];
+                    else biome = BiomeData[BIOME_IDS.DESERT];
+                } else if (humidity < 0.4) biome = BiomeData[BIOME_IDS.PLAINS];
+                else biome = BiomeData[BIOME_IDS.JUNGLE];
+            }
+            const distToWater = (continentalness - this.cThresh) / 0.03; 
+            if (distToWater >= 0 && distToWater < 1.0 && biome.id !== BIOME_IDS.OCEAN && biome.id !== BIOME_IDS.MOUNTAINS && biome.id !== BIOME_IDS.SNOWY_PEAKS) {
+                if (landElevationFactor < 0.1) biome = BiomeData[BIOME_IDS.BEACH];
+            }
+
+            // Calculate Land Height
+            baseHeight = this.seaLevel + biome.baseHeightOffset + (landElevationFactor * biome.heightVariation * 0.5);
+            baseHeight += (detailInfluence * 2 - 1) * biome.heightVariation * 0.5; // detailInfluence from [0,1] to [-1,1]
+
+            if (biome.id === BIOME_IDS.MOUNTAINS || biome.id === BIOME_IDS.SNOWY_PEAKS || biome.id === BIOME_IDS.BADLANDS) {
+                baseHeight += mountainInfluence * biome.heightVariation * 1.2;
+            } else if (mountainInfluence > 0.7 && landElevationFactor > 0.3) {
+                baseHeight += mountainInfluence * biome.heightVariation * 0.3;
+            }
+        }
+        const finalHeight = Math.floor(util3d.clamp(1,255, baseHeight));
+        return { height: finalHeight, biome: biome };
+    }
+    generateChunkData(chunkX:number, chunkZ:number) {
+        const CHUNK_WIDTH = 16; const CHUNK_HEIGHT = 256;
+        const SUBCHUNK_HEIGHT = 16; const NUM_SUBCHUNKS_Y = CHUNK_HEIGHT / SUBCHUNK_HEIGHT;
+        const columnInfoArray = new Array(CHUNK_WIDTH * CHUNK_WIDTH);
+
+        for (let localX = 0; localX < CHUNK_WIDTH; localX++) {
+            for (let localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+                const worldX = chunkX * CHUNK_WIDTH + localX;
+                const worldZ = chunkZ * CHUNK_WIDTH + localZ;
+                columnInfoArray[localX + localZ * CHUNK_WIDTH] = this.getColumnData(worldX, worldZ);
+            }
+        }
+        const subChunks = new Map();
+        for (let scY = 0; scY < NUM_SUBCHUNKS_Y; scY++) {
+            const subChunkData = new Uint8Array(CHUNK_WIDTH * SUBCHUNK_HEIGHT * CHUNK_WIDTH);
+            const yOffset = scY * SUBCHUNK_HEIGHT;
+            for (let localX = 0; localX < CHUNK_WIDTH; localX++) {
+                for (let localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+                    const colInfo = columnInfoArray[localX + localZ * CHUNK_WIDTH];
+                    const topHeight = colInfo.height;
+                    const biome = colInfo.biome;
+
+                    for (let localY = 0; localY < SUBCHUNK_HEIGHT; localY++) {
+                        const worldY = yOffset + localY;
+                        let blockType = BLOCK_TYPES.AIR;
+
+                        if (worldY < topHeight) {
+                            if (worldY === topHeight - 1) {
+                                blockType = biome.primaryBlock;
+                                if (biome.primaryBlock !== BLOCK_TYPES.SNOW_BLOCK && (biome.id === BIOME_IDS.TAIGA || biome.id === BIOME_IDS.SNOWY_PEAKS) && worldY > this.seaLevel + 5) {
+                                    blockType = BLOCK_TYPES.SNOW_BLOCK;
+                                }
+                            } else if (worldY >= topHeight - biome.soilDepth && worldY < topHeight - 1) {
+                                blockType = biome.secondaryBlock;
+                            } else {
+                                blockType = biome.stoneBlock;
+                            }
+                        } else if (worldY === topHeight && worldY < this.seaLevel && biome.id !== BIOME_IDS.OCEAN) {
+                            blockType = BLOCK_TYPES.AIR;
+                        }
+                        
+                        if (blockType === BLOCK_TYPES.AIR && worldY < this.seaLevel) {
+                            blockType = BLOCK_TYPES.WATER;
+                        }
+                        
+                        const index = localX + (localY * CHUNK_WIDTH) + (localZ * CHUNK_WIDTH * SUBCHUNK_HEIGHT);
+                        subChunkData[index] = blockType;
                     }
-                    //get the top chunk
-                    //everytime y goes to another chunk write it to the the
                 }
             }
-            //find the nearest chunk
+            subChunks.set(scY.toString(), subChunkData);
         }
+        return subChunks;
     }
     getBiome(x: number, z: number) {
         const biomeMap: Uint8Array = new Uint8Array(256);

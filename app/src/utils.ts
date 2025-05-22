@@ -48,6 +48,10 @@ export const util3d = Object.freeze(
             const coordinates:Array<number> = [];
             const r2 = radius*radius;
             return coordinates;
+        },
+        clamp(min:number, max:number, value:number)
+        {
+            return Math.max(min, Math.min(max, value))
         }
 
     }
@@ -72,36 +76,6 @@ export const utilMath = Object.freeze(
     }
 )
 //max depth =  1 by 1 by 1 voxel
-export class Octree {
-    octree: Array<number>
-    maxDepth: number
-    constructor(boundary: Array<Array<number>>, maxDepth: number) {
-        this.octree = [];
-        this.maxDepth = maxDepth
-    }
-    subdivide(index: number) {
-
-    }
-    private setInitialNode(bounds: Array<number>) {
-        this.octree.push
-    }
-    isLeaf(nodeIndex: number) {
-
-    }
-    depth(nodeIndex: number) {
-
-    }
-    mergeOctrees(o2: Octree) {
-        //only merges if its root node is the same size
-        //if it does get merged it does not perserve the leaf nodes and only combines the root nodes. along with that it'll also create theother 6 nodes of the part of the node
-        //
-        this.octree[0]
-    }
-    private addNode(i: number, data: number) {
-        this.octree[8 * i + 1] = data;
-    }
-    //sets a node at a given position provided data 
-}
 export class Random {
     private lcgState: number;
     constructor(seed: number) {

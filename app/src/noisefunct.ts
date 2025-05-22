@@ -68,7 +68,7 @@ export class Noise {
         const x1 = utilMath.lerp(dp00, dp10, u);
         const x2 = utilMath.lerp(dp01, dp11, u);
         const value = utilMath.lerp(x1, x2, v) / 2;
-        return value * Math.SQRT1_2
+        return ((value * Math.SQRT1_2)+1) * 0.5
     }
     octaveNoise(x: number, y: number, octaves: number, persistence: number, amplitude: number, frequency: number, lacunarity: number, type: (x: number, y: number) => number) {
         let total = 0;
@@ -132,7 +132,7 @@ export class Noise {
             contrib2 = t2 * t2 * utilMath.dot(grad3[gradIndex2], [dx2, dy2]);
         }
 
-        return 70 * (contrib0 + contrib1 + contrib2);
+        return (70 * (contrib0 + contrib1 + contrib2) + 1) * 0.5;
     }
     simplex3(x: number, y: number, z: number) {
         const s = (x + y + z) * F3;
@@ -221,140 +221,7 @@ const quadrantDirections = {
     4: [[-1, 0], [0, 1]]    // SE: prefer left or up
 };
 
-class DLA {
-    prng: () => number;
-    grid: Uint8Array;
-    width: number;
-    height: number;
-    LoD: number;
-    boundary: Set<string>;
-    bounds: Array<number>;
-    constructor(seed: number, LoD: number) {
-        this.prng = this.mulberry32(seed);
-        const dim = Math.pow(2, LoD);
-        this.grid = new Uint8Array(dim * dim);
-        this.width = dim;
-        this.height = dim;
-        this.grid[this.width / 2 + (this.height / 2) * this.width] = 1;
-        this.LoD = LoD;
-        this.boundary = new Set();
-        this.bounds = []//wnes
-    }
-    //note:width and height here are different and don't actually map to voxel cords so scale it properly later on
-    mulberry32(seed: number) {
-        return function () {
-            seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-            let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-            t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-            return ((t ^ t >>> 14) >>> 0) / 4294967296;
-        }
-    }
-    validNeighbors(x: number, y: number) {
-        const valid = [];
-        for (let oY = -1; oY <= 1; oY++) {
-            for (let oX = -1; oX <= 1; oX++) {
-                const nX = x + oX, nY = y + oY;
-                if (nX >= this.bounds[0] && nX < this.bounds[2] && nY >= this.bounds[1] && nY < this.bounds[3] && this.grid[nY * this.width + nX] != 0 && !this.boundary.has(`${nX},${nY}`)) {
-                    valid.push([nX, nY])
-                }
-            }
-        }
-        return valid;
-    }
-    DLAStep() {
-        const [x, y] = this.getRandomBoundary() as Array<number>;
-        if (this.prng() < 0.5) {
-            this.grid[y * this.width + x] = 0;
-            this.boundary.delete(`${x},${y}`);
-        }
-        else {
-            let [pX, pY] = this.stepAwayFromCenter(x, y, this.width / 2, this.height / 2);
-            while (true) {
-                const neighbors = (this.validNeighbors(pX, pY));
-                if (this.grid[pY * this.width + pX] === 1) {
-                    for (let i = 0; i < neighbors.length; i++) {
-                        if (this.grid[neighbors[i][1] * this.width + neighbors[i][0]] === 1) {
-                            this.grid[pY * this.width + pX] = 1;
-                            this.updateBoundary(pY, pX);
-                            this.boundary.delete(`${x},${y}`);
-                            break;
-                        }
-                    }
-                }
-                [pX, pY] = this.randomWalk(pX, pY);
-            }
-        }
-    }
-    getQuadrant(x: number, y: number, centerX: number, centerY: number) {
-        if (x >= centerX) {
-            return y >= centerY ? 1 : 4; // Quadrants 1 (NE) or 4 (SE)
-        } else {
-            return y >= centerY ? 2 : 3; // Quadrants 2 (NW) or 3 (SW)
-        }
-    }
-    stepAwayFromCenter(x: number, y: number, centerX: number, centerY: number) {
-        const quadrant = this.getQuadrant(x, y, centerX, centerY);
-        const [dx, dy] = quadrantDirections[quadrant][Math.floor(this.prng() * 2)];
-        return [x + dx, y + dy];
-    }
-    randomWalk(x: number, y: number) {
-        const neighbors = this.validNeighbors(x, y);
-        const randomNeighbor = neighbors[Math.floor(this.prng() * neighbors.length)];
-        return randomNeighbor;
-    }
-    getRandomBoundary(): Array<number> | undefined {
-        const index = Math.floor(this.prng() * this.boundary.size)
-        let i = 0;
-        for (const cell of this.boundary) {
-            if (i++ === index) return cell.split(',').map(Number);
-        }
-        return;
-    }
-    DLAScale() {
 
-        let pow = 1;
-        let size = Math.pow(2, pow);
-        const center = [this.width / 2, this.height / 2];
-        while (pow != this.LoD) {
-            //define the grid area
-            //biased center towards the lower left corner 
-            const expandAmount = size - 1;
-            const nwExpand = Math.ceil(expandAmount / 2);
-            const seExpand = Math.floor(expandAmount / 2);
-            const nwBound = [center[0] - nwExpand, center[1] - nwExpand];
-            const seBound = [center[0] + seExpand, center[1] + seExpand];
-            this.bounds = [...nwBound, ...seBound];
-            let amountOfParticles = 0;
-            while (amountOfParticles != (size ** 2 / 2) - 1) {
-                this.DLAStep();
-
-                amountOfParticles += 1;
-            }
-        }
-    }
-    setPixel(x: number, y: number) {
-        this.grid[y * this.width + x] = 1;
-    }
-    newInstance(LoD: number) {
-        const dim = Math.pow(2, LoD);
-        this.grid = new Uint8Array(dim * dim);
-        this.width = dim;
-        this.height = dim;
-        this.grid[this.width / 2 + (this.height / 2) * this.width] = 1;
-    }
-    updateBoundary(x: number, y: number) {
-        const neighbors = this.validNeighbors(x, y);
-        for (let i = 0; i < neighbors.length; i++) {
-            if (this.grid[neighbors[i][1] * this.width + neighbors[i][0]] === 1) {
-                continue;
-            }
-            this.boundary.add(`${neighbors[i][0]},${neighbors[i][1]}`);
-        }
-
-    }
-}
-
-const mountainMachine = new DLA(1, 1);
 import { Vector3 } from 'three';
 
 export class Worm extends Noise {
@@ -378,7 +245,6 @@ export class Worm extends Noise {
         //calculate the next voxel block coordinate to travel to
         //carve it here
     }
-
 }
 export class Voronoi {
     seed: number
