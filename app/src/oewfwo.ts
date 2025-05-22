@@ -5,11 +5,16 @@ import { Random } from './utils';
 import { Noise } from './noisefunct';
 const seed = 101021034100323;
 //first pass differentiates between whats solid and not
-const index = (x:number, y:number, z:number)=>
-{
-    return  x+16*(y+16*z)
+const index = (x: number, y: number, z: number) => {
+    return x + 16 * (y + 16 * z)
 }
-
+const keys: Record<string, boolean> = {}
+window.addEventListener("keydown", (event) => {
+    keys[event.key.toLowerCase()] = true;
+})
+window.addEventListener("keyup", (event) => {
+    keys[event.key.toLowerCase()] = false;
+})
 
 const BIOME_IDS = {
     OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, DESERT: 4, MOUNTAINS: 5,
@@ -49,30 +54,28 @@ class WorldGenerator extends Random {
         this.heightMapCache = new Map();
     }
     seaLevel = 62;
-    cThresh = 0.48; 
+    cThresh = 0.48;
     mFactor = 0.6;
-    getColumnData(x:number, z:number)//uses world corrds
+    getColumnData(x: number, z: number)//uses world corrds
     {
-        const continentalness = this.continentalnessNoise.simplex(x/2000, z/2000);
-        const temperature =  this.temperatureNoise.simplex(x/1500, z/1500);
-        const humidity = this.humidityNoise.simplex(x/1200, z/1200);
-        const detailInfluence =  this.detailNoise.simplex(x/150, z/150);
-        const mountainInfluence = this.mountainNoise.simplex(x/500, z/500);
+        const continentalness = this.continentalnessNoise.simplex(x / 2000, z / 2000);
+        const temperature = this.temperatureNoise.simplex(x / 1500, z / 1500);
+        const humidity = this.humidityNoise.simplex(x / 1200, z / 1200);
+        const detailInfluence = this.detailNoise.simplex(x / 150, z / 150);
+        const mountainInfluence = this.mountainNoise.simplex(x / 500, z / 500);
         let biome;
         let baseHeight;
-        if(continentalness<this.cThresh)
-        {
+        if (continentalness < this.cThresh) {
             biome = BiomeData[BIOME_IDS.OCEAN];
-            const depthFactor = 1.0-(continentalness/this.cThresh)
-            baseHeight = this.seaLevel+biome.baseHeightOffset*depthFactor;
-            baseHeight+=(detailInfluence*2-1) * biome.heightVariation;
+            const depthFactor = 1.0 - (continentalness / this.cThresh)
+            baseHeight = this.seaLevel + biome.baseHeightOffset * depthFactor;
+            baseHeight += (detailInfluence * 2 - 1) * biome.heightVariation;
         }
-        else
-        {
-            const landElevationFactor = (continentalness - this.cThresh ) / (1-this.cThresh);
+        else {
+            const landElevationFactor = (continentalness - this.cThresh) / (1 - this.cThresh);
             const altitudeEffect = landElevationFactor * 0.6;
-            let effectiveTemperature =  temperature * (1-altitudeEffect);
-            effectiveTemperature = util3d.clamp(0,1,effectiveTemperature);
+            let effectiveTemperature = temperature * (1 - altitudeEffect);
+            effectiveTemperature = util3d.clamp(0, 1, effectiveTemperature);
             if (effectiveTemperature < 0.15) { // Very Cold
                 if (landElevationFactor > 0.5 && mountainInfluence > this.mFactor * 0.8) biome = BiomeData[BIOME_IDS.SNOWY_PEAKS];
                 else biome = BiomeData[BIOME_IDS.TAIGA];
@@ -82,7 +85,7 @@ class WorldGenerator extends Random {
             } else if (effectiveTemperature < 0.7) { // average
                 if (landElevationFactor > 0.5 && mountainInfluence > this.mFactor) biome = BiomeData[BIOME_IDS.MOUNTAINS];
                 else if (humidity < 0.3) biome = BiomeData[BIOME_IDS.PLAINS];
-                else if (humidity < 0.6) biome = BiomeData[BIOME_IDS.PLAINS]; 
+                else if (humidity < 0.6) biome = BiomeData[BIOME_IDS.PLAINS];
                 else biome = BiomeData[BIOME_IDS.FOREST];
             } else {//HOT
                 if (humidity < 0.15) {
@@ -91,7 +94,7 @@ class WorldGenerator extends Random {
                 } else if (humidity < 0.4) biome = BiomeData[BIOME_IDS.PLAINS];
                 else biome = BiomeData[BIOME_IDS.JUNGLE];
             }
-            const distToWater = (continentalness - this.cThresh) / 0.03; 
+            const distToWater = (continentalness - this.cThresh) / 0.03;
             if (distToWater >= 0 && distToWater < 1.0 && biome.id !== BIOME_IDS.OCEAN && biome.id !== BIOME_IDS.MOUNTAINS && biome.id !== BIOME_IDS.SNOWY_PEAKS) {
                 if (landElevationFactor < 0.1) biome = BiomeData[BIOME_IDS.BEACH];
             }
@@ -106,10 +109,10 @@ class WorldGenerator extends Random {
                 baseHeight += mountainInfluence * biome.heightVariation * 0.3;
             }
         }
-        const finalHeight = Math.floor(util3d.clamp(1,255, baseHeight));
+        const finalHeight = Math.floor(util3d.clamp(1, 255, baseHeight));
         return { height: finalHeight, biome: biome };
     }
-    generateChunkData(chunkX:number, chunkZ:number) {
+    generateChunkData(chunkX: number, chunkZ: number) {
         const CHUNK_WIDTH = 16;
         const columnInfoArray = new Array(CHUNK_WIDTH * CHUNK_WIDTH);
         let highestBlock = -Infinity;
@@ -118,33 +121,28 @@ class WorldGenerator extends Random {
                 const worldX = chunkX * CHUNK_WIDTH + localX;
                 const worldZ = chunkZ * CHUNK_WIDTH + localZ;
                 const data = this.getColumnData(worldX, worldZ)
-                if(data.height>highestBlock)
-                {
+                if (data.height > highestBlock) {
                     highestBlock = data.height;
                 }
-                columnInfoArray[localX + localZ * CHUNK_WIDTH] = data;  
+                columnInfoArray[localX + localZ * CHUNK_WIDTH] = data;
             }
         }
-        const chunkPartitions = Math.ceil(highestBlock/16);
+        const chunkPartitions = Math.ceil(highestBlock / 16);
         const chunks = [];
-        for(let i = 0; i<chunkPartitions; i++)
-        {
-            chunks.push(new Uint8Array(4096));  
+        for (let i = 0; i < chunkPartitions; i++) {
+            chunks.push(new Uint8Array(4096));
             //preallocates memory for the new chunk data
         }
-        for(let x = 0; x<16; x++)
-        {
-            for(let z = 0; z<16; z++)
-            {
-                const indexV = x+z*CHUNK_WIDTH;
+        for (let x = 0; x < 16; x++) {
+            for (let z = 0; z < 16; z++) {
+                const indexV = x + z * CHUNK_WIDTH;
                 const height = columnInfoArray[indexV].height;
                 const biome = columnInfoArray[indexV].biome;
-                for(let y = 0; y++; y>=height)
-                {
-                    const currentPartition =  Math.floor(y/16);
-                    const localY = y - currentPartition*16;
-                    const block =  y==height?biome.primaryBlock:y>y-8?biome.secondaryBlock:BLOCK_TYPES.STONE;
-                    chunks[currentPartition][index(x,localY,z)] = block;      
+                for (let y = 0; y++; y >= height) {
+                    const currentPartition = Math.floor(y / 16);
+                    const localY = y - currentPartition * 16;
+                    const block = y == height ? biome.primaryBlock : y > y - 8 ? biome.secondaryBlock : BLOCK_TYPES.STONE;
+                    chunks[currentPartition][index(x, localY, z)] = block;
 
                 }
             }
@@ -267,6 +265,13 @@ const deltas = [
 let CX = Infinity;
 let CZ = Infinity;
 let CY = Infinity;
+interface VoxelRayInfo {
+    hit: boolean;
+    position?: THREE.Vector3;
+    distance?: number;
+    face?: THREE.Vector3;
+
+}
 class SaveSystem//this system basically operates on the idea that when a player unloads a chunk the world data for that unloadd chunk gets saved here
 //otherwise the loaded chunks are fine and when the player quits the game or generates a save file they read from the chunkManager
 {
@@ -278,6 +283,7 @@ class SaveSystem//this system basically operates on the idea that when a player 
 
     }
 }
+const maxReach = 8;
 let saveSystem = new SaveSystem();
 
 
@@ -310,7 +316,7 @@ class ChunkManager {
         for (let i = 0; i < neighbors.length; i++) {
             const key = neighbors[i].toString();
             const exists = this.chunks.has(key);
-            if(!exists) this.loadWorldData(neighbors[i][0], neighbors[i][2]);
+            if (!exists) this.loadWorldData(neighbors[i][0], neighbors[i][2]);
             let data = this.chunks.get(key);
             //since loadWorldData only operates on a grid based approach instead of a 3d based grid you must pass in the vonNeuman neighbors instead
             //get the thingie to render the worldData
@@ -320,7 +326,7 @@ class ChunkManager {
         //first checks if the neighbor is cached already
         //if not then call the worldgenerator for the output
         //if the output is full of 0 return air or smth
-    
+
     }
     setVoxel(x: number, y: number, z: number, block: number) { //takes in a block id as the identifier
         const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
@@ -328,10 +334,67 @@ class ChunkManager {
         const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]}, ${chunkCords[2]}`) as VoxelChunk;
         chunk.data[cX + 16 * (cY + 16 * cZ)] = block;
     }
+    voxelRayCast(direction: THREE.Vector3): VoxelRayInfo {
+        const origin = yawObject.position;
+        const pos = yawObject.position.clone().floor();
+        yawObject.getWorldDirection(direction);
+
+        const step = new THREE.Vector3(
+            Math.sign(direction.x),
+            Math.sign(direction.y),
+            Math.sign(direction.z)
+        );
+
+        const tDelta = new THREE.Vector3(
+            Math.abs(1 / direction.x),
+            Math.abs(1 / direction.y),
+            Math.abs(1 / direction.z)
+        );
+
+        const next = new THREE.Vector3(
+            (step.x > 0 ? 1 - (origin.x - pos.x) : (origin.x - pos.x)) * tDelta.x,
+            (step.y > 0 ? 1 - (origin.y - pos.y) : (origin.y - pos.y)) * tDelta.y,
+            (step.z > 0 ? 1 - (origin.z - pos.z) : (origin.z - pos.z)) * tDelta.z
+        );
+
+        let distanceTraveled = 0;
+        let faceDir = new THREE.Vector3();
+
+        while (distanceTraveled < maxReach) {
+            // Check current voxel first
+            if (this.getVoxel(pos.x, pos.y, pos.z)) {
+                return {
+                    hit: true,
+                    position: pos.clone(),
+                    distance: distanceTraveled,
+                    face: faceDir.clone(), // This will be valid *after* first step
+                };
+            }
+
+            // Determine next voxel and update faceDir accordingly
+            if (next.x < next.y && next.x < next.z) {
+                pos.x += step.x;
+                distanceTraveled = next.x;
+                next.x += tDelta.x;
+                faceDir.set(-step.x, 0, 0); // Direction we came from
+            } else if (next.y < next.z) {
+                pos.y += step.y;
+                distanceTraveled = next.y;
+                next.y += tDelta.y;
+                faceDir.set(0, -step.y, 0);
+            } else {
+                pos.z += step.z;
+                distanceTraveled = next.z;
+                next.z += tDelta.z;
+                faceDir.set(0, 0, -step.z);
+            }
+        }
+
+        return { hit: false };
+    }
     loadWorldData(x: number, z: number) {
-        const data = worldGen.generateChunkData(x,z);
-        for(let i = 0; i<data.length; i++)
-        {
+        const data = worldGen.generateChunkData(x, z);
+        for (let i = 0; i < data.length; i++) {
             const newVox = new VoxelChunk(`${x},${i},${z}`, data[i]);
             this.chunks.set(`${x},${i},${z}`, newVox);
         }
@@ -368,7 +431,7 @@ class ChunkManager {
         //first pass removes chunks that are outside of the limit
         for (const [key, VoxChunk] of this.chunks) {
             const [x, y, z] = key.split(',').map(Number);
-            if (x < wBound || x > eBound || y < nBound || y > sBound) {
+            if (x < wBound || x > eBound || y < nBound || y > sBound || z > uBound || z < dBound) {
                 VoxChunk.destroyMesh(scene);
                 //removes the mesh from the scene automatically
                 //data is still perserved to be able to be read by the save system
@@ -380,8 +443,6 @@ class ChunkManager {
                     const stringCords = `${x},${y},${z}`
                     if (!this.chunks.has(stringCords)) {
                         const rewrite = new VoxelChunk(stringCords);
-                        //initialize the world generator so it can be used globally
-                        //
                         rewrite.data = new Uint8Array(16 * 16 * 16);
                         this.generateChunkMesh(rewrite);
                         rewrite.returnMesh();
@@ -405,4 +466,43 @@ class ChunkManager {
         }
     }
 }
+let lastTick = performance.now();
+const cManager = new ChunkManager();
+//use a block look up that specifies how long it takes to break a block
+//determine how long the user has held their kouse for via kousedown and iup event listners
+//when the threshold is met update the chunkdata
+let mouseDown: Array<number> = [];
+document.addEventListener('mousedown', function (event) {
+    mouseDown[event.button] = performance.now();
+});
+let duration: Array<number> = []
+document.addEventListener('mouseup', function (event) {
+    const currentTime = performance.now();
+    duration[event.button] = currentTime - mouseDown[event.button]
+});
+
+function handleMouse(block: THREE.Vector3, dirVec: THREE.Vector3) {
+    if (duration[0] > 0) {
+        cManager.setVoxel(block.x, block.y, block.z, 0)
+        //break the block
+    }
+    if (duration[2] > 0) {//place a block
+        const newPos = block.add(dirVec);
+        cManager.setVoxel(newPos.x, newPos.y, newPos.z, BLOCK_TYPES.STONE);
+    }
+    duration[0] = 0;
+    duration[2] = 0;
+}
+function animate() {
+    const delta = performance.now() - lastTick;
+    const dirvector = new THREE.Vector3();
+    yawObject.getWorldPosition(dirvector);
+    const result = cManager.voxelRayCast(dirvector);
+    if (result.hit == true) {
+        handleMouse(result.position as THREE.Vector3, result.face as THREE.Vector3)
+    }
+    cManager.maybeLoad();//checks for new chunks to load
+    lastTick = performance.now();
+}
+
 
