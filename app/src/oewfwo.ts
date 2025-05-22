@@ -5,7 +5,10 @@ import { Random } from './utils';
 import { Noise } from './noisefunct';
 const seed = 101021034100323;
 //first pass differentiates between whats solid and not
-
+const index = (x:number, y:number, z:number)=>
+{
+    return  x+16*(y+16*z)
+}
 
 
 const BIOME_IDS = {
@@ -107,58 +110,47 @@ class WorldGenerator extends Random {
         return { height: finalHeight, biome: biome };
     }
     generateChunkData(chunkX:number, chunkZ:number) {
-        const CHUNK_WIDTH = 16; const CHUNK_HEIGHT = 256;
-        const SUBCHUNK_HEIGHT = 16; const NUM_SUBCHUNKS_Y = CHUNK_HEIGHT / SUBCHUNK_HEIGHT;
+        const CHUNK_WIDTH = 16;
         const columnInfoArray = new Array(CHUNK_WIDTH * CHUNK_WIDTH);
-
+        let highestBlock = -Infinity;
         for (let localX = 0; localX < CHUNK_WIDTH; localX++) {
             for (let localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
                 const worldX = chunkX * CHUNK_WIDTH + localX;
                 const worldZ = chunkZ * CHUNK_WIDTH + localZ;
-                columnInfoArray[localX + localZ * CHUNK_WIDTH] = this.getColumnData(worldX, worldZ);
+                const data = this.getColumnData(worldX, worldZ)
+                if(data.height>highestBlock)
+                {
+                    highestBlock = data.height;
+                }
+                columnInfoArray[localX + localZ * CHUNK_WIDTH] = data;  
             }
         }
-        const subChunks = new Map();
-        for (let scY = 0; scY < NUM_SUBCHUNKS_Y; scY++) {
-            const subChunkData = new Uint8Array(CHUNK_WIDTH * SUBCHUNK_HEIGHT * CHUNK_WIDTH);
-            const yOffset = scY * SUBCHUNK_HEIGHT;
-            for (let localX = 0; localX < CHUNK_WIDTH; localX++) {
-                for (let localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
-                    const colInfo = columnInfoArray[localX + localZ * CHUNK_WIDTH];
-                    const topHeight = colInfo.height;
-                    const biome = colInfo.biome;
+        const chunkPartitions = Math.ceil(highestBlock/16);
+        const chunks = [];
+        for(let i = 0; i<chunkPartitions; i++)
+        {
+            chunks.push(new Uint8Array(4096));  
+            //preallocates memory for the new chunk data
+        }
+        for(let x = 0; x<16; x++)
+        {
+            for(let z = 0; z<16; z++)
+            {
+                const indexV = x+z*CHUNK_WIDTH;
+                const height = columnInfoArray[indexV].height;
+                const biome = columnInfoArray[indexV].biome;
+                for(let y = 0; y++; y>=height)
+                {
+                    const currentPartition =  Math.floor(y/16);
+                    const localY = y - currentPartition*16;
+                    const block =  y==height?biome.primaryBlock:y>y-8?biome.secondaryBlock:BLOCK_TYPES.STONE;
+                    chunks[currentPartition][index(x,localY,z)] = block;      
 
-                    for (let localY = 0; localY < SUBCHUNK_HEIGHT; localY++) {
-                        const worldY = yOffset + localY;
-                        let blockType = BLOCK_TYPES.AIR;
-
-                        if (worldY < topHeight) {
-                            if (worldY === topHeight - 1) {
-                                blockType = biome.primaryBlock;
-                                if (biome.primaryBlock !== BLOCK_TYPES.SNOW_BLOCK && (biome.id === BIOME_IDS.TAIGA || biome.id === BIOME_IDS.SNOWY_PEAKS) && worldY > this.seaLevel + 5) {
-                                    blockType = BLOCK_TYPES.SNOW_BLOCK;
-                                }
-                            } else if (worldY >= topHeight - biome.soilDepth && worldY < topHeight - 1) {
-                                blockType = biome.secondaryBlock;
-                            } else {
-                                blockType = biome.stoneBlock;
-                            }
-                        } else if (worldY === topHeight && worldY < this.seaLevel && biome.id !== BIOME_IDS.OCEAN) {
-                            blockType = BLOCK_TYPES.AIR;
-                        }
-                        
-                        if (blockType === BLOCK_TYPES.AIR && worldY < this.seaLevel) {
-                            blockType = BLOCK_TYPES.WATER;
-                        }
-                        
-                        const index = localX + (localY * CHUNK_WIDTH) + (localZ * CHUNK_WIDTH * SUBCHUNK_HEIGHT);
-                        subChunkData[index] = blockType;
-                    }
                 }
             }
-            subChunks.set(scY.toString(), subChunkData);
         }
-        return subChunks;
+        //returns chunkdata formatted in the index format 
+        return chunks;
     }
     getBiome(x: number, z: number) {
         const biomeMap: Uint8Array = new Uint8Array(256);
@@ -312,17 +304,14 @@ class ChunkManager {
         //basic idea
         //example chunk 000
         //get the face adjacent neighbors
-
-
-
         const [x, y, z] = chunk.key.split(",").map(Number)//determine the neighbors
 
         const neighbors = deltas.map(([dx, dy, dz]) => [x + dx, y + dy, z + dz]);
         for (let i = 0; i < neighbors.length; i++) {
             const key = neighbors[i].toString();
             const exists = this.chunks.has(key);
-            if (!exists) this.loadWorldData(key);
-            const data = this.chunks.get(key);
+            if(!exists) this.loadWorldData(neighbors[i][0], neighbors[i][2]);
+            let data = this.chunks.get(key);
             //since loadWorldData only operates on a grid based approach instead of a 3d based grid you must pass in the vonNeuman neighbors instead
             //get the thingie to render the worldData
         }
@@ -331,7 +320,7 @@ class ChunkManager {
         //first checks if the neighbor is cached already
         //if not then call the worldgenerator for the output
         //if the output is full of 0 return air or smth
-
+    
     }
     setVoxel(x: number, y: number, z: number, block: number) { //takes in a block id as the identifier
         const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
@@ -340,7 +329,12 @@ class ChunkManager {
         chunk.data[cX + 16 * (cY + 16 * cZ)] = block;
     }
     loadWorldData(x: number, z: number) {
-        return worldGen.generateChunkData;
+        const data = worldGen.generateChunkData(x,z);
+        for(let i = 0; i<data.length; i++)
+        {
+            const newVox = new VoxelChunk(`${x},${i},${z}`, data[i]);
+            this.chunks.set(`${x},${i},${z}`, newVox);
+        }
     }
     getVoxel(x: number, y: number, z: number) {
         const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
@@ -397,7 +391,7 @@ class ChunkManager {
         }
     }
     maybeLoad() {
-        this.reloadDirty();
+        this.rerender();
         //this will always be called regardless of whether the player has changed chunks or not
         const chunkX = Math.floor(yawObject.position.x / 16);
         const chunkZ = Math.floor(yawObject.position.z / 16);
@@ -410,13 +404,5 @@ class ChunkManager {
             CY = chunkY;
         }
     }
-    reloadDirty() {
-        for (let key of this.dirtyChunks) {
-            const chunk = this.chunks.get(key) as VoxelChunk;
-            this.generateChunkMesh(chunk);
-        }
-    }
 }
-
-
 
