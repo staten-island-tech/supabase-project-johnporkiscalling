@@ -1,12 +1,51 @@
 <template>
-  <div ref="canvasContainer" class="scene-container"></div>
-    <div class="debugScreen">
-        {{ coordinates }}
+    <div ref="canvasContainer" class="scene-container"></div>
+        <div class="debugScreen">
+            {{ coordinates }}
+        </div>
+    <div>
+    
     </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+
+const keys:Record<string, boolean> = {}
+window.addEventListener("keydown", (event)=>
+{
+    keys[event.key.toLowerCase()] = true;
+})
+window.addEventListener("keyup", (event)=>
+{
+    keys[event.key.toLowerCase()] = false;
+})
+
+
+const inInventory = ref(false);
+const paused =  ref(false);
+
+function inputLayer()
+{
+    if(keys["escape"])//change this to some other key later, esc messes with pointer lock i think
+    {
+        if(inInventory.value==true)
+        {
+            inInventory.value = false;   
+        }
+        else if(paused.value==true)
+        {
+            paused.value = false;
+        }
+        else
+        {
+            paused.value = true;
+        }
+    }
+}
+
+
+
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
@@ -58,16 +97,6 @@ function onMouseMove(event:MouseEvent) {
 }
 
 
-
-const keys:Record<string, boolean> = {}
-window.addEventListener("keydown", (event)=>
-{
-    keys[event.key.toLowerCase()] = true;
-})
-window.addEventListener("keyup", (event)=>
-{
-    keys[event.key.toLowerCase()] = false;
-})
 function updateDebug()
 {
     coordinates.value =  `

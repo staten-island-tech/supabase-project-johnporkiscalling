@@ -3,21 +3,9 @@ import { faceDirections } from './stupidlylongvariables';
 import { util3d } from './utils';
 import { Random } from './utils';
 import { Noise } from './noisefunct';
-const seed = 101021034100323;
-const scene = new THREE.Scene;
-
-//first pass differentiates between whats solid and not
 const index = (x: number, y: number, z: number) => {
     return x + 16 * (y + 16 * z)
 }
-const keys: Record<string, boolean> = {}
-window.addEventListener("keydown", (event) => {
-    keys[event.key.toLowerCase()] = true;
-})
-window.addEventListener("keyup", (event) => {
-    keys[event.key.toLowerCase()] = false;
-})
-
 import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
 export class WorldGenerator extends Random {
     temperatureNoise: Noise;
@@ -158,10 +146,9 @@ export class WorldGenerator extends Random {
     }
 
 }
-const yawObject: THREE.Object3D = new THREE.Object3D()
+
 const texture0 = util3d.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
 const blocksMaterial = new THREE.MeshStandardMaterial({ map: texture0, side: THREE.DoubleSide, metalness: 0.2, roughness: 0.8 })
-
 const blockUVs: Record<string, Array<number>> = {
     top: util3d.getUVCords('minecraft:block/grass_block_top'),
     side: util3d.getUVCords('minecraft:block/grass_block_side'),
@@ -231,9 +218,6 @@ const deltas = [
     [0, 1, 0], [0, -1, 0],
     [0, 0, 1], [0, 0, -1],
 ];
-let CX = Infinity;
-let CZ = Infinity;
-let CY = Infinity;
 interface VoxelRayInfo {
     hit: boolean;
     position?: THREE.Vector3;
@@ -245,6 +229,9 @@ export class ChunkManager {
     chunks: Map<string, VoxelChunk>
     dirtyChunks: Set<string>
     worldGen:WorldGenerator
+    CX = Infinity;
+    CZ = Infinity;
+    CY = Infinity;
     constructor(seed:number) {
         this.chunks = new Map();
         this.dirtyChunks = new Set();
@@ -267,7 +254,7 @@ export class ChunkManager {
         //example chunk 000
         //get the face adjacent neighbors
         const [x, y, z] = chunk.key.split(",").map(Number)//determine the neighbors
-
+        //remove deltas from this 
         const neighbors = deltas.map(([dx, dy, dz]) => [x + dx, y + dy, z + dz]);
         for (let i = 0; i < neighbors.length; i++) {
             const key = neighbors[i].toString();
@@ -290,7 +277,7 @@ export class ChunkManager {
         const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]}, ${chunkCords[2]}`) as VoxelChunk;
         chunk.data[cX + 16 * (cY + 16 * cZ)] = block;
     }
-    voxelRayCast(direction: THREE.Vector3): VoxelRayInfo {
+    voxelRayCast(direction: THREE.Vector3, yawObject:THREE.Object3D): VoxelRayInfo {
         const origin = yawObject.position;
         const pos = yawObject.position.clone().floor();
         yawObject.getWorldDirection(direction);
@@ -363,7 +350,7 @@ export class ChunkManager {
         //returns the data
 
     }
-    renderNew(scene:THREE.Scene) {
+    renderNew(scene:THREE.Scene, yawObject:THREE.Object3D) {
         //call the save system here 
         //ask if theres any pre existing chunk stored in it
         //also air chunks will be marked with an empty uint8array so when checking make sure the array isnt length 0 before working with it
@@ -407,18 +394,18 @@ export class ChunkManager {
             }
         }
     }
-    maybeLoad(scene:THREE.Scene) {
+    maybeLoad(scene:THREE.Scene, yawObject:THREE.Object3D) {
         this.rerender(scene);
         //this will always be called regardless of whether the player has changed chunks or not
         const chunkX = Math.floor(yawObject.position.x / 16);
         const chunkZ = Math.floor(yawObject.position.z / 16);
         const chunkY = Math.floor(yawObject.position.y / 16);
 
-        if (chunkX !== CX || chunkZ !== CZ || chunkY !== CY) {
-            this.renderNew(scene);
-            CX = chunkX;
-            CZ = chunkZ;
-            CY = chunkY;
+        if (chunkX !== this.CX || chunkZ !== this.CZ || chunkY !== this.CY) {
+            this.renderNew(scene, yawObject);
+            this.CX = chunkX;
+            this.CZ = chunkZ;
+            this.CY = chunkY;
         }
     }
     handleMouse(block: THREE.Vector3, dirVec: THREE.Vector3, duration:Array<number>)
@@ -434,7 +421,6 @@ export class ChunkManager {
         duration[0] = 0;
         duration[2] = 0;
     }
-
     
 }
 //use a block look up that specifies how long it takes to break a block
