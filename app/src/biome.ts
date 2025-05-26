@@ -1,131 +1,22 @@
-export type BiomeName = "ocean" | "plains" | "mountains" | "desert" | "tundra" | "forest" | "swamp" | "river";
-
-export interface Biome {
-    name: BiomeName;
-    baseHeight: number;
-    heightVariation: number;
-    temperature: [number, number]; // min, max
-    humidity: [number, number];    // min, max
-    continentalness: [number, number]; // min, max
-    color: string; // For visualization
-    blockTypes: {
-        surface: string;
-        subsurface: string;
-        bedrock: string;
-    };
-}
-
-export const BIOMES: Record<BiomeName, Biome> = {
-    ocean: {
-        name: "ocean",
-        baseHeight: 0.2,
-        heightVariation: 0.1,
-        temperature: [0.2, 0.6],
-        humidity: [0.7, 1.0],
-        continentalness: [-1.0, 0.1],
-        color: "#1a64d6",
-        blockTypes: {
-            surface: "water",
-            subsurface: "sand",
-            bedrock: "stone"
-        }
-    },
-    plains: {
-        name: "plains",
-        baseHeight: 0.5,
-        heightVariation: 0.2,
-        temperature: [0.4, 0.8],
-        humidity: [0.4, 0.7],
-        continentalness: [0.1, 0.5],
-        color: "#7cfc00",
-        blockTypes: {
-            surface: "grass_block",
-            subsurface: "dirt",
-            bedrock: "stone"
-        }
-    },
-    mountains: {
-        name: "mountains",
-        baseHeight: 0.8,
-        heightVariation: 0.5,
-        temperature: [0.0, 0.6],
-        humidity: [0.2, 0.7],
-        continentalness: [0.5, 1.0],
-        color: "#8b4513",
-        blockTypes: {
-            surface: "stone",
-            subsurface: "stone",
-            bedrock: "stone"
-        }
-    },
-    desert: {
-        name: "desert",
-        baseHeight: 0.5,
-        heightVariation: 0.2,
-        temperature: [0.7, 1.0],
-        humidity: [0.0, 0.2],
-        continentalness: [0.1, 0.8],
-        color: "#f5deb3",
-        blockTypes: {
-            surface: "sand",
-            subsurface: "sandstone",
-            bedrock: "stone"
-        }
-    },
-    tundra: {
-        name: "tundra",
-        baseHeight: 0.5,
-        heightVariation: 0.3,
-        temperature: [0.0, 0.3],
-        humidity: [0.3, 0.6],
-        continentalness: [0.1, 0.8],
-        color: "#f0f8ff",
-        blockTypes: {
-            surface: "snow_block",
-            subsurface: "dirt",
-            bedrock: "stone"
-        }
-    },
-    forest: {
-        name: "forest",
-        baseHeight: 0.6,
-        heightVariation: 0.3,
-        temperature: [0.4, 0.7],
-        humidity: [0.5, 0.9],
-        continentalness: [0.1, 0.6],
-        color: "#228b22",
-        blockTypes: {
-            surface: "grass_block",
-            subsurface: "dirt",
-            bedrock: "stone"
-        }
-    },
-    swamp: {
-        name: "swamp",
-        baseHeight: 0.3,
-        heightVariation: 0.2,
-        temperature: [0.5, 0.8],
-        humidity: [0.8, 1.0],
-        continentalness: [0.0, 0.4],
-        color: "#6b8e23",
-        blockTypes: {
-            surface: "grass_block",
-            subsurface: "dirt",
-            bedrock: "stone"
-        }
-    },
-    river: {
-        name: "river",
-        baseHeight: 0.1,
-        heightVariation: 0.1,
-        temperature: [0.3, 0.8],
-        humidity: [0.7, 1.0],
-        continentalness: [-0.2, 0.3],
-        color: "#1e90ff",
-        blockTypes: {
-            surface: "water",
-            subsurface: "sand",
-            bedrock: "stone"
-        }
-    }
+const BIOME_IDS = {
+    OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, DESERT: 4, MOUNTAINS: 5,
+    SNOWY_PEAKS: 6, TAIGA: 7, JUNGLE: 8, BADLANDS: 9,
 };
+const BLOCK_TYPES = {
+    AIR: 0, STONE: 1, GRASS: 2, DIRT: 3, WATER: 9, SAND: 12, SANDSTONE: 13,
+    SNOW_BLOCK: 14, ICE: 15, WOOD_LOG: 17, LEAVES: 18, GRAVEL: 19, CLAY: 82,
+    TERRACOTTA_RED: 159,
+};
+const BiomeData = {
+    [BIOME_IDS.OCEAN]: { id: BIOME_IDS.OCEAN, name: "Ocean", primaryBlock: BLOCK_TYPES.WATER, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 3, baseHeightOffset: -30, heightVariation: 5, },
+    [BIOME_IDS.BEACH]: { id: BIOME_IDS.BEACH, name: "Beach", primaryBlock: BLOCK_TYPES.SAND, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.SANDSTONE, soilDepth: 4, baseHeightOffset: 1, heightVariation: 1, },
+    [BIOME_IDS.PLAINS]: { id: BIOME_IDS.PLAINS, name: "Plains", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 3, baseHeightOffset: 2, heightVariation: 5, },
+    [BIOME_IDS.FOREST]: { id: BIOME_IDS.FOREST, name: "Forest", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 4, baseHeightOffset: 4, heightVariation: 10, },
+    [BIOME_IDS.DESERT]: { id: BIOME_IDS.DESERT, name: "Desert", primaryBlock: BLOCK_TYPES.SAND, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.SANDSTONE, soilDepth: 5, baseHeightOffset: 2, heightVariation: 3, },
+    [BIOME_IDS.MOUNTAINS]: { id: BIOME_IDS.MOUNTAINS, name: "Mountains", primaryBlock: BLOCK_TYPES.STONE, secondaryBlock: BLOCK_TYPES.STONE, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 1, baseHeightOffset: 30, heightVariation: 50, },
+    [BIOME_IDS.SNOWY_PEAKS]: { id: BIOME_IDS.SNOWY_PEAKS, name: "Snowy Peaks", primaryBlock: BLOCK_TYPES.SNOW_BLOCK, secondaryBlock: BLOCK_TYPES.STONE, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 2, baseHeightOffset: 40, heightVariation: 40, },
+    [BIOME_IDS.TAIGA]: { id: BIOME_IDS.TAIGA, name: "Taiga", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 3, baseHeightOffset: 3, heightVariation: 8, },
+    [BIOME_IDS.JUNGLE]: { id: BIOME_IDS.JUNGLE, name: "Jungle", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 5, baseHeightOffset: 5, heightVariation: 20, },
+    [BIOME_IDS.BADLANDS]: { id: BIOME_IDS.BADLANDS, name: "Badlands", primaryBlock: BLOCK_TYPES.TERRACOTTA_RED, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 10, baseHeightOffset: 10, heightVariation: 25, },
+};
+export { BIOME_IDS, BLOCK_TYPES, BiomeData};

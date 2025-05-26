@@ -1,4 +1,6 @@
 import { atlasData } from "./atlas";
+import * as THREE from 'three';
+const textureLoader =  new THREE.TextureLoader();
 export const util3d = Object.freeze(
     {
         getUVCords: function (textureName: string) {
@@ -52,8 +54,20 @@ export const util3d = Object.freeze(
         clamp(min:number, max:number, value:number)
         {
             return Math.max(min, Math.min(max, value))
+        },
+        getIndex(x: number, y: number, z: number)  
+        {
+            return x + 16 * (y + 16 * z)
+        },
+        loadBlockTexture(path: string) {
+            const tex = textureLoader.load(path);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.magFilter = THREE.NearestFilter;
+            tex.minFilter = THREE.NearestFilter;
+            tex.generateMipmaps = true;
+            tex.premultiplyAlpha = false;
+            return tex;
         }
-
     }
 )
 export const utilMath = Object.freeze(
@@ -86,47 +100,6 @@ export class Random {
         return this.lcgState;
     }
 }
-export class BiomeStack extends Random {
-    map: Array<boolean>
-    cache: Map<string, Array<number>>
-    constructor(seed: number) {
-        super(seed);
-        this.cache = new Map();
-        this.map = [];
-    }
-    initialState() {
-        for (let x = 0; x < 4; x++) {
-            for (let z = 0; z < 4; z++) {
-                const land = this.lcg() % 10 === 0 ? true : false;
-                this.map[4 * x + z] = land;
-            }
-        }
-    }
-    doubleResolution() {
-
-    }
-
-
-}
-class DLA {
-    private lcgState = 0;
-    dim: number
-    grid: Uint8Array;
-    boundary: Map<string, number>
-    constructor(dim: number) {
-        this.dim = dim;
-        this.grid = new Uint8Array(dim * dim);
-        this.boundary = new Map();
-    }
-    private lcg() {
-        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
-        return this.lcgState;
-    }
-
-    //define a grid that starts at a given size 
-
-}
-
 export class BitArray {
     array: Uint8Array;
     size: number;

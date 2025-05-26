@@ -4,5 +4,6 @@ const configurationInfo =
     maxHeight: 128,
     chunkSize: 16,
     currentFov: 75,
+    maxReach:8,
 }
 export { configurationInfo }

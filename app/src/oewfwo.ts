@@ -4,6 +4,8 @@ import { util3d } from './utils';
 import { Random } from './utils';
 import { Noise } from './noisefunct';
 const seed = 101021034100323;
+const scene = new THREE.Scene;
+
 //first pass differentiates between whats solid and not
 const index = (x: number, y: number, z: number) => {
     return x + 16 * (y + 16 * z)
@@ -16,28 +18,8 @@ window.addEventListener("keyup", (event) => {
     keys[event.key.toLowerCase()] = false;
 })
 
-const BIOME_IDS = {
-    OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, DESERT: 4, MOUNTAINS: 5,
-    SNOWY_PEAKS: 6, TAIGA: 7, JUNGLE: 8, BADLANDS: 9,
-};
-const BLOCK_TYPES = {
-    AIR: 0, STONE: 1, GRASS: 2, DIRT: 3, WATER: 9, SAND: 12, SANDSTONE: 13,
-    SNOW_BLOCK: 14, ICE: 15, WOOD_LOG: 17, LEAVES: 18, GRAVEL: 19, CLAY: 82,
-    TERRACOTTA_RED: 159,
-};
-const BiomeData = {
-    [BIOME_IDS.OCEAN]: { id: BIOME_IDS.OCEAN, name: "Ocean", primaryBlock: BLOCK_TYPES.WATER, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 3, baseHeightOffset: -30, heightVariation: 5, },
-    [BIOME_IDS.BEACH]: { id: BIOME_IDS.BEACH, name: "Beach", primaryBlock: BLOCK_TYPES.SAND, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.SANDSTONE, soilDepth: 4, baseHeightOffset: 1, heightVariation: 1, },
-    [BIOME_IDS.PLAINS]: { id: BIOME_IDS.PLAINS, name: "Plains", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 3, baseHeightOffset: 2, heightVariation: 5, },
-    [BIOME_IDS.FOREST]: { id: BIOME_IDS.FOREST, name: "Forest", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 4, baseHeightOffset: 4, heightVariation: 10, },
-    [BIOME_IDS.DESERT]: { id: BIOME_IDS.DESERT, name: "Desert", primaryBlock: BLOCK_TYPES.SAND, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.SANDSTONE, soilDepth: 5, baseHeightOffset: 2, heightVariation: 3, },
-    [BIOME_IDS.MOUNTAINS]: { id: BIOME_IDS.MOUNTAINS, name: "Mountains", primaryBlock: BLOCK_TYPES.STONE, secondaryBlock: BLOCK_TYPES.STONE, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 1, baseHeightOffset: 30, heightVariation: 50, },
-    [BIOME_IDS.SNOWY_PEAKS]: { id: BIOME_IDS.SNOWY_PEAKS, name: "Snowy Peaks", primaryBlock: BLOCK_TYPES.SNOW_BLOCK, secondaryBlock: BLOCK_TYPES.STONE, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 2, baseHeightOffset: 40, heightVariation: 40, },
-    [BIOME_IDS.TAIGA]: { id: BIOME_IDS.TAIGA, name: "Taiga", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 3, baseHeightOffset: 3, heightVariation: 8, },
-    [BIOME_IDS.JUNGLE]: { id: BIOME_IDS.JUNGLE, name: "Jungle", primaryBlock: BLOCK_TYPES.GRASS, secondaryBlock: BLOCK_TYPES.DIRT, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 5, baseHeightOffset: 5, heightVariation: 20, },
-    [BIOME_IDS.BADLANDS]: { id: BIOME_IDS.BADLANDS, name: "Badlands", primaryBlock: BLOCK_TYPES.TERRACOTTA_RED, secondaryBlock: BLOCK_TYPES.SAND, stoneBlock: BLOCK_TYPES.STONE, soilDepth: 10, baseHeightOffset: 10, heightVariation: 25, },
-};
-class WorldGenerator extends Random {
+import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
+export class WorldGenerator extends Random {
     temperatureNoise: Noise;
     humidityNoise: Noise;
     continentalnessNoise: Noise;
@@ -176,20 +158,8 @@ class WorldGenerator extends Random {
     }
 
 }
-
-const scene = new THREE.Scene;
 const yawObject: THREE.Object3D = new THREE.Object3D()
-const textureLoader = new THREE.TextureLoader();
-function loadBlockTexture(path: string) {
-    const tex = textureLoader.load(path);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.magFilter = THREE.NearestFilter;
-    tex.minFilter = THREE.NearestFilter;
-    tex.generateMipmaps = true;
-    tex.premultiplyAlpha = false;
-    return tex;
-};
-const texture0 = loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
+const texture0 = util3d.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
 const blocksMaterial = new THREE.MeshStandardMaterial({ map: texture0, side: THREE.DoubleSide, metalness: 0.2, roughness: 0.8 })
 
 const blockUVs: Record<string, Array<number>> = {
@@ -200,7 +170,6 @@ const blockUVs: Record<string, Array<number>> = {
     red_sand: util3d.getUVCords('minecraft:block/red_sand'),
     stone: util3d.getUVCords('minecraft:block/stone'),
 };
-const worldGen = new WorldGenerator(seed);
 class VoxelChunk {
     data: Uint8Array
     key: string
@@ -270,32 +239,19 @@ interface VoxelRayInfo {
     position?: THREE.Vector3;
     distance?: number;
     face?: THREE.Vector3;
-
-}
-class SaveSystem//this system basically operates on the idea that when a player unloads a chunk the world data for that unloadd chunk gets saved here
-//otherwise the loaded chunks are fine and when the player quits the game or generates a save file they read from the chunkManager
-{
-    save: Map<string, Uint8Array>
-    constructor() {
-        this.save = new Map();
-    }
-    writeToSaveFile() {
-
-    }
 }
 const maxReach = 8;
-let saveSystem = new SaveSystem();
-
-
-class ChunkManager {
+export class ChunkManager {
     chunks: Map<string, VoxelChunk>
     dirtyChunks: Set<string>
-    constructor() {
+    worldGen:WorldGenerator
+    constructor(seed:number) {
         this.chunks = new Map();
         this.dirtyChunks = new Set();
+        this.worldGen = new WorldGenerator(seed);
     }
     //first 
-    rerender() {
+    rerender(scene:THREE.Scene) {
         for (let key of this.dirtyChunks) {
 
             const chunk = this.chunks.get(key);
@@ -393,7 +349,7 @@ class ChunkManager {
         return { hit: false };
     }
     loadWorldData(x: number, z: number) {
-        const data = worldGen.generateChunkData(x, z);
+        const data = this.worldGen.generateChunkData(x, z);
         for (let i = 0; i < data.length; i++) {
             const newVox = new VoxelChunk(`${x},${i},${z}`, data[i]);
             this.chunks.set(`${x},${i},${z}`, newVox);
@@ -407,7 +363,7 @@ class ChunkManager {
         //returns the data
 
     }
-    renderNew() {
+    renderNew(scene:THREE.Scene) {
         //call the save system here 
         //ask if theres any pre existing chunk stored in it
         //also air chunks will be marked with an empty uint8array so when checking make sure the array isnt length 0 before working with it
@@ -451,58 +407,36 @@ class ChunkManager {
             }
         }
     }
-    maybeLoad() {
-        this.rerender();
+    maybeLoad(scene:THREE.Scene) {
+        this.rerender(scene);
         //this will always be called regardless of whether the player has changed chunks or not
         const chunkX = Math.floor(yawObject.position.x / 16);
         const chunkZ = Math.floor(yawObject.position.z / 16);
         const chunkY = Math.floor(yawObject.position.y / 16);
 
         if (chunkX !== CX || chunkZ !== CZ || chunkY !== CY) {
-            this.renderNew();
+            this.renderNew(scene);
             CX = chunkX;
             CZ = chunkZ;
             CY = chunkY;
         }
     }
+    handleMouse(block: THREE.Vector3, dirVec: THREE.Vector3, duration:Array<number>)
+    {
+        if (duration[0] > 0) {
+            this.setVoxel(block.x, block.y, block.z, 0)
+            //break the block
+        }
+        if (duration[2] > 0) {//place a block
+            const newPos = block.add(dirVec);
+            this.setVoxel(newPos.x, newPos.y, newPos.z, BLOCK_TYPES.STONE);
+        }
+        duration[0] = 0;
+        duration[2] = 0;
+    }
+
+    
 }
-let lastTick = performance.now();
-const cManager = new ChunkManager();
 //use a block look up that specifies how long it takes to break a block
 //determine how long the user has held their kouse for via kousedown and iup event listners
 //when the threshold is met update the chunkdata
-let mouseDown: Array<number> = [];
-document.addEventListener('mousedown', function (event) {
-    mouseDown[event.button] = performance.now();
-});
-let duration: Array<number> = []
-document.addEventListener('mouseup', function (event) {
-    const currentTime = performance.now();
-    duration[event.button] = currentTime - mouseDown[event.button]
-});
-
-function handleMouse(block: THREE.Vector3, dirVec: THREE.Vector3) {
-    if (duration[0] > 0) {
-        cManager.setVoxel(block.x, block.y, block.z, 0)
-        //break the block
-    }
-    if (duration[2] > 0) {//place a block
-        const newPos = block.add(dirVec);
-        cManager.setVoxel(newPos.x, newPos.y, newPos.z, BLOCK_TYPES.STONE);
-    }
-    duration[0] = 0;
-    duration[2] = 0;
-}
-function animate() {
-    const delta = performance.now() - lastTick;
-    const dirvector = new THREE.Vector3();
-    yawObject.getWorldPosition(dirvector);
-    const result = cManager.voxelRayCast(dirvector);
-    if (result.hit == true) {
-        handleMouse(result.position as THREE.Vector3, result.face as THREE.Vector3)
-    }
-    cManager.maybeLoad();//checks for new chunks to load
-    lastTick = performance.now();
-}
-
-
