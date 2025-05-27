@@ -108,10 +108,10 @@ export class WorldGenerator extends Random {
                 const indexV = x + z * CHUNK_WIDTH;
                 const height = columnInfoArray[indexV].height;
                 const biome = columnInfoArray[indexV].biome;
-                for (let y = 0; y++; y >= height) {
+                for (let y = 0; y <= height; y++) {
                     const currentPartition = Math.floor(y / 16);
                     const localY = y - currentPartition * 16;
-                    const block = y == height ? biome.primaryBlock : y > y - 8 ? biome.secondaryBlock : BLOCK_TYPES.STONE;
+                    const block = y == height ? biome.primaryBlock : y > height - 8 ? biome.secondaryBlock : BLOCK_TYPES.STONE;
                     chunks[currentPartition][index(x, localY, z)] = block;
 
                 }
@@ -146,7 +146,6 @@ export class WorldGenerator extends Random {
     }
 
 }
-
 const texture0 = util3d.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
 const blocksMaterial = new THREE.MeshStandardMaterial({ map: texture0, side: THREE.DoubleSide, metalness: 0.2, roughness: 0.8 })
 const blockUVs: Record<string, Array<number>> = {
@@ -156,7 +155,8 @@ const blockUVs: Record<string, Array<number>> = {
     sand: util3d.getUVCords('minecraft:block/sand'),
     red_sand: util3d.getUVCords('minecraft:block/red_sand'),
     stone: util3d.getUVCords('minecraft:block/stone'),
-};
+};//change this to use numbers 
+
 class VoxelChunk {
     data: Uint8Array
     key: string
@@ -255,14 +255,58 @@ export class ChunkManager {
         //get the face adjacent neighbors
         const [x, y, z] = chunk.key.split(",").map(Number)//determine the neighbors
         //remove deltas from this 
-        const neighbors = deltas.map(([dx, dy, dz]) => [x + dx, y + dy, z + dz]);
-        for (let i = 0; i < neighbors.length; i++) {
-            const key = neighbors[i].toString();
-            const exists = this.chunks.has(key);
-            if (!exists) this.loadWorldData(neighbors[i][0], neighbors[i][2]);
-            let data = this.chunks.get(key);
-            //since loadWorldData only operates on a grid based approach instead of a 3d based grid you must pass in the vonNeuman neighbors instead
-            //get the thingie to render the worldData
+        const heightData = this.worldGen.heightMapCache.get(chunk.key) as Uint8Array;
+
+        for(let a = -1; a<2; a++)
+        {
+            for(let b = -1; b<2; b++)
+            {
+                this.loadWorldData(x+a, x+b);
+            }
+        }
+
+        for(let x = 0; x < 16; x++)
+        {
+            for(let y = 0; y <  16; y++)
+            {
+                for(let z = 0; z < 16; z++)
+                { 
+                    //switch the indexing method to utilize the method if the coordinates are out of bounds 
+                    //
+                    const blockType = chunk.data[index(x,y,z)];
+                    if(blockType == BLOCK_TYPES.AIR) continue;
+                    //should return the heightMap 
+                    //first determine if the neighbors are loaded 
+                    
+
+                    //this shouldnt be the final method
+                    //change it to be reliant on actual chunkData instead of heightData
+                    //determine the possible neighbors and if they're out of bounds read the chunkdata via the getVoxel method instead of a direct aces
+
+
+
+                    if(y == heightData[x * 16 + z])
+                    {
+                        chunk.addFace(x,y,z, blockType, "top");
+                    }
+                    if(heightData[(x-1) * 16 + z] <  y)
+                    {
+                        chunk.addFace(x,y,z,blockType, "left");
+                    }
+                    if(heightData[(x+1) * 16 + z] < y)
+                    {
+                        chunk.addFace(x,y,z,blockType, "right")
+                    }
+                    if(heightData[x * 16 + (z + 1)] < y)
+                    {
+                        chunk.addFace(x,y,z,blockType, "front")
+                    }
+                    if(heightData[x * 16 + (z - 1)] < y)
+                    {
+                        chunk.addFace(x,y,z,blockType, "back")
+                    }
+                }
+            }
         }
     }
     getNeighbors(key: string) {
@@ -277,49 +321,52 @@ export class ChunkManager {
         const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]}, ${chunkCords[2]}`) as VoxelChunk;
         chunk.data[cX + 16 * (cY + 16 * cZ)] = block;
     }
-    voxelRayCast(direction: THREE.Vector3, yawObject:THREE.Object3D): VoxelRayInfo {
-        const origin = yawObject.position;
-        const pos = yawObject.position.clone().floor();
-        yawObject.getWorldDirection(direction);
-
+    voxelRayCast(direction: THREE.Vector3, yawObject: THREE.Object3D, maxReach = 10): VoxelRayInfo {
+        const origin = yawObject.position.clone();
+        const dir = direction.clone().normalize();
+        yawObject.getWorldDirection(dir);
+        const pos = origin.clone().floor();
         const step = new THREE.Vector3(
-            Math.sign(direction.x),
-            Math.sign(direction.y),
-            Math.sign(direction.z)
+            Math.sign(dir.x),
+            Math.sign(dir.y),
+            Math.sign(dir.z)
         );
 
         const tDelta = new THREE.Vector3(
-            Math.abs(1 / direction.x),
-            Math.abs(1 / direction.y),
-            Math.abs(1 / direction.z)
+            dir.x !== 0 ? Math.abs(1 / dir.x) : Number.POSITIVE_INFINITY,
+            dir.y !== 0 ? Math.abs(1 / dir.y) : Number.POSITIVE_INFINITY,
+            dir.z !== 0 ? Math.abs(1 / dir.z) : Number.POSITIVE_INFINITY
+        );
+
+        const voxelBorder = new THREE.Vector3(
+            step.x > 0 ? pos.x + 1 : pos.x,
+            step.y > 0 ? pos.y + 1 : pos.y,
+            step.z > 0 ? pos.z + 1 : pos.z
         );
 
         const next = new THREE.Vector3(
-            (step.x > 0 ? 1 - (origin.x - pos.x) : (origin.x - pos.x)) * tDelta.x,
-            (step.y > 0 ? 1 - (origin.y - pos.y) : (origin.y - pos.y)) * tDelta.y,
-            (step.z > 0 ? 1 - (origin.z - pos.z) : (origin.z - pos.z)) * tDelta.z
+            dir.x !== 0 ? (voxelBorder.x - origin.x) / dir.x : Number.POSITIVE_INFINITY,
+            dir.y !== 0 ? (voxelBorder.y - origin.y) / dir.y : Number.POSITIVE_INFINITY,
+            dir.z !== 0 ? (voxelBorder.z - origin.z) / dir.z : Number.POSITIVE_INFINITY
         );
 
-        let distanceTraveled = 0;
         let faceDir = new THREE.Vector3();
+        let distanceTraveled = 0;
 
-        while (distanceTraveled < maxReach) {
-            // Check current voxel first
+        while (distanceTraveled <= maxReach) {//change this to have a registry sorta implementation where in the array are objects defining the properties of the block for example clear/opaque or smth like mnonsolid for water 
             if (this.getVoxel(pos.x, pos.y, pos.z)) {
                 return {
                     hit: true,
                     position: pos.clone(),
                     distance: distanceTraveled,
-                    face: faceDir.clone(), // This will be valid *after* first step
+                    face: faceDir.clone()
                 };
             }
-
-            // Determine next voxel and update faceDir accordingly
             if (next.x < next.y && next.x < next.z) {
                 pos.x += step.x;
                 distanceTraveled = next.x;
                 next.x += tDelta.x;
-                faceDir.set(-step.x, 0, 0); // Direction we came from
+                faceDir.set(-step.x, 0, 0);
             } else if (next.y < next.z) {
                 pos.y += step.y;
                 distanceTraveled = next.y;
@@ -335,6 +382,7 @@ export class ChunkManager {
 
         return { hit: false };
     }
+
     loadWorldData(x: number, z: number) {
         const data = this.worldGen.generateChunkData(x, z);
         for (let i = 0; i < data.length; i++) {
@@ -385,10 +433,10 @@ export class ChunkManager {
                 for (let z = nBound; z < sBound; z++) {
                     const stringCords = `${x},${y},${z}`
                     if (!this.chunks.has(stringCords)) {
-                        const rewrite = new VoxelChunk(stringCords);
-                        rewrite.data = new Uint8Array(16 * 16 * 16);
+                        this.loadWorldData(x,z)
+                        const rewrite = this.chunks.get(stringCords) as VoxelChunk;
                         this.generateChunkMesh(rewrite);
-                        rewrite.returnMesh();
+                        rewrite.returnMesh(scene);
                     }
                 }
             }

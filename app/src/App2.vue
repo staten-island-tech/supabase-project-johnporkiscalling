@@ -845,7 +845,6 @@ computeAO(x: number, y: number, z: number, dir: string): number[] {
                   {
                     chunkDataMap.set(`${cX},${cZ}, ${currentYChunk}`, {blockData:chunkData})
                     chunkData = [];
-
                   }
               }
           }
