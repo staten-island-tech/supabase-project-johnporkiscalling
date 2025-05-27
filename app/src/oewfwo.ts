@@ -7,7 +7,7 @@ const index = (x: number, y: number, z: number) => {
     return x + 16 * (y + 16 * z)
 }
 import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
-export class WorldGenerator extends Random {
+class WorldGenerator extends Random {
     temperatureNoise: Noise;
     humidityNoise: Noise;
     continentalnessNoise: Noise;
@@ -155,8 +155,7 @@ const blockUVs: Record<string, Array<number>> = {
     sand: util3d.getUVCords('minecraft:block/sand'),
     red_sand: util3d.getUVCords('minecraft:block/red_sand'),
     stone: util3d.getUVCords('minecraft:block/stone'),
-};//change this to use numbers 
-
+};
 class VoxelChunk {
     data: Uint8Array
     key: string
@@ -191,7 +190,6 @@ class VoxelChunk {
             x + offSetValues[6], y + offSetValues[7], z + offSetValues[8],
             x + offSetValues[9], y + offSetValues[10], z + offSetValues[11],
         )
-
         this.indices.push(this.offset, this.offset + 1, this.offset + 2, this.offset + 2, this.offset + 3, this.offset);
         const texturew = blockUVs[blockType];
         this.uvs.push(...texturew);
@@ -214,111 +212,74 @@ class VoxelChunk {
     }
 }
 const deltas = [
-    [1, 0, 0], [-1, 0, 0],
-    [0, 1, 0], [0, -1, 0],
-    [0, 0, 1], [0, 0, -1],
+    [1, 0, 0],
+    [-1, 0, 0],
+    [0, 1, 0],
+    [0, -1, 0],
+    [0, 0, 1],
+    [0, 0, -1],
 ];
+const faceArray = ["right", "left", "top", "bottom", "front", "back"]
 interface VoxelRayInfo {
     hit: boolean;
     position?: THREE.Vector3;
     distance?: number;
     face?: THREE.Vector3;
 }
-const maxReach = 8;
 export class ChunkManager {
     chunks: Map<string, VoxelChunk>
     dirtyChunks: Set<string>
-    worldGen:WorldGenerator
+    worldGen: WorldGenerator
     CX = Infinity;
     CZ = Infinity;
     CY = Infinity;
-    constructor(seed:number) {
+    constructor(seed: number) {
         this.chunks = new Map();
         this.dirtyChunks = new Set();
         this.worldGen = new WorldGenerator(seed);
     }
-    //first 
-    rerender(scene:THREE.Scene) {
-        for (let key of this.dirtyChunks) {
-
+    rerender(scene: THREE.Scene) {
+        const dirtyChunksCopy = new Set(this.dirtyChunks); // Avoid mutation during iteration
+        for (let key of dirtyChunksCopy) {
             const chunk = this.chunks.get(key);
-            if (!chunk) return; //guard clausee
-            chunk?.destroyMesh(scene);
-            this.generateChunkMesh(chunk as VoxelChunk);
-            //destroy the mesh from the scene
+            if (!chunk) {
+                this.dirtyChunks.delete(key); // Clean up invalid references
+                continue;
+            }
+            chunk.destroyMesh(scene);
+            this.generateChunkMesh(chunk);
+            chunk.returnMesh(); // Ensure new mesh gets built and rendered
+            this.dirtyChunks.delete(key); // Mark as clean after rerender
         }
     }
-    //possible seperation of cache render distance and regular render distance to otpimize face culling
-    generateChunkMesh(chunk: VoxelChunk) { //this is responsible for generating meshes instead of actual chunks
-        //basic idea
-        //example chunk 000
-        //get the face adjacent neighbors
-        const [x, y, z] = chunk.key.split(",").map(Number)//determine the neighbors
-        //remove deltas from this 
-        const heightData = this.worldGen.heightMapCache.get(chunk.key) as Uint8Array;
-
-        for(let a = -1; a<2; a++)
-        {
-            for(let b = -1; b<2; b++)
-            {
-                this.loadWorldData(x+a, x+b);
+    generateChunkMesh(chunk: VoxelChunk) {
+        const [x, y, z] = chunk.key.split(",").map(Number)
+        for (let a = -1; a < 2; a++) {
+            for (let b = -1; b < 2; b++) {
+                this.loadWorldData(x + a, z + b);
             }
         }
-
-        for(let x = 0; x < 16; x++)
-        {
-            for(let y = 0; y <  16; y++)
-            {
-                for(let z = 0; z < 16; z++)
-                { 
-                    //switch the indexing method to utilize the method if the coordinates are out of bounds 
-                    //
-                    const blockType = chunk.data[index(x,y,z)];
-                    if(blockType == BLOCK_TYPES.AIR) continue;
-                    //should return the heightMap 
-                    //first determine if the neighbors are loaded 
-                    
-
-                    //this shouldnt be the final method
-                    //change it to be reliant on actual chunkData instead of heightData
-                    //determine the possible neighbors and if they're out of bounds read the chunkdata via the getVoxel method instead of a direct aces
-
-
-
-                    if(y == heightData[x * 16 + z])
-                    {
-                        chunk.addFace(x,y,z, blockType, "top");
-                    }
-                    if(heightData[(x-1) * 16 + z] <  y)
-                    {
-                        chunk.addFace(x,y,z,blockType, "left");
-                    }
-                    if(heightData[(x+1) * 16 + z] < y)
-                    {
-                        chunk.addFace(x,y,z,blockType, "right")
-                    }
-                    if(heightData[x * 16 + (z + 1)] < y)
-                    {
-                        chunk.addFace(x,y,z,blockType, "front")
-                    }
-                    if(heightData[x * 16 + (z - 1)] < y)
-                    {
-                        chunk.addFace(x,y,z,blockType, "back")
+        for (let x = 0; x < 16; x++) {
+            for (let y = 0; y < 16; y++) {
+                for (let z = 0; z < 16; z++) {
+                    const blockType = chunk.data[index(x, y, z)];
+                    if (blockType == BLOCK_TYPES.AIR) continue;
+                    const neighbors = deltas.map((delta) => {
+                        const nb = [x + delta[0], y + delta[1], z + delta[2]];
+                        return this.getVoxel(nb[0], nb[1], nb[2]) == BLOCK_TYPES.AIR ? false : true;
+                    })
+                    for (let i = 0; i < neighbors.length; i++) {
+                        if (neighbors[i] == false) continue
+                        chunk.addFace(x, y, z, blockType, faceArray[i]);
                     }
                 }
             }
         }
     }
-    getNeighbors(key: string) {
-        //first checks if the neighbor is cached already
-        //if not then call the worldgenerator for the output
-        //if the output is full of 0 return air or smth
-
-    }
-    setVoxel(x: number, y: number, z: number, block: number) { //takes in a block id as the identifier
+    setVoxel(x: number, y: number, z: number, block: number) {
         const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
         const [cX, cY, cZ] = localCords;
-        const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]}, ${chunkCords[2]}`) as VoxelChunk;
+        const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`) as VoxelChunk;
         chunk.data[cX + 16 * (cY + 16 * cZ)] = block;
     }
     voxelRayCast(direction: THREE.Vector3, yawObject: THREE.Object3D, maxReach = 10): VoxelRayInfo {
@@ -331,29 +292,24 @@ export class ChunkManager {
             Math.sign(dir.y),
             Math.sign(dir.z)
         );
-
         const tDelta = new THREE.Vector3(
             dir.x !== 0 ? Math.abs(1 / dir.x) : Number.POSITIVE_INFINITY,
             dir.y !== 0 ? Math.abs(1 / dir.y) : Number.POSITIVE_INFINITY,
             dir.z !== 0 ? Math.abs(1 / dir.z) : Number.POSITIVE_INFINITY
         );
-
         const voxelBorder = new THREE.Vector3(
             step.x > 0 ? pos.x + 1 : pos.x,
             step.y > 0 ? pos.y + 1 : pos.y,
             step.z > 0 ? pos.z + 1 : pos.z
         );
-
         const next = new THREE.Vector3(
             dir.x !== 0 ? (voxelBorder.x - origin.x) / dir.x : Number.POSITIVE_INFINITY,
             dir.y !== 0 ? (voxelBorder.y - origin.y) / dir.y : Number.POSITIVE_INFINITY,
             dir.z !== 0 ? (voxelBorder.z - origin.z) / dir.z : Number.POSITIVE_INFINITY
         );
-
         let faceDir = new THREE.Vector3();
         let distanceTraveled = 0;
-
-        while (distanceTraveled <= maxReach) {//change this to have a registry sorta implementation where in the array are objects defining the properties of the block for example clear/opaque or smth like mnonsolid for water 
+        while (distanceTraveled <= maxReach) {
             if (this.getVoxel(pos.x, pos.y, pos.z)) {
                 return {
                     hit: true,
@@ -379,10 +335,8 @@ export class ChunkManager {
                 faceDir.set(0, 0, -step.z);
             }
         }
-
         return { hit: false };
     }
-
     loadWorldData(x: number, z: number) {
         const data = this.worldGen.generateChunkData(x, z);
         for (let i = 0; i < data.length; i++) {
@@ -392,63 +346,50 @@ export class ChunkManager {
     }
     getVoxel(x: number, y: number, z: number) {
         const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
+        if (!this.chunks.has(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`)) {
+            this.loadWorldData(x, z);
+        }
         const [cX, cY, cZ] = localCords;
-        const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]}, ${chunkCords[2]}`) as VoxelChunk;
+        const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`) as VoxelChunk;
         return chunk.data[cX + 16 * (cY + 16 * cZ)]
-        //returns the data
-
     }
-    renderNew(scene:THREE.Scene, yawObject:THREE.Object3D) {
-        //call the save system here 
-        //ask if theres any pre existing chunk stored in it
-        //also air chunks will be marked with an empty uint8array so when checking make sure the array isnt length 0 before working with it
-        //if yes then pull it from there and return it
-        //otherwise
-        //call the world generator here
-        //itll upload the data but not the mesh
+    renderNew(scene: THREE.Scene, yawObject: THREE.Object3D) {
         const chunkLoadLimit = 8;
         const chunkZ = Math.floor(yawObject.position.z / 16)
         const chunkX = Math.floor(yawObject.position.x / 16)
-        const chunkY = Math.floor(yawObject.position.x / 16)
+        const chunkY = Math.floor(yawObject.position.y / 16)
         const uBound = chunkY + chunkLoadLimit;
         const dBound = chunkY - chunkLoadLimit;
         const nBound = chunkZ - chunkLoadLimit;
         const sBound = chunkZ + chunkLoadLimit;
         const wBound = chunkX - chunkLoadLimit;
         const eBound = chunkX + chunkLoadLimit;
-
-        //add another bound for going down or up 
-
-        //first pass removes chunks that are outside of the limit
         for (const [key, VoxChunk] of this.chunks) {
             const [x, y, z] = key.split(',').map(Number);
             if (x < wBound || x > eBound || y < nBound || y > sBound || z > uBound || z < dBound) {
                 VoxChunk.destroyMesh(scene);
-                //removes the mesh from the scene automatically
-                //data is still perserved to be able to be read by the save system
+                this.chunks.delete(key);
             }
-        }//second pass determines whether or not to rerender dirty chunks
+        }
         for (let x = wBound; x < eBound; x++) {
             for (let y = dBound; y < uBound; y++) {
                 for (let z = nBound; z < sBound; z++) {
                     const stringCords = `${x},${y},${z}`
                     if (!this.chunks.has(stringCords)) {
-                        this.loadWorldData(x,z)
+                        this.loadWorldData(x, z)
                         const rewrite = this.chunks.get(stringCords) as VoxelChunk;
                         this.generateChunkMesh(rewrite);
-                        rewrite.returnMesh(scene);
+                        rewrite.returnMesh();
                     }
                 }
             }
         }
     }
-    maybeLoad(scene:THREE.Scene, yawObject:THREE.Object3D) {
+    maybeLoad(scene: THREE.Scene, yawObject: THREE.Object3D) {
         this.rerender(scene);
-        //this will always be called regardless of whether the player has changed chunks or not
         const chunkX = Math.floor(yawObject.position.x / 16);
         const chunkZ = Math.floor(yawObject.position.z / 16);
         const chunkY = Math.floor(yawObject.position.y / 16);
-
         if (chunkX !== this.CX || chunkZ !== this.CZ || chunkY !== this.CY) {
             this.renderNew(scene, yawObject);
             this.CX = chunkX;
@@ -456,20 +397,18 @@ export class ChunkManager {
             this.CY = chunkY;
         }
     }
-    handleMouse(block: THREE.Vector3, dirVec: THREE.Vector3, duration:Array<number>)
-    {
+    handleMouse(block: THREE.Vector3, dirVec: THREE.Vector3, duration: Array<number>) {
         if (duration[0] > 0) {
             this.setVoxel(block.x, block.y, block.z, 0)
-            //break the block
         }
-        if (duration[2] > 0) {//place a block
+        if (duration[2] > 0) {
             const newPos = block.add(dirVec);
             this.setVoxel(newPos.x, newPos.y, newPos.z, BLOCK_TYPES.STONE);
         }
         duration[0] = 0;
         duration[2] = 0;
     }
-    
+
 }
 //use a block look up that specifies how long it takes to break a block
 //determine how long the user has held their kouse for via kousedown and iup event listners

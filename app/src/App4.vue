@@ -174,11 +174,11 @@ function animate()
     stats.begin();
     const delta = (performance.now()-currentTime)/1000;
     currentTime = performance.now()
-    chunkManager.maybeLoad();
+    chunkManager.maybeLoad(scene,yawObject);
 
     const dirvector = new THREE.Vector3();
     yawObject.getWorldPosition(dirvector);
-    const result = chunkManager.voxelRayCast(dirvector);
+    const result = chunkManager.voxelRayCast(dirvector, yawObject);//clean this up
     if (result.hit == true) {
         chunkManager.handleMouse(result.position as THREE.Vector3, result.face as THREE.Vector3, duration)
     }
@@ -196,6 +196,7 @@ function init()
     chunkManager = new ChunkManager(seed);
     requestAnimationFrame(animate);
 }
+//call the init function in onMounted()
 
 
 
