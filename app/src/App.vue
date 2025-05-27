@@ -3,6 +3,7 @@ import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
 import LogIn from "./components/LogIn1.vue";
 import supabase from "./supabase";
+
 const loggedin = ref(false);
 const wantstologin = ref(false);
 const open = ref(false);
@@ -15,7 +16,7 @@ let data = ref([]);
 setTimeout(() => {}, 1000);
 
 async function userdata() {
-  if (loggedin) {
+  if (loggedin.value) {
     try {
       const { data, error } = await supabase.auth.getUser();
       if (error) throw error;
@@ -36,9 +37,13 @@ function spin(event: MouseEvent) {
 function close() {
   if (open.value) open.value = false;
 
-  update(); //---------update---------------------------------------------move this asap
+  update();
 }
-
+function forbuttons() {
+  if (open.value) {
+    close();
+  }
+}
 async function logout() {
   try {
     const { error } = await supabase.auth.signOut();
@@ -52,10 +57,11 @@ async function logout() {
   }
 }
 async function update() {
-  if (loggedin) {
+  if (loggedin.value) {
+    console.log("passed check");
     updatePreferences();
   } else {
-    console.log("not logged in");
+    console.log("not logged in, no user preferences updated");
   }
 }
 
@@ -74,8 +80,8 @@ async function updatePreferences() {
   const { error: prefsError } = await supabase.from("user_preferences").upsert({
     id: user.id,
     options: {
-      render: "9680897",
-      theme: "dark",
+      render: "256",
+      theme: "light",
     },
   });
 
@@ -92,10 +98,10 @@ async function updatePreferences() {
     <LogIn @login="(loggedin = true), (wantstologin = false), userdata(), console.log(useremail)" />
   </div>
   <div v-else-if="!wantstologin || loggedin">
-    <div class="overlay" v-if="open"></div>
+    <div class="overlay" v-if="open" @click="close()"></div>
 
     <header>
-      <div class="wrapper" @click="close">
+      <div class="wrapper">
         <nav>
           <button class="account">
             <img src="./assets/grass.png" alt="Account" :class="{ rotated: open }" @click="spin" />
@@ -112,11 +118,17 @@ async function updatePreferences() {
                   <h1>Your Account</h1>
                   <h1>{{ useremail }}</h1>
                 </div>
+
                 <div class="header" v-else>
                   <h1>Please Log in to see your account</h1>
                 </div>
               </div>
-              <div class="settings"><h2>Settings</h2></div>
+
+              <div class="settings">
+                <h2>Settings</h2>
+                <input type="range" min="0" max="16" value="8" class="slider" />
+              </div>
+
               <div style="transform: translateY(-15px)" v-if="!loggedin">
                 <h5>In order to save your settings, please log in</h5>
               </div>
@@ -124,14 +136,13 @@ async function updatePreferences() {
           </Transition>
 
           <div class="main">
-            <div class="border"><RouterLink to="/">Home</RouterLink></div>
-            <div class="border"><RouterLink to="/about">About</RouterLink></div>
-
-            <div class="border" v-if="loggedin">
-              <a href="" @click.prevent="(loggedin = false), (wantstologin = false), logout()"
-                >Log out</a
-              >
+            <div class="border">
+              <RouterLink to="/" @click.prevent="forbuttons()">Home</RouterLink>
             </div>
+            <div class="border">
+              <RouterLink to="/about" @click.prevent="forbuttons()">About</RouterLink>
+            </div>
+
             <div class="border">
               <a
                 href=""
@@ -143,8 +154,15 @@ async function updatePreferences() {
                 >Test</a
               >
             </div>
+            <div class="border" v-if="loggedin">
+              <a
+                href=""
+                @click.prevent="(loggedin = false), (wantstologin = false), logout(), forbuttons()"
+                >Log out</a
+              >
+            </div>
             <div class="border" v-if="!loggedin">
-              <a href="" @click.prevent="wantstologin = true">Log in</a>
+              <a href="" @click.prevent="(wantstologin = true), forbuttons()">Log in</a>
             </div>
           </div>
         </nav>
@@ -157,12 +175,40 @@ async function updatePreferences() {
 <!-- simplest solution: @click.stop -->
 
 <style scoped>
+.slider {
+  -webkit-appearance: none; /* Remove default styling */
+  width: 90%;
+  height: 10px;
+  background: #dadada;
+  border-radius: 7px;
+  outline: none;
+  transition: background 0.3s;
+}
+
+.slider:hover {
+  background: #ccc;
+}
+
+/* Thumb (handle) for Chrome, Safari, Edge */
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #525252;
+  cursor: pointer;
+  border-radius: 50%;
+  border: none;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
 /* --------------------logged in = true-------------------- */
+
 .overlay {
   height: 100vh;
   width: 100vw;
-  position: absolute;
-  background-color: rgba(178, 255, 243, 0.26);
+  position: fixed;
+  background-color: rgba(178, 255, 243, 0);
   top: 0%;
   left: 0%;
   z-index: 10;
@@ -198,6 +244,7 @@ async function updatePreferences() {
   display: flex;
   align-items: center;
   position: absolute;
+  z-index: 11;
 }
 .account img {
   height: 35px;
@@ -228,6 +275,7 @@ async function updatePreferences() {
   transition: 0.3s ease-out;
   top: 0%;
   left: 0%;
+  z-index: 11;
 }
 .account:hover + .dropdown {
   transform: translate(-5.5px, 44px);
@@ -249,6 +297,7 @@ async function updatePreferences() {
   width: 100%;
   height: 100%;
   align-items: center;
+  z-index: 10;
 }
 /* .accountimg: */
 /* .v-enter-from,
@@ -314,7 +363,7 @@ a:focus {
   border-left: 1.5px solid var(--color-border);
   text-decoration: none;
   height: 100%;
-  z-index: 119999999999 !important;
+  z-index: 11;
 }
 
 .border:first-of-type {
