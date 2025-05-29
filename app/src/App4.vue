@@ -8,7 +8,7 @@
     </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts"> 
 import { onMounted, ref } from 'vue';
 
 const keys:Record<string, boolean> = {}
@@ -65,12 +65,26 @@ const camera:THREE.Camera =  new THREE.PerspectiveCamera(75, window.innerWidth/w
 const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:false});
 const pitchObject:THREE.Object3D =  new THREE.Object3D().add(camera);
 const yawObject:THREE.Object3D =  new THREE.Object3D().add(pitchObject);
-yawObject.position.set(0,0,0);
-camera.position.set(0, 0, 0);
+yawObject.position.set(0,70,0);
+camera.position.set(0, 70, 0);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 scene.add(yawObject);
 
+const debugGeometry = new THREE.BoxGeometry(1, 1, 1); // 1x1x1 unit cube
+const debugMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xff0000, // Red (easily visible)
+    wireframe: false, // Set to 'true' to see wireframe
+    roughness: 0.5,
+    metalness: 0.1
+});
+const debugCube = new THREE.Mesh(debugGeometry, debugMaterial);
+
+// 2. Position it where you suspect issues (e.g., chunk origin)
+debugCube.position.set(8, 88, 8); // Center of a 16x16x16 chunk
+
+// 3. Add to your scene
+scene.add(debugCube);
 
 //mouse movement
 const canvasContainer = ref<HTMLElement | null>(null)
@@ -119,7 +133,7 @@ scene.add(sunSource);
 let time = 0;
 function updateSun() 
 {
-    time += 0.0001; // Adjust for speed
+    time += 0.000001; // Adjust for speed
     if (time > 1) time = 0;
     const elevation = Math.sin(time * 2 * Math.PI) * 90;
     const azimuth = 180 + Math.cos(time * 2 * Math.PI) * 90;
@@ -182,6 +196,7 @@ function animate()
     if (result.hit == true) {
         chunkManager.handleMouse(result.position as THREE.Vector3, result.face as THREE.Vector3, duration)
     }
+    
     updateSun();
     updateDebug();
     renderer.render(scene, camera);
@@ -197,7 +212,9 @@ function init()
     requestAnimationFrame(animate);
 }
 //call the init function in onMounted()
-
+onMounted(()=>{
+    init()
+})
 
 
 

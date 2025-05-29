@@ -3,7 +3,7 @@ import { faceDirections } from './stupidlylongvariables';
 import { util3d } from './utils';
 import { Random } from './utils';
 import { Noise } from './noisefunct';
-const index = (x: number, y: number, z: number) => {
+const index = (x: number, y: number, z: number):number => {
     return x + 16 * (y + 16 * z)
 }
 import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
@@ -13,7 +13,6 @@ class WorldGenerator extends Random {
     continentalnessNoise: Noise;
     detailNoise: Noise;
     mountainNoise: Noise;
-    heightMapCache: Map<string, Uint8Array>
     constructor(seed: number) {
         super(seed);
         this.temperatureNoise = new Noise(this.lcg());
@@ -21,7 +20,6 @@ class WorldGenerator extends Random {
         this.continentalnessNoise = new Noise(this.lcg());
         this.detailNoise = new Noise(this.lcg());
         this.mountainNoise = new Noise(this.lcg());
-        this.heightMapCache = new Map();
     }
     seaLevel = 62;
     cThresh = 0.48;
@@ -91,6 +89,7 @@ class WorldGenerator extends Random {
                 const worldX = chunkX * CHUNK_WIDTH + localX;
                 const worldZ = chunkZ * CHUNK_WIDTH + localZ;
                 const data = this.getColumnData(worldX, worldZ)
+                console.log(data)
                 if (data.height > highestBlock) {
                     highestBlock = data.height;
                 }
@@ -99,7 +98,7 @@ class WorldGenerator extends Random {
         }
         const chunkPartitions = Math.ceil(highestBlock / 16);
         const chunks = [];
-        for (let i = 0; i < chunkPartitions; i++) {
+        for (let i = 0; i < chunkPartitions+1; i++) {
             chunks.push(new Uint8Array(4096));
             //preallocates memory for the new chunk data
         }
@@ -113,7 +112,6 @@ class WorldGenerator extends Random {
                     const localY = y - currentPartition * 16;
                     const block = y == height ? biome.primaryBlock : y > height - 8 ? biome.secondaryBlock : BLOCK_TYPES.STONE;
                     chunks[currentPartition][index(x, localY, z)] = block;
-
                 }
             }
         }
@@ -138,10 +136,9 @@ class WorldGenerator extends Random {
         const zStart = z * 16;
         for (let x = 0; x < 16; x++) {
             for (let z = 0; z < 16; z++) {
-                heightMap[x * 16 + z] = Math.floor(this.detailNoise.simplex(x + xStart, z + zStart) * 32);
+                heightMap[x * 16 + z] = (Math.floor(this.detailNoise.simplex(x + xStart, z + zStart) * 32));
             }
         }
-        this.heightMapCache.set(`${x},${z}`, heightMap);
         return heightMap;
     }
 
@@ -149,12 +146,16 @@ class WorldGenerator extends Random {
 const texture0 = util3d.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
 const blocksMaterial = new THREE.MeshStandardMaterial({ map: texture0, side: THREE.DoubleSide, metalness: 0.2, roughness: 0.8 })
 const blockUVs: Record<string, Array<number>> = {
-    top: util3d.getUVCords('minecraft:block/grass_block_top'),
-    side: util3d.getUVCords('minecraft:block/grass_block_side'),
-    bottom: util3d.getUVCords('minecraft:block/dirt'),
-    sand: util3d.getUVCords('minecraft:block/sand'),
-    red_sand: util3d.getUVCords('minecraft:block/red_sand'),
-    stone: util3d.getUVCords('minecraft:block/stone'),
+    1: util3d.getUVCords('minecraft:block/stone'),
+    2: util3d.getUVCords('minecraft:block/green_concrete'),
+    3: util3d.getUVCords('minecraft:block/dirt'),
+    9: util3d.getUVCords('minecraft:block/water_still'),
+    12: util3d.getUVCords('minecraft:block/sand'),
+    13: util3d.getUVCords('minecraft:block/sandstone'),
+    14: util3d.getUVCords('minecraft:block/snow'),
+    15: util3d.getUVCords('minecraft:block/ice'),
+    17: util3d.getUVCords('minecraft:block/oak_log'),
+    159:util3d.getUVCords('minecraft:block/obsidian'),
 };
 class VoxelChunk {
     data: Uint8Array
@@ -266,10 +267,12 @@ export class ChunkManager {
                     if (blockType == BLOCK_TYPES.AIR) continue;
                     const neighbors = deltas.map((delta) => {
                         const nb = [x + delta[0], y + delta[1], z + delta[2]];
+                        if(Math.sign(nb[1])==-1) return false;//error is most likely here
                         return this.getVoxel(nb[0], nb[1], nb[2]) == BLOCK_TYPES.AIR ? false : true;
                     })
                     for (let i = 0; i < neighbors.length; i++) {
-                        if (neighbors[i] == false) continue
+                        if (neighbors[i] == false) continue;
+                        console.log("added face") 
                         chunk.addFace(x, y, z, blockType, faceArray[i]);
                     }
                 }
@@ -342,12 +345,12 @@ export class ChunkManager {
         for (let i = 0; i < data.length; i++) {
             const newVox = new VoxelChunk(`${x},${i},${z}`, data[i]);
             this.chunks.set(`${x},${i},${z}`, newVox);
-        }
+        } 
     }
     getVoxel(x: number, y: number, z: number) {
         const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
         if (!this.chunks.has(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`)) {
-            this.loadWorldData(x, z);
+            this.loadWorldData(chunkCords[0], chunkCords[2]);
         }
         const [cX, cY, cZ] = localCords;
         const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`) as VoxelChunk;
@@ -360,8 +363,8 @@ export class ChunkManager {
         const chunkY = Math.floor(yawObject.position.y / 16)
         const uBound = chunkY + chunkLoadLimit;
         const dBound = chunkY - chunkLoadLimit;
-        const nBound = chunkZ - chunkLoadLimit;
-        const sBound = chunkZ + chunkLoadLimit;
+        const nBound = chunkZ + chunkLoadLimit;
+        const sBound = chunkZ - chunkLoadLimit;
         const wBound = chunkX - chunkLoadLimit;
         const eBound = chunkX + chunkLoadLimit;
         for (const [key, VoxChunk] of this.chunks) {
@@ -372,14 +375,17 @@ export class ChunkManager {
             }
         }
         for (let x = wBound; x < eBound; x++) {
-            for (let y = dBound; y < uBound; y++) {
+            for (let y = 0; y < uBound; y++) {
                 for (let z = nBound; z < sBound; z++) {
                     const stringCords = `${x},${y},${z}`
+                    console.log(stringCords)
                     if (!this.chunks.has(stringCords)) {
+                        
                         this.loadWorldData(x, z)
                         const rewrite = this.chunks.get(stringCords) as VoxelChunk;
                         this.generateChunkMesh(rewrite);
                         rewrite.returnMesh();
+                        scene.add(rewrite.meshData as THREE.Mesh);
                     }
                 }
             }

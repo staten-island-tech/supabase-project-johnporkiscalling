@@ -464,7 +464,7 @@ let verticalVelocity = 0;
 const gravity = -19.6;
 const jumpStrength = 10;
 let isOnGround = true;
-const groundLevel = 2;
+const groundLevel = 2.5;
 
 class Player extends Entity
 {
@@ -676,44 +676,44 @@ function sampleBiome(x:number, y:number)
   //for hotsprings same thing as mesa where you raise the noise functiokn value output to even power to prevent negative values
   //then restrict the height of the terrain generated to a given value and carve a hole in the center of it to mimic a geyser/hot srpign
 }
-const aoOffsets: Record<string, Array<[number, number, number][]>> = {
-    top: [
-      [[-1, 0, 0], [0, 0, -1], [-1, 0, -1]],
-      [[1, 0, 0], [0, 0, -1], [1, 0, -1]],
-      [[1, 0, 0], [0, 0, 1], [1, 0, 1]],
-      [[-1, 0, 0], [0, 0, 1], [-1, 0, 1]],
-    ],
-    bottom: [
-      [[-1, 0, 0], [0, 0, -1], [-1, 0, -1]],
-      [[1, 0, 0], [0, 0, -1], [1, 0, -1]],
-      [[1, 0, 0], [0, 0, 1], [1, 0, 1]],
-      [[-1, 0, 0], [0, 0, 1], [-1, 0, 1]],
-    ],
-    left: [
-      [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
-      [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
-      [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
-      [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
-    ],
-    right: [
-      [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
-      [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
-      [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
-      [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
-    ],
-    front: [
-      [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
-      [[1, 0, 0], [0, -1, 0], [1, -1, 0]],
-      [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
-      [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
-    ],
-    back: [
-      [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
-      [[1, 0, 0], [0, -1, 0], [1, -1, 0]],
-      [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
-      [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
-    ],
-  };
+const aoOffsets: Record<string, Array<[number[], number[], number[]]>> = {
+  top: [
+    [[-1, 0, 0], [0, 0, -1], [-1, 0, -1]],  // Top-left corner
+    [[1, 0, 0], [0, 0, -1], [1, 0, -1]],    // Top-right corner
+    [[1, 0, 0], [0, 0, 1], [1, 0, 1]],      // Bottom-right corner
+    [[-1, 0, 0], [0, 0, 1], [-1, 0, 1]],    // Bottom-left corner
+  ],
+  bottom: [
+    [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],    // Note: Y offset is +1 for bottom face
+    [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
+    [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
+    [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
+  ],
+  left: [
+    [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
+    [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
+    [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
+    [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
+  ],
+  right: [
+    [[0, -1, 0], [0, 0, 1], [0, -1, 1]],
+    [[0, 1, 0], [0, 0, 1], [0, 1, 1]],
+    [[0, 1, 0], [0, 0, -1], [0, 1, -1]],
+    [[0, -1, 0], [0, 0, -1], [0, -1, -1]],
+  ],
+  front: [
+    [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
+    [[1, 0, 0], [0, -1, 0], [1, -1, 0]],
+    [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
+    [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
+  ],
+  back: [
+    [[1, 0, 0], [0, -1, 0], [1, -1, 0]],    // Flipped for back face
+    [[-1, 0, 0], [0, -1, 0], [-1, -1, 0]],
+    [[-1, 0, 0], [0, 1, 0], [-1, 1, 0]],
+    [[1, 0, 0], [0, 1, 0], [1, 1, 0]],
+  ],
+};
 class WorldChunk
 {
   cCords:Array<number>
@@ -750,9 +750,6 @@ class WorldChunk
 
 computeAO(x: number, y: number, z: number, dir: string): number[] {
   const ao = [];
-
-  // Predefined neighbor offsets for each corner of a face
-
   const neighbors = aoOffsets[dir];
   if (!neighbors) return [1, 1, 1, 1];
 
@@ -762,18 +759,15 @@ computeAO(x: number, y: number, z: number, dir: string): number[] {
     const side2Solid = this.isSolid(x + side2[0], y + side2[1], z + side2[2]);
     const cornerSolid = this.isSolid(x + corner[0], y + corner[1], z + corner[2]);
 
-    let brightness = 1.0;
-    if (side1Solid && side2Solid) {
-      brightness = 0.4;
-    } else {
-      let reduction = 0;
-      if (side1Solid) reduction += 0.2;
-      if (side2Solid) reduction += 0.2;
-      if (cornerSolid) reduction += 0.1;
-      brightness -= reduction;
-    }
+    // Improved AO calculation
+    let occlusion = 0;
+    if (side1Solid) occlusion += 1;
+    if (side2Solid) occlusion += 1;
+    if (cornerSolid && (side1Solid || side2Solid)) occlusion += 1;
 
-    ao.push(brightness);
+    // Smoother brightness calculation
+    const brightness = 1.0 - (occlusion * 0.2);
+    ao.push(Math.max(0.3, Math.min(1.0, brightness))); // Clamp between 0.3 and 1.0
   }
 
   return ao;
