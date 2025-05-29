@@ -113,7 +113,7 @@ async function submit() {
         id: userId,
         options: {
           render: "8",
-          theme: "dark",
+          brightness: "100",
         },
       });
 

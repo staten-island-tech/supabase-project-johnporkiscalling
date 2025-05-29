@@ -13,7 +13,12 @@ let useremail = ref<string | null>(null) ?? "Guest";
 let data = ref([]);
 // let x = true;
 // while (x) {
-setTimeout(() => {}, 1000);
+// setTimeout(() => {}, 1000);
+
+//--------------------------------------------------------------settings
+let renderD = ref(8);
+let brightnessV = ref(100);
+//-----------------------------------------------
 
 async function userdata() {
   if (loggedin.value) {
@@ -29,6 +34,37 @@ async function userdata() {
     }
   }
 }
+//edit this function -- keep only whats needed to read user_preferences table
+
+// async function userdata() {
+//   if (loggedin.value) {
+//     try {
+//       const { data: userData, error: userError } = await supabase.auth.getUser();
+//       if (userError) throw userError;
+
+//       if (userData?.user) {
+//         loggedin.value = true;
+//         useremail.value = userData.user.email ?? null;
+
+//         // Fetch user preferences
+//         const { data: prefsData, error: prefsError } = await supabase
+//           .from("user_preferences")
+//           .select("options")
+//           .eq("id", userData.user.id)
+//           .single();
+
+//         if (prefsError) {
+//           console.warn("No preferences found or error fetching preferences:", prefsError.message);
+//         } else if (prefsData?.options) {
+//           renderD.value = prefsData.options.render ?? 8;
+//           brightnessV.value = prefsData.options.brightness ?? 100;
+//         }
+//       }
+//     } catch (err) {
+//       console.error("Error getting user or preferences:", err);
+//     }
+//   }
+// }
 
 function spin(event: MouseEvent) {
   event.stopPropagation(); // prevent triggering document click
@@ -49,6 +85,8 @@ async function logout() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     useremail.value = null;
+    renderD.value = 8;
+    brightnessV.value = 100;
     console.log(useremail);
     console.log("Signed out successfully.");
   } catch (error: any) {
@@ -80,8 +118,8 @@ async function updatePreferences() {
   const { error: prefsError } = await supabase.from("user_preferences").upsert({
     id: user.id,
     options: {
-      render: "256",
-      theme: "light",
+      render: renderD.value,
+      brightness: brightnessV.value,
     },
   });
 
@@ -115,8 +153,8 @@ async function updatePreferences() {
             >
               <div class="youraccount">
                 <div class="header" v-if="loggedin">
-                  <h1>Your Account</h1>
-                  <h1>{{ useremail }}</h1>
+                  <h1>Your Account:</h1>
+                  <h3>{{ useremail }}</h3>
                 </div>
 
                 <div class="header" v-else>
@@ -125,8 +163,33 @@ async function updatePreferences() {
               </div>
 
               <div class="settings">
-                <h2>Settings</h2>
-                <input type="range" min="0" max="16" value="8" class="slider" />
+                <h2 class="h2settings">Settings</h2>
+                <div class="mainsettings">
+                  <div class="render">
+                    <h2>Render Distance:</h2>
+                    <input
+                      type="range"
+                      min="0"
+                      max="16"
+                      value="8"
+                      class="slider"
+                      v-model="renderD"
+                    />
+                    <h3>{{ renderD }}</h3>
+                  </div>
+                  <div class="brightness">
+                    <h2>Brightness:</h2>
+                    <input
+                      type="range"
+                      min="10"
+                      max="200"
+                      value="100"
+                      class="slider"
+                      v-model="brightnessV"
+                    />
+                    <h3>{{ brightnessV }}</h3>
+                  </div>
+                </div>
               </div>
 
               <div style="transform: translateY(-15px)" v-if="!loggedin">
@@ -175,8 +238,11 @@ async function updatePreferences() {
 <!-- simplest solution: @click.stop -->
 
 <style scoped>
+.h2settings {
+  margin: 10px 0px 10px 0px;
+}
 .slider {
-  -webkit-appearance: none; /* Remove default styling */
+  -webkit-appearance: none;
   width: 90%;
   height: 10px;
   background: #dadada;
@@ -189,7 +255,6 @@ async function updatePreferences() {
   background: #ccc;
 }
 
-/* Thumb (handle) for Chrome, Safari, Edge */
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -215,7 +280,7 @@ async function updatePreferences() {
 }
 
 .settings {
-  height: 93%;
+  height: 90%;
 }
 
 .fade-slide-enter-from,
