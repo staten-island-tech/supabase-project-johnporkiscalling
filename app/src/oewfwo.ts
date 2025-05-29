@@ -89,7 +89,6 @@ class WorldGenerator extends Random {
                 const worldX = chunkX * CHUNK_WIDTH + localX;
                 const worldZ = chunkZ * CHUNK_WIDTH + localZ;
                 const data = this.getColumnData(worldX, worldZ)
-                console.log(data)
                 if (data.height > highestBlock) {
                     highestBlock = data.height;
                 }
@@ -254,26 +253,33 @@ export class ChunkManager {
         }
     }
     generateChunkMesh(chunk: VoxelChunk) {
-        const [x, y, z] = chunk.key.split(",").map(Number)
+        const [chunkX, chunkY, chunkZ] = chunk.key.split(",").map(Number);
+        
+        // Load surrounding chunks
         for (let a = -1; a < 2; a++) {
             for (let b = -1; b < 2; b++) {
-                this.loadWorldData(x + a, z + b);
+                this.loadWorldData(chunkX + a, chunkZ + b);
             }
         }
-        for (let x = 0; x < 16; x++) {
-            for (let y = 0; y < 16; y++) {
-                for (let z = 0; z < 16; z++) {
-                    const blockType = chunk.data[index(x, y, z)];
+
+        for (let localX = 0; localX < 16; localX++) {
+            for (let localY = 0; localY < 16; localY++) {
+                for (let localZ = 0; localZ < 16; localZ++) {
+                    const blockType = 0;
                     if (blockType == BLOCK_TYPES.AIR) continue;
+
                     const neighbors = deltas.map((delta) => {
-                        const nb = [x + delta[0], y + delta[1], z + delta[2]];
-                        if(Math.sign(nb[1])==-1) return false;//error is most likely here
-                        return this.getVoxel(nb[0], nb[1], nb[2]) == BLOCK_TYPES.AIR ? false : true;
-                    })
+                        const worldX = chunkX * 16 + localX + delta[0];
+                        const worldY = chunkY * 16 + localY + delta[1];
+                        const worldZ = chunkZ * 16 + localZ + delta[2];
+                        if (worldY < 0) return false;
+                        return this.getVoxel(worldX, worldY, worldZ) == BLOCK_TYPES.AIR;
+                    });
+
                     for (let i = 0; i < neighbors.length; i++) {
-                        if (neighbors[i] == false) continue;
-                        console.log("added face") 
-                        chunk.addFace(x, y, z, blockType, faceArray[i]);
+                        if (neighbors[i] == false) {
+                            chunk.addFace(localX, localY, localZ, blockType, faceArray[i]);
+                        }
                     }
                 }
             }
@@ -342,10 +348,11 @@ export class ChunkManager {
     }
     loadWorldData(x: number, z: number) {
         const data = this.worldGen.generateChunkData(x, z);
+        console.log(data.length)
         for (let i = 0; i < data.length; i++) {
             const newVox = new VoxelChunk(`${x},${i},${z}`, data[i]);
             this.chunks.set(`${x},${i},${z}`, newVox);
-        } 
+        }
     }
     getVoxel(x: number, y: number, z: number) {
         const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
@@ -375,20 +382,24 @@ export class ChunkManager {
             }
         }
         for (let x = wBound; x < eBound; x++) {
+
             for (let y = 0; y < uBound; y++) {
-                for (let z = nBound; z < sBound; z++) {
+                for (let z = sBound; z < nBound; z++) {
                     const stringCords = `${x},${y},${z}`
-                    console.log(stringCords)
+                    console.log(stringCords, "string cord")
                     if (!this.chunks.has(stringCords)) {
                         
                         this.loadWorldData(x, z)
                         const rewrite = this.chunks.get(stringCords) as VoxelChunk;
+                        console.log(rewrite)
                         this.generateChunkMesh(rewrite);
                         rewrite.returnMesh();
                         scene.add(rewrite.meshData as THREE.Mesh);
                     }
                 }
+                console.log('z loop done')
             }
+            console.log("y loop done")
         }
     }
     maybeLoad(scene: THREE.Scene, yawObject: THREE.Object3D) {
@@ -397,6 +408,7 @@ export class ChunkManager {
         const chunkZ = Math.floor(yawObject.position.z / 16);
         const chunkY = Math.floor(yawObject.position.y / 16);
         if (chunkX !== this.CX || chunkZ !== this.CZ || chunkY !== this.CY) {
+            console.log("render new executed")
             this.renderNew(scene, yawObject);
             this.CX = chunkX;
             this.CZ = chunkZ;

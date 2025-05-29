@@ -62,26 +62,25 @@ const coordinates =  ref();
 
 const scene:THREE.Scene = new THREE.Scene();
 const camera:THREE.Camera =  new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2048)
-const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:false});
+const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:true});
 const pitchObject:THREE.Object3D =  new THREE.Object3D().add(camera);
 const yawObject:THREE.Object3D =  new THREE.Object3D().add(pitchObject);
-yawObject.position.set(0,70,0);
-camera.position.set(0, 70, 0);
+yawObject.position.set(0,0,0);
+camera.position.set(0, 0, 0);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 scene.add(yawObject);
+scene.add(new THREE.AxesHelper(50));
+scene.add(new THREE.GridHelper(200, 50));
 
-const debugGeometry = new THREE.BoxGeometry(1, 1, 1); // 1x1x1 unit cube
+const debugGeometry = new THREE.BoxGeometry(10,10,10); // 1x1x1 unit cube
 const debugMaterial = new THREE.MeshStandardMaterial({ 
     color: 0xff0000, // Red (easily visible)
-    wireframe: false, // Set to 'true' to see wireframe
-    roughness: 0.5,
-    metalness: 0.1
 });
 const debugCube = new THREE.Mesh(debugGeometry, debugMaterial);
 
 // 2. Position it where you suspect issues (e.g., chunk origin)
-debugCube.position.set(8, 88, 8); // Center of a 16x16x16 chunk
+debugCube.position.set(0, 70, -20); // 20 units ahead
 
 // 3. Add to your scene
 scene.add(debugCube);
@@ -212,6 +211,7 @@ function init()
     requestAnimationFrame(animate);
 }
 //call the init function in onMounted()
+
 onMounted(()=>{
     init()
 })
@@ -221,5 +221,16 @@ onMounted(()=>{
 </script>
 
 <style scoped>
-
+ .debugScreen
+  {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.7);
+    color: lime;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 14px;
+    z-index: 1000;
+  }
 </style>
