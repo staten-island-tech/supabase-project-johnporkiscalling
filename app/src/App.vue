@@ -133,34 +133,38 @@ async function updatePreferences() {
               @click="(event: MouseEvent) => event.stopPropagation()"
             >
               <div class="youraccount">
-                <div class="header" v-if="loggedin">
-                  <h1>Your Account:</h1>
-                  <h3>{{ useremail }}</h3>
+                <div class="topheader">
+                  <div class="header" v-if="loggedin">
+                    <h1 style="font-weight: 700">Your Account:</h1>
 
-                  <div id="border" v-if="loggedin">
-                    <a
-                      href=""
-                      @click.prevent="
-                        (loggedin = false), (wantstologin = false), logout(), forbuttons()
-                      "
-                      >Log out</a
-                    >
+                    <div class="containsemail">
+                      <h3>{{ useremail }}</h3>
+                      <div id="border" v-if="loggedin">
+                        <a
+                          href=""
+                          @click.prevent="
+                            (loggedin = false), (wantstologin = false), logout(), forbuttons()
+                          "
+                          >Log out</a
+                        >
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div class="" v-else>
-                  <h1>Please Log in to see your account</h1>
+                  <div class="header" v-else>
+                    <h1>Please Log In To See Your Account</h1>
+                  </div>
                 </div>
               </div>
 
               <div class="settings">
-                <h2 class="h2settings">Settings</h2>
+                <h2 class="h2settings" style="font-weight: 700">Settings</h2>
                 <div class="mainsettings">
                   <div class="render">
                     <h2>Render Distance:</h2>
                     <input
                       type="range"
-                      min="0"
+                      min="1"
                       max="16"
                       value="8"
                       class="slider"
@@ -222,10 +226,18 @@ async function updatePreferences() {
 <!-- simplest solution: @click.stop -->
 
 <style scoped>
+.topheader {
+  width: 100%;
+  padding-bottom: -5%;
+  display: flex;
+  justify-content: center;
+}
+
 .h2settings {
   margin: 10px 0px 10px 0px;
 }
 .slider {
+  appearance: none;
   -webkit-appearance: none;
   width: 90%;
   height: 10px;
@@ -252,7 +264,29 @@ async function updatePreferences() {
 }
 
 /* --------------------logged in = true-------------------- */
+/* .centerhorizontally {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+} */
+.containsemail {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 7%;
+  width: 100%;
+  margin-bottom: 7px;
+  align-items: center;
+}
 
+#border {
+  width: 25%;
+}
+#border a {
+  width: 100%;
+  padding: 0;
+}
 .overlay {
   height: 100vh;
   width: 100vw;
@@ -337,6 +371,7 @@ async function updatePreferences() {
   align-items: center;
 }
 .header {
+  height: 100%;
   border-bottom: 0px solid #ffffff;
   box-shadow: 0 3px 3px -3px #dadada;
   width: 95%;
