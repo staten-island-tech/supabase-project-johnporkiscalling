@@ -28,43 +28,24 @@ async function userdata() {
       if (data?.user) {
         loggedin.value = true;
         useremail.value = data.user.email ?? null;
+        const { data: odata, error: oerror } = await supabase
+          .from("user_preferences")
+          .select("options")
+          .eq("id", data.user.id)
+          .single();
+        if (oerror) {
+          console.log("Error", oerror.message);
+        }
+        if (odata?.options) {
+          renderD.value = odata.options.render;
+          brightnessV.value = odata.options.brightness;
+        }
       }
     } catch (err) {
       console.error("Error getting user:", err);
     }
   }
 }
-//edit this function -- keep only whats needed to read user_preferences table
-
-// async function userdata() {
-//   if (loggedin.value) {
-//     try {
-//       const { data: userData, error: userError } = await supabase.auth.getUser();
-//       if (userError) throw userError;
-
-//       if (userData?.user) {
-//         loggedin.value = true;
-//         useremail.value = userData.user.email ?? null;
-
-//         // Fetch user preferences
-//         const { data: prefsData, error: prefsError } = await supabase
-//           .from("user_preferences")
-//           .select("options")
-//           .eq("id", userData.user.id)
-//           .single();
-
-//         if (prefsError) {
-//           console.warn("No preferences found or error fetching preferences:", prefsError.message);
-//         } else if (prefsData?.options) {
-//           renderD.value = prefsData.options.render ?? 8;
-//           brightnessV.value = prefsData.options.brightness ?? 100;
-//         }
-//       }
-//     } catch (err) {
-//       console.error("Error getting user or preferences:", err);
-//     }
-//   }
-// }
 
 function spin(event: MouseEvent) {
   event.stopPropagation(); // prevent triggering document click
@@ -155,9 +136,19 @@ async function updatePreferences() {
                 <div class="header" v-if="loggedin">
                   <h1>Your Account:</h1>
                   <h3>{{ useremail }}</h3>
+
+                  <div id="border" v-if="loggedin">
+                    <a
+                      href=""
+                      @click.prevent="
+                        (loggedin = false), (wantstologin = false), logout(), forbuttons()
+                      "
+                      >Log out</a
+                    >
+                  </div>
                 </div>
 
-                <div class="header" v-else>
+                <div class="" v-else>
                   <h1>Please Log in to see your account</h1>
                 </div>
               </div>
@@ -217,13 +208,6 @@ async function updatePreferences() {
                 >Test</a
               >
             </div>
-            <div class="border" v-if="loggedin">
-              <a
-                href=""
-                @click.prevent="(loggedin = false), (wantstologin = false), logout(), forbuttons()"
-                >Log out</a
-              >
-            </div>
             <div class="border" v-if="!loggedin">
               <a href="" @click.prevent="(wantstologin = true), forbuttons()">Log in</a>
             </div>
@@ -280,7 +264,7 @@ async function updatePreferences() {
 }
 
 .settings {
-  height: 90%;
+  height: 80%;
 }
 
 .fade-slide-enter-from,
@@ -346,7 +330,7 @@ async function updatePreferences() {
   transform: translate(-5.5px, 44px);
 }
 .youraccount {
-  height: 7%;
+  height: 15%;
   display: flex;
   flex-direction: column;
   justify-content: center;
