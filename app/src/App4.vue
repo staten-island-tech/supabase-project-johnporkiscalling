@@ -65,7 +65,7 @@ const camera:THREE.Camera =  new THREE.PerspectiveCamera(75, window.innerWidth/w
 const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:true});
 const pitchObject:THREE.Object3D =  new THREE.Object3D().add(camera);
 const yawObject:THREE.Object3D =  new THREE.Object3D().add(pitchObject);
-yawObject.position.set(0,0,0);
+yawObject.position.set(0,-10,0);
 camera.position.set(0, 0, 0);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
