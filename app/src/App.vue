@@ -188,7 +188,7 @@ async function updatePreferences() {
               </div>
 
               <div style="transform: translateY(-15px)" v-if="!loggedin">
-                <h5>In order to save your settings, please log in</h5>
+                <h4>In order to save your settings, please log in</h4>
               </div>
             </div>
           </Transition>

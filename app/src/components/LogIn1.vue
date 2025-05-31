@@ -1,4 +1,9 @@
 <template>
+  <div class="e">
+    <Transition>
+      <h3 class="e1" v-if="show">{{ errormessage }}</h3>
+    </Transition>
+  </div>
   <div class="background">
     <div class="squares">
       <div class="square"></div>
@@ -84,6 +89,9 @@ const password = ref("");
 const loading = ref(false);
 const errorMessage = ref("");
 
+let show = ref(false);
+let errormessage = ref("");
+
 async function submit() {
   loading.value = true;
   errorMessage.value = "";
@@ -99,30 +107,43 @@ async function submit() {
       emit("login");
       return;
     }
-
-    const { data: signupData, error: signupError } = await supabase.auth.signUp({
-      email: email.value,
-      password: password.value,
-    });
-
-    if (signupError) throw signupError;
-
-    const userId = signupData.user?.id;
-    if (userId) {
-      const { error: prefsError } = await supabase.from("user_preferences").insert({
-        id: userId,
-        options: {
-          render: "8",
-          brightness: "100",
-        },
+    if (password.value.length >= 6) {
+      const { data: signupData, error: signupError } = await supabase.auth.signUp({
+        email: email.value,
+        password: password.value,
       });
 
-      if (prefsError) throw prefsError;
-    }
+      if (signupError) throw signupError;
 
-    emit("login");
+      const userId = signupData.user?.id;
+      if (userId) {
+        const { error: prefsError } = await supabase.from("user_preferences").insert({
+          id: userId,
+          options: {
+            render: "8",
+            brightness: "100",
+          },
+        });
+
+        if (prefsError) throw prefsError;
+      }
+      emit("login");
+    } else {
+      errormessage.value = "Password too short, minimum requirement is 6 characters";
+      show.value = true;
+      setTimeout(() => {
+        show.value = false;
+      }, 3000);
+    }
   } catch (error: any) {
     console.error("Auth error:", error);
+    if ((error = "AuthApiError: User already registered")) {
+      errormessage.value = "Wrong Password";
+      show.value = true;
+      setTimeout(() => {
+        show.value = false;
+      }, 3000);
+    }
     errorMessage.value = error.message || "Something went wrong.";
   } finally {
     loading.value = false;
@@ -131,6 +152,39 @@ async function submit() {
 </script>
 
 <style scoped>
+/* ----------------------------error message----------------------------*/
+.e {
+  position: absolute;
+  width: 100%;
+  height: 3rem;
+  top: 4%;
+  left: 0%;
+  padding: 0rem 15rem 0rem 15rem;
+}
+.e1 {
+  text-align: center;
+  width: 100%;
+  height: 100%;
+  color: white;
+  background-color: #ff0061;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-weight: 550;
+}
+.v-enter-from {
+  opacity: 0;
+  transform: translateY(-90px);
+}
+.v-enter-active,
+.v-leave-active {
+  transition: all 0.5s ease;
+}
+.v-leave-to {
+  opacity: 0;
+  transform: translateY(-90px);
+}
 /* --------------------logged in = false-------------------- */
 
 .front {
