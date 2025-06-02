@@ -219,13 +219,18 @@ async function updatePreferences() {
         </nav>
       </div>
     </header>
-    <RouterView />
+    <RouterView class="view" />
   </div>
 </template>
 
 <!-- simplest solution: @click.stop -->
 
 <style scoped>
+.view {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
 .topheader {
   width: 100%;
   padding-bottom: -5%;

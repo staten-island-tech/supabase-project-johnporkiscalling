@@ -49,10 +49,13 @@ function inputLayer()
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
+
 import { util3d } from './utils';    
 import { Noise } from './noisefunct';
 import { faceDirections } from './stupidlylongvariables';
+
 import { options } from './options';
+
 import pako from 'pako';
 
 const seed = 7987989798;
