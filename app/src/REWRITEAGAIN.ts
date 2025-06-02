@@ -33,17 +33,18 @@ class WorldGenerator extends Random {
         this.continentalnessNoise = new Noise(this.lcg());
         this.detailNoise = new Noise(this.lcg());
         this.mountainNoise = new Noise(this.lcg());
+        console.log(seed, this.lcg())
     }
     seaLevel = 62;
-    cThresh = 0.48;
+    cThresh = 0.0;
     mFactor = 0.6;
     getColumnData(x: number, z: number)//uses world corrds
     {
-        const continentalness = this.continentalnessNoise.simplex(x / 2000, z / 2000);
-        const temperature = this.temperatureNoise.simplex(x / 1500, z / 1500);
-        const humidity = this.humidityNoise.simplex(x / 1200, z / 1200);
-        const detailInfluence = this.detailNoise.simplex(x / 150, z / 150);
-        const mountainInfluence = this.mountainNoise.simplex(x / 500, z / 500);
+        const continentalness = this.continentalnessNoise.simplex(x / 100, z / 100);
+        const temperature = this.temperatureNoise.simplex(x / 400, z / 800);
+        const humidity = this.humidityNoise.simplex(x / 122, z / 120);
+        const detailInfluence = this.detailNoise.simplex(x / 122, z / 100);
+        const mountainInfluence = this.mountainNoise.simplex(x / 100, z / 300);
         let biome;
         let baseHeight;
         if (continentalness < this.cThresh) {
@@ -110,7 +111,7 @@ class WorldGenerator extends Random {
         }
         const chunkPartitions = Math.ceil(highestBlock / 16);
         const chunks = [];
-        for (let i = 0; i < chunkPartitions+1; i++) {
+        for (let i = 0; i < chunkPartitions + 1; i++) {
             chunks.push(new Uint8Array(4096));
             //preallocates memory for the new chunk data
         }
@@ -128,7 +129,6 @@ class WorldGenerator extends Random {
             }
         }
         //returns chunkdata formatted in the index format 
-        console.log(chunks)
         return chunks;
     }
     getBiome(x: number, z: number) {
@@ -157,7 +157,7 @@ class WorldGenerator extends Random {
 
 }
 const texture0 = util3d.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
-const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide})
+const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide })
 const blockUVs: Record<string, Array<number>> = {
     1: util3d.getUVCords('minecraft:block/stone'),
     2: util3d.getUVCords('minecraft:block/green_concrete'),
@@ -168,7 +168,7 @@ const blockUVs: Record<string, Array<number>> = {
     14: util3d.getUVCords('minecraft:block/snow'),
     15: util3d.getUVCords('minecraft:block/ice'),
     17: util3d.getUVCords('minecraft:block/oak_log'),
-    159:util3d.getUVCords('minecraft:block/obsidian'),
+    159: util3d.getUVCords('minecraft:block/obsidian'),
 };
 class VoxelChunk {
     data: Uint8Array
@@ -234,20 +234,17 @@ export class ChunkManager  //optimize this things memory usage
     lastZ = Infinity;
     lastY = Infinity;
     callCounter = 0;
-    loadedChunks: Set<string> =  new Set();
+    loadedChunks: Set<string> = new Set();
     constructor(seed: number) {
         this.chunks = new Map();
         this.dirtyChunks = new Set();
         this.worldGen = new WorldGenerator(seed);
     }
-    rerender(scene:THREE.Scene)
-    {
-        const dirtyChunksCopy =  new Set(this.dirtyChunks);
-        for(let key of dirtyChunksCopy)
-        {
-            const chunk =  this.chunks.get(key);
-            if(!chunk)
-            {
+    rerender(scene: THREE.Scene) {
+        const dirtyChunksCopy = new Set(this.dirtyChunks);
+        for (let key of dirtyChunksCopy) {
+            const chunk = this.chunks.get(key);
+            if (!chunk) {
                 this.dirtyChunks.delete(key);
                 continue;
             }
@@ -257,48 +254,41 @@ export class ChunkManager  //optimize this things memory usage
             this.dirtyChunks.delete(key);
         }
     }
-    generateChunkMesh(chunk:VoxelChunk)
-    {
-        if(!chunk) return;
+    generateChunkMesh(chunk: VoxelChunk) {
+        if (!chunk) return;
         const [chunkX, chunkY, chunkZ] = chunk.key.split(",").map(Number);
         const aX = chunkX * 16;
         const aY = chunkY * 16
         const aZ = chunkZ * 16
-        for(let a = -1; a < 2; a++)//this loop helps ensure that the neighboring chunks are loaded 
+        for (let a = -1; a < 2; a++)//this loop helps ensure that the neighboring chunks are loaded 
         {
-            for(let b = -1; b < 2; b++)
-            {
-                if (!this.loadedChunks.has(`${chunkX+a},${chunkZ+b}`)) {
-                    this.loadWorldData(chunkX+a, chunkZ+b);
+            for (let b = -1; b < 2; b++) {
+                if (!this.loadedChunks.has(`${chunkX + a},${chunkZ + b}`)) {
+                    this.loadWorldData(chunkX + a, chunkZ + b);
                 }
             }
         }
-        for(let lX = 0; lX<16; lX++)
-        {
-            for(let lY = 0; lY<16;lY++)
-            {
-                for(let lZ = 0; lZ<16;lZ++)
-                {
-                    const blockType = chunk.data[util3d.getIndex(lX,lY,lZ)];
-                    if(blockType==BLOCK_TYPES.AIR) continue;
-                    const neighbors = deltas.map((delta)=>
-                    {
+        for (let lX = 0; lX < 16; lX++) {
+            for (let lY = 0; lY < 16; lY++) {
+                for (let lZ = 0; lZ < 16; lZ++) {
+                    const blockType = chunk.data[util3d.getIndex(lX, lY, lZ)];
+                    if (blockType == BLOCK_TYPES.AIR) continue;
+                    const neighbors = deltas.map((delta) => {
                         const worldX = chunkX * 16 + lX + delta[0];
                         const worldY = chunkY * 16 + lY + delta[1];
                         const worldZ = chunkZ * 16 + lZ + delta[2];
                         return this.getVoxel(worldX, worldY, worldZ) != BLOCK_TYPES.AIR;
                     })
                     for (let i = 0; i < neighbors.length; i++) {
-                        chunk.addFace(lX+aX, lY+aY, lZ+aZ, 12, faceArray[i]);
+                        chunk.addFace(lX + aX, lY + aY, lZ + aZ, 12, faceArray[i]);
                     }
                 }
             }
         }
 
     }
-    loadWorldData(x:number, z:number)
-    {
-        this.callCounter+=1;
+    loadWorldData(x: number, z: number) {
+        this.callCounter += 1;
         this.loadedChunks.add(`${x},${z}`);
         const data = this.worldGen.generateChunkData(x, z);
         for (let i = 0; i < data.length; i++) {
@@ -306,59 +296,50 @@ export class ChunkManager  //optimize this things memory usage
             this.chunks.set(`${x},${i},${z}`, newVox);
         }
     }
-    getVoxel(x:number, y:number, z:number)
-    {
+    getVoxel(x: number, y: number, z: number) {
         const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
-        if (!this.chunks.has(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`) &&  !this.loadedChunks.has(`${chunkCords[0]},${chunkCords[2]}`)) {
+        if (!this.chunks.has(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`) && !this.loadedChunks.has(`${chunkCords[0]},${chunkCords[2]}`)) {
             this.loadWorldData(chunkCords[0], chunkCords[2]);
         }
         const [cX, cY, cZ] = localCords;
         const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`);
-        if(!chunk) return 0;
-        return chunk.data[cX + 16 * (cY + 16 * cZ)]    
+        if (!chunk) return 0;
+        return chunk.data[cX + 16 * (cY + 16 * cZ)]
     }
-    renderNew(scene:THREE.Scene, yawObject:THREE.Object3D)
-    {
-        const loadLimit = 4;
+    renderNew(scene: THREE.Scene, yawObject: THREE.Object3D) {
+        const loadLimit = 1;
         const chunkX = Math.floor(yawObject.position.x / 16)
-        const chunkZ = Math.floor(yawObject.position.z / 16)    
+        const chunkZ = Math.floor(yawObject.position.z / 16)
         const nBound = chunkZ + loadLimit;
         const sBound = chunkZ - loadLimit;
         const eBound = chunkX + loadLimit;
         const wBound = chunkX - loadLimit;
-        for(const [key, VoxChunk] of this.chunks)
-        {
-            const [x,y,z] = key.split(',').map(Number);
-            if(x < wBound || x > eBound || z < sBound || z < nBound)
-            {
+        for (const [key, VoxChunk] of this.chunks) {
+            const [x, y, z] = key.split(',').map(Number);
+            if (x < wBound || x > eBound || z < sBound || z < nBound) {
                 VoxChunk.destroyMesh(scene);
                 this.chunks.delete(key);
             }
         }
-        for(let x = wBound; x<eBound; x++)
-        {
-            for(let z = sBound; z<nBound; z++)
-            {
-                this.loadWorldData(x,z);
-                for(let y = 0; y< 5; y++)
-                {
-                    const stringCords =  `${x},${y},${z}`;
+        for (let x = wBound; x < eBound; x++) {
+            for (let z = sBound; z < nBound; z++) {
+                this.loadWorldData(x, z);
+                for (let y = 0; y < 5; y++) {
+                    const stringCords = `${x},${y},${z}`;
                     const chunk = this.chunks.get(stringCords);
-                    if(!chunk) continue;
+                    if (!chunk) continue;
                     this.generateChunkMesh(chunk);
                     chunk.returnMesh();
-                    if(!chunk.meshData) continue;
+                    if (!chunk.meshData) continue;
                     scene.add(chunk.meshData);
                 }
             }
         }
     }
-    maybeLoad(scene:THREE.Scene, yawObject:THREE.Object3D)
-    {
-        const chunkX = Math.floor(yawObject.position.x/16);
-        const chunkZ = Math.floor(yawObject.position.z/16);
-        if(chunkX!=this.lastX || chunkZ != this.lastZ)
-        {
+    maybeLoad(scene: THREE.Scene, yawObject: THREE.Object3D) {
+        const chunkX = Math.floor(yawObject.position.x / 16);
+        const chunkZ = Math.floor(yawObject.position.z / 16);
+        if (chunkX != this.lastX || chunkZ != this.lastZ) {
             this.renderNew(scene, yawObject);
             this.lastX = chunkX;
             this.lastZ = chunkZ;
@@ -419,8 +400,7 @@ export class ChunkManager  //optimize this things memory usage
         }
         return { hit: false };
     }
-    handleMouse()
-    {
+    handleMouse() {
 
     }
 }

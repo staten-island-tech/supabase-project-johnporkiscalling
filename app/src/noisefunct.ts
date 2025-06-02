@@ -20,18 +20,18 @@ const G2 = (3 - Math.sqrt(3)) / 6;
 const F3 = 1 / 3;
 const G3 = 1 / 6;
 export class Noise {
+    private lcgState;
+    private lcg() {
+        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
+        return this.lcgState;
+    }
     seed: number
     permutation: Array<number>
     constructor(seed: number) {
         this.seed = seed;
         this.permutation = [];
         this.generatePermutation();
-        this.lcgState = seed >>> 0;
-    }
-    private lcgState = 0;
-    private lcg() {
-        this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
-        return this.lcgState;
+        this.lcgState = seed;
     }
     generatePermutation() {
         const permutate = [...Array(256).keys()];
@@ -43,6 +43,7 @@ export class Noise {
         for (let i = 0; i < 512; i++) {
             this.permutation[i] = permutate[i & 255];
         }
+        console.log(this.permutation)
     }
     hash(x: number, y: number): number {
         const xi = x & 255;
@@ -68,7 +69,7 @@ export class Noise {
         const x1 = utilMath.lerp(dp00, dp10, u);
         const x2 = utilMath.lerp(dp01, dp11, u);
         const value = utilMath.lerp(x1, x2, v) / 2;
-        return ((value * Math.SQRT1_2)+1) * 0.5
+        return ((value * Math.SQRT1_2) + 1) * 0.5 //normalizes to range of 0,1
     }
     octaveNoise(x: number, y: number, octaves: number, persistence: number, amplitude: number, frequency: number, lacunarity: number, type: (x: number, y: number) => number) {
         let total = 0;
@@ -132,7 +133,7 @@ export class Noise {
             contrib2 = t2 * t2 * utilMath.dot(grad3[gradIndex2], [dx2, dy2]);
         }
 
-        return (70 * (contrib0 + contrib1 + contrib2) + 1) * 0.5;
+        return (70 * (contrib0 + contrib1 + contrib2) + 1) * 0.5;//normalize to 0,1
     }
     simplex3(x: number, y: number, z: number) {
         const s = (x + y + z) * F3;

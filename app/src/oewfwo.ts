@@ -3,7 +3,7 @@ import { faceDirections } from './stupidlylongvariables';
 import { util3d } from './utils';
 import { Random } from './utils';
 import { Noise } from './noisefunct';
-const index = (x: number, y: number, z: number):number => {
+const index = (x: number, y: number, z: number): number => {
     return x + 16 * (y + 16 * z)
 }
 import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
@@ -97,7 +97,7 @@ class WorldGenerator extends Random {
         }
         const chunkPartitions = Math.ceil(highestBlock / 16);
         const chunks = [];
-        for (let i = 0; i < chunkPartitions+1; i++) {
+        for (let i = 0; i < chunkPartitions + 1; i++) {
             chunks.push(new Uint8Array(4096));
             //preallocates memory for the new chunk data
         }
@@ -155,7 +155,7 @@ const blockUVs: Record<string, Array<number>> = {
     14: util3d.getUVCords('minecraft:block/snow'),
     15: util3d.getUVCords('minecraft:block/ice'),
     17: util3d.getUVCords('minecraft:block/oak_log'),
-    159:util3d.getUVCords('minecraft:block/obsidian'),
+    159: util3d.getUVCords('minecraft:block/obsidian'),
 };
 class VoxelChunk {
     data: Uint8Array
@@ -184,7 +184,7 @@ class VoxelChunk {
         return this.data[index];
     }
     addFace(x: number, y: number, z: number, blockType: number, dir: string) {
-        console.log(x,y,z)
+        console.log(x, y, z)
         console.log(dir);
         const offSetValues = faceDirections[dir];
         this.vertices.push(
@@ -258,9 +258,9 @@ export class ChunkManager {
     }
     generateChunkMesh(chunk: VoxelChunk) {
         //issue might be because i forgot to add some checks for chunks that are just completely air and thus not recorded int he chunk map
-        if(!chunk) return;
+        if (!chunk) return;
         const [chunkX, chunkY, chunkZ] = chunk.key.split(",").map(Number);
-        
+
         // Load surrounding chunks
         for (let a = -1; a < 2; a++) {
             for (let b = -1; b < 2; b++) {
@@ -282,8 +282,8 @@ export class ChunkManager {
                     });
 
                     for (let i = 0; i < neighbors.length; i++) {
-                            chunk.addFace(localX, localY, localZ, 12, faceArray[i]);
-                        
+                        chunk.addFace(localX, localY, localZ, 12, faceArray[i]);
+
                     }
                 }
             }
@@ -364,7 +364,7 @@ export class ChunkManager {
         }
         const [cX, cY, cZ] = localCords;
         const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`);
-        if(!chunk) return 0;
+        if (!chunk) return 0;
         return chunk.data[cX + 16 * (cY + 16 * cZ)]
     }
     renderNew(scene: THREE.Scene, yawObject: THREE.Object3D) {
@@ -391,10 +391,10 @@ export class ChunkManager {
                 for (let z = sBound; z < nBound; z++) {
                     const stringCords = `${x},${y},${z}`
                     if (!this.chunks.has(stringCords)) {
-                        
+
                         this.loadWorldData(x, z)
                         const rewrite = this.chunks.get(stringCords) as VoxelChunk;
-                        if(!rewrite) continue;
+                        if (!rewrite) continue;
                         this.generateChunkMesh(rewrite);
                         rewrite.returnMesh();
                         scene.add(rewrite.meshData as THREE.Mesh);

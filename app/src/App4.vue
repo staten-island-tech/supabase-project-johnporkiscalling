@@ -55,7 +55,6 @@ import { faceDirections } from './stupidlylongvariables';
 import { options } from './options';
 import pako from 'pako';
 
-const seed = 7987989798;
 const stats =  new Stats();
 document.body.appendChild(stats.dom);
 const coordinates =  ref();
@@ -65,7 +64,7 @@ const camera:THREE.Camera =  new THREE.PerspectiveCamera(75, window.innerWidth/w
 const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:false});
 const pitchObject:THREE.Object3D =  new THREE.Object3D().add(camera);
 const yawObject:THREE.Object3D =  new THREE.Object3D().add(pitchObject);
-yawObject.position.set(0,70,0);
+yawObject.position.set(0,100,0);
 camera.position.set(0, 0, 0);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -167,7 +166,7 @@ function init()
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
         canvasContainer.value.appendChild(renderer.domElement);
     }
-    chunkManager = new ChunkManager(seed);
+    chunkManager = new ChunkManager(1);
     requestAnimationFrame(animate);
 }
 //call the init function in onMounted()
