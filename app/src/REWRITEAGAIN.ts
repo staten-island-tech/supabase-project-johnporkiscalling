@@ -223,13 +223,14 @@ class VoxelChunk {
         this.uvs = [];
     }
 }
-export class ChunkManager {
+export class ClassManager 
+{
     chunks: Map<string, VoxelChunk>
     dirtyChunks: Set<string>
     worldGen: WorldGenerator
-    CX = Infinity;
-    CZ = Infinity;
-    CY = Infinity;
+    lastX = Infinity;
+    lastZ = Infinity;
+    lastY = Infinity;
     constructor(seed: number) {
         this.chunks = new Map();
         this.dirtyChunks = new Set();
@@ -237,19 +238,80 @@ export class ChunkManager {
     }
     rerender(scene:THREE.Scene)
     {
-
+        const dirtyChunksCopy =  new Set(this.dirtyChunks);
+        for(let key of dirtyChunksCopy)
+        {
+            const chunk =  this.chunks.get(key);
+            if(!chunk)
+            {
+                this.dirtyChunks.delete(key);
+                continue;
+            }
+            chunk.destroyMesh(scene);
+            this.generateChunkMesh(chunk);
+            chunk.returnMesh();
+            this.dirtyChunks.delete(key);
+        }
     }
     generateChunkMesh(chunk:VoxelChunk)
     {
         if(!chunk) return;
         const [chunkX, chunkY, chunkZ] = chunk.key.split(",").map(Number);
-        for (let a = -1; a < 2; a++) {
-            for (let b = -1; b < 2; b++) {
-                this.loadWorldData(chunkX + a, chunkZ + b);
+        for(let a = -1; a < 2; a++)
+        {
+            for(let b = -1; b < 2; b++)
+            {
+                this.loadWorldData(chunkX+a, chunkZ+b);
             }
         }
-        for (let localX = 0; localX < 16; localX++) {
-            for (let localY = 0; localY < 16; localY++) {
-                for (let localZ = 0; localZ < 16; localZ++) {
+        for(let lX = 0; lX<16; lX++)
+        {
+            for(let lY = 0; lY<16;lY++)
+            {
+                for(let lZ = 0; lZ<16;lZ++)
+                {
+                    const blockType = chunk.data[util3d.getIndex(lX,lY,lZ)];
+                    if(blockType==BLOCK_TYPES.AIR) continue;
+                    const neighbors = deltas.map((delta)=>
+                    {
+                        const worldX = chunkX * 16 + lX + delta[0];
+                        const worldY = chunkY * 16 + lY + delta[1];
+                        const worldZ = chunkZ * 16 + lZ + delta[2];
+                        return this.getVoxel(worldX, worldY, worldZ) != BLOCK_TYPES.AIR;
+                    })
+                    for (let i = 0; i < neighbors.length; i++) {
+                        chunk.addFace(lX, lY, lZ, 12, faceArray[i]);
+                    }
+                }
+            }
+        }
+
+    }
+    loadWorldData(x:number, z:number)
+    {
+        const data = this.worldGen.generateChunkData(x, z);
+        for (let i = 0; i < data.length; i++) {
+            const newVox = new VoxelChunk(`${x},${i},${z}`, data[i]);
+            this.chunks.set(`${x},${i},${z}`, newVox);
+        }
+    }
+    getVoxel(x:number, y:number, z:number)
+    {
+        const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
+        if (!this.chunks.has(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`)) {
+            this.loadWorldData(chunkCords[0], chunkCords[2]);
+        }
+        const [cX, cY, cZ] = localCords;
+        const chunk = this.chunks.get(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`);
+        if(!chunk) return 0;
+        return chunk.data[cX + 16 * (cY + 16 * cZ)]    
+    }
+    renderNew(scene:THREE.Scene, yawObject:THREE.Object3D)
+    {
+        const loadLimit = 4;
+        const currentZ = Math.floor(yawObject.position.z / 16)
+        const chunkX = Math.floor(yawObject.position.x / 16)
+        const chunkY = Math.floor(yawObject.position.y / 16)    
+        
     }
 }
