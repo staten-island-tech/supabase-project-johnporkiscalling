@@ -4,6 +4,7 @@ import { util3d } from './utils';
 import { Random } from './utils';
 import { Noise } from './noisefunct';
 import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
+import { string } from 'three/tsl';
 const deltas = [
     [1, 0, 0],
     [-1, 0, 0],
@@ -127,6 +128,7 @@ class WorldGenerator extends Random {
             }
         }
         //returns chunkdata formatted in the index format 
+        console.log(chunks)
         return chunks;
     }
     getBiome(x: number, z: number) {
@@ -155,7 +157,7 @@ class WorldGenerator extends Random {
 
 }
 const texture0 = util3d.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
-const blocksMaterial = new THREE.MeshStandardMaterial({ map: texture0, side: THREE.DoubleSide, metalness: 0.2, roughness: 0.8 })
+const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide})
 const blockUVs: Record<string, Array<number>> = {
     1: util3d.getUVCords('minecraft:block/stone'),
     2: util3d.getUVCords('minecraft:block/green_concrete'),
@@ -223,7 +225,7 @@ class VoxelChunk {
         this.uvs = [];
     }
 }
-export class ClassManager 
+export class ChunkManager  //optimize this things memory usage 
 {
     chunks: Map<string, VoxelChunk>
     dirtyChunks: Set<string>
@@ -231,6 +233,8 @@ export class ClassManager
     lastX = Infinity;
     lastZ = Infinity;
     lastY = Infinity;
+    callCounter = 0;
+    loadedChunks: Set<string> =  new Set();
     constructor(seed: number) {
         this.chunks = new Map();
         this.dirtyChunks = new Set();
@@ -257,11 +261,16 @@ export class ClassManager
     {
         if(!chunk) return;
         const [chunkX, chunkY, chunkZ] = chunk.key.split(",").map(Number);
-        for(let a = -1; a < 2; a++)
+        const aX = chunkX * 16;
+        const aY = chunkY * 16
+        const aZ = chunkZ * 16
+        for(let a = -1; a < 2; a++)//this loop helps ensure that the neighboring chunks are loaded 
         {
             for(let b = -1; b < 2; b++)
             {
-                this.loadWorldData(chunkX+a, chunkZ+b);
+                if (!this.loadedChunks.has(`${chunkX+a},${chunkZ+b}`)) {
+                    this.loadWorldData(chunkX+a, chunkZ+b);
+                }
             }
         }
         for(let lX = 0; lX<16; lX++)
@@ -280,7 +289,7 @@ export class ClassManager
                         return this.getVoxel(worldX, worldY, worldZ) != BLOCK_TYPES.AIR;
                     })
                     for (let i = 0; i < neighbors.length; i++) {
-                        chunk.addFace(lX, lY, lZ, 12, faceArray[i]);
+                        chunk.addFace(lX+aX, lY+aY, lZ+aZ, 12, faceArray[i]);
                     }
                 }
             }
@@ -289,6 +298,8 @@ export class ClassManager
     }
     loadWorldData(x:number, z:number)
     {
+        this.callCounter+=1;
+        this.loadedChunks.add(`${x},${z}`);
         const data = this.worldGen.generateChunkData(x, z);
         for (let i = 0; i < data.length; i++) {
             const newVox = new VoxelChunk(`${x},${i},${z}`, data[i]);
@@ -298,7 +309,7 @@ export class ClassManager
     getVoxel(x:number, y:number, z:number)
     {
         const { chunkCords, localCords } = util3d.gtlCords(x, y, z);
-        if (!this.chunks.has(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`)) {
+        if (!this.chunks.has(`${chunkCords[0]},${chunkCords[1]},${chunkCords[2]}`) &&  !this.loadedChunks.has(`${chunkCords[0]},${chunkCords[2]}`)) {
             this.loadWorldData(chunkCords[0], chunkCords[2]);
         }
         const [cX, cY, cZ] = localCords;
@@ -309,9 +320,107 @@ export class ClassManager
     renderNew(scene:THREE.Scene, yawObject:THREE.Object3D)
     {
         const loadLimit = 4;
-        const currentZ = Math.floor(yawObject.position.z / 16)
         const chunkX = Math.floor(yawObject.position.x / 16)
-        const chunkY = Math.floor(yawObject.position.y / 16)    
-        
+        const chunkZ = Math.floor(yawObject.position.z / 16)    
+        const nBound = chunkZ + loadLimit;
+        const sBound = chunkZ - loadLimit;
+        const eBound = chunkX + loadLimit;
+        const wBound = chunkX - loadLimit;
+        for(const [key, VoxChunk] of this.chunks)
+        {
+            const [x,y,z] = key.split(',').map(Number);
+            if(x < wBound || x > eBound || z < sBound || z < nBound)
+            {
+                VoxChunk.destroyMesh(scene);
+                this.chunks.delete(key);
+            }
+        }
+        for(let x = wBound; x<eBound; x++)
+        {
+            for(let z = sBound; z<nBound; z++)
+            {
+                this.loadWorldData(x,z);
+                for(let y = 0; y< 5; y++)
+                {
+                    const stringCords =  `${x},${y},${z}`;
+                    const chunk = this.chunks.get(stringCords);
+                    if(!chunk) continue;
+                    this.generateChunkMesh(chunk);
+                    chunk.returnMesh();
+                    if(!chunk.meshData) continue;
+                    scene.add(chunk.meshData);
+                }
+            }
+        }
+    }
+    maybeLoad(scene:THREE.Scene, yawObject:THREE.Object3D)
+    {
+        const chunkX = Math.floor(yawObject.position.x/16);
+        const chunkZ = Math.floor(yawObject.position.z/16);
+        if(chunkX!=this.lastX || chunkZ != this.lastZ)
+        {
+            this.renderNew(scene, yawObject);
+            this.lastX = chunkX;
+            this.lastZ = chunkZ;
+        }
+    }
+    voxelRayCast(direction: THREE.Vector3, yawObject: THREE.Object3D, maxReach = 10): VoxelRayInfo {
+        const origin = yawObject.position.clone();
+        const dir = direction.clone().normalize();
+        yawObject.getWorldDirection(dir);
+        const pos = origin.clone().floor();
+        const step = new THREE.Vector3(
+            Math.sign(dir.x),
+            Math.sign(dir.y),
+            Math.sign(dir.z)
+        );
+        const tDelta = new THREE.Vector3(
+            dir.x !== 0 ? Math.abs(1 / dir.x) : Number.POSITIVE_INFINITY,
+            dir.y !== 0 ? Math.abs(1 / dir.y) : Number.POSITIVE_INFINITY,
+            dir.z !== 0 ? Math.abs(1 / dir.z) : Number.POSITIVE_INFINITY
+        );
+        const voxelBorder = new THREE.Vector3(
+            step.x > 0 ? pos.x + 1 : pos.x,
+            step.y > 0 ? pos.y + 1 : pos.y,
+            step.z > 0 ? pos.z + 1 : pos.z
+        );
+        const next = new THREE.Vector3(
+            dir.x !== 0 ? (voxelBorder.x - origin.x) / dir.x : Number.POSITIVE_INFINITY,
+            dir.y !== 0 ? (voxelBorder.y - origin.y) / dir.y : Number.POSITIVE_INFINITY,
+            dir.z !== 0 ? (voxelBorder.z - origin.z) / dir.z : Number.POSITIVE_INFINITY
+        );
+        let faceDir = new THREE.Vector3();
+        let distanceTraveled = 0;
+        while (distanceTraveled <= maxReach) {
+            if (this.getVoxel(pos.x, pos.y, pos.z)) {
+                return {
+                    hit: true,
+                    position: pos.clone(),
+                    distance: distanceTraveled,
+                    face: faceDir.clone()
+                };
+            }
+            if (next.x < next.y && next.x < next.z) {
+                pos.x += step.x;
+                distanceTraveled = next.x;
+                next.x += tDelta.x;
+                faceDir.set(-step.x, 0, 0);
+            } else if (next.y < next.z) {
+                pos.y += step.y;
+                distanceTraveled = next.y;
+                next.y += tDelta.y;
+                faceDir.set(0, -step.y, 0);
+            } else {
+                pos.z += step.z;
+                distanceTraveled = next.z;
+                next.z += tDelta.z;
+                faceDir.set(0, 0, -step.z);
+            }
+        }
+        return { hit: false };
+    }
+    handleMouse()
+    {
+
     }
 }

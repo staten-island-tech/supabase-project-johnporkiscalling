@@ -115,6 +115,7 @@ class WorldGenerator extends Random {
             }
         }
         //returns chunkdata formatted in the index format 
+        console.log(chunks)
         return chunks;
     }
     getBiome(x: number, z: number) {

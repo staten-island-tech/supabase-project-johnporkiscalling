@@ -55,36 +55,21 @@ import { faceDirections } from './stupidlylongvariables';
 import { options } from './options';
 import pako from 'pako';
 
-const seed = 11111111;
+const seed = 7987989798;
 const stats =  new Stats();
 document.body.appendChild(stats.dom);
 const coordinates =  ref();
 
 const scene:THREE.Scene = new THREE.Scene();
 const camera:THREE.Camera =  new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2048)
-const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:true});
+const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:false});
 const pitchObject:THREE.Object3D =  new THREE.Object3D().add(camera);
 const yawObject:THREE.Object3D =  new THREE.Object3D().add(pitchObject);
-yawObject.position.set(0,-10,0);
+yawObject.position.set(0,70,0);
 camera.position.set(0, 0, 0);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 scene.add(yawObject);
-scene.add(new THREE.AxesHelper(50));
-scene.add(new THREE.GridHelper(200, 50));
-
-const debugGeometry = new THREE.BoxGeometry(10,10,10); // 1x1x1 unit cube
-const debugMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0xff0000, // Red (easily visible)
-});
-const debugCube = new THREE.Mesh(debugGeometry, debugMaterial);
-
-// 2. Position it where you suspect issues (e.g., chunk origin)
-debugCube.position.set(0, 70, -20); // 20 units ahead
-
-// 3. Add to your scene
-scene.add(debugCube);
-
 //mouse movement
 const canvasContainer = ref<HTMLElement | null>(null)
 const canvas =  renderer.domElement;
@@ -143,27 +128,6 @@ function updateSun()
     sunSource.position.copy(sun);
 }
 let currentTime = Infinity;
-const textureLoader = new THREE.TextureLoader();
-function loadBlockTexture(path:string)
-{
-  const tex = textureLoader.load(path);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = true;
-  tex.premultiplyAlpha = false;
-  return tex;
-};
-const texture0 = loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
-const blockUVs:Record<string,Array<number>> = {
-  top: util3d.getUVCords('minecraft:block/grass_block_top'),
-  side: util3d.getUVCords('minecraft:block/grass_block_side'),
-  bottom: util3d.getUVCords('minecraft:block/dirt'),
-  sand: util3d.getUVCords('minecraft:block/sand'),
-  red_sand: util3d.getUVCords('minecraft:block/red_sand'),
-  stone: util3d.getUVCords('minecraft:block/stone'),
-};
-
 
 
 let mouseDown: Array<number> = [];
@@ -177,7 +141,7 @@ document.addEventListener('mouseup', function (event) {
 });
 
 import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
-import { ChunkManager } from './oewfwo';
+import { ChunkManager } from './REWRITEAGAIN';
 
 
 
@@ -192,10 +156,6 @@ function animate()
     const dirvector = new THREE.Vector3();
     yawObject.getWorldPosition(dirvector);
     const result = chunkManager.voxelRayCast(dirvector, yawObject);//clean this up
-    if (result.hit == true) {
-        chunkManager.handleMouse(result.position as THREE.Vector3, result.face as THREE.Vector3, duration)
-    }
-    
     updateSun();
     updateDebug();
     renderer.render(scene, camera);
