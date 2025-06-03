@@ -1,9 +1,9 @@
-let verticalVelocity = 0;
-const gravity = -19.6;
-const jumpStrength = 10;
-let isOnGround = true;
-const groundLevel = 1;
-import *  as THREE from 'three';
+import * as THREE from 'three'
+const moveSpeed = 5;
+const currentFov = 75;
+const sprintFov = currentFov + 25;
+const adjustmentSpeed = 0.1; 
+
 class Entity
 {
   boundingBox:THREE.Box3
@@ -59,12 +59,6 @@ class Entity
     this.worldBoundingBox.min.add(this.entityPosition);
     this.worldBoundingBox.max.add(this.entityPosition);
   }
-  updatePosition(delta:number)
-  {
-    //trigger when velocity changes 
-    //call the handleIntersect to check for possible intersections
-    //if intersection does occur position gets set to smwhere where it dont intersect
-  }
   handleIntersect(box:THREE.Box3)
   {
     if(this.worldBoundingBox.intersectsBox(box))
@@ -93,6 +87,13 @@ class Mob extends Entity
     //system to find the nearest target and pathfind to it
   }
 }
+
+let verticalVelocity = 0;
+const gravity = -19.6;
+const jumpStrength = 10;
+let isOnGround = true;
+const groundLevel = 2.5;
+
 class Player extends Entity
 {
   position:THREE.Vector3;
@@ -120,7 +121,7 @@ class Player extends Entity
     this.getBoundingBox();
 
   }
-  updatePosition(delta:number, yawObject:THREE.Object3D, camera:THREE.PerspectiveCamera, keys:Record<string, boolean>)
+  updatePosition(delta:number, camera:THREE.PerspectiveCamera, keys:Record<string, boolean>, yawObject:THREE.Object3D)
   {
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward).normalize();
@@ -167,7 +168,3 @@ class Player extends Entity
 
   }
 }
-
-
-
-//just tweak this code to utilize variables from the scene considering the parameter is just the location to memoruy

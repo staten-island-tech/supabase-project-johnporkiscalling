@@ -235,6 +235,8 @@ class VoxelChunk {
         this.meshData = null;
     }
 }
+//use a greedy mesh approach for this
+
 export class ChunkManager  //optimize this things memory usage 
 {
     chunks: Map<string, VoxelChunk>

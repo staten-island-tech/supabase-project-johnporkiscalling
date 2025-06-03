@@ -174,7 +174,78 @@ function init()
 onMounted(()=>{
     init()
 })
+interface BoundInfo
+{
+    x:number;
+    y:number;
+    z:number;
+    size:number;
+}
 
+function greedyMesh(data:Array<number>)
+{
+    //asume a flat face
+    const consumedFaces = new Map();
+    //if the face has been consmed by the greedy mesher set it to map
+    let x = 0; 
+    let y = 0;
+    let z = 0;
+    while(true)
+    {
+        const currentFace = data[util3d.getIndex(x,y,z)]
+        //check if theres any valid faces to consume 
+
+        
+    }
+
+
+}
+//ideas
+//implement morton idea for octree, helps with locality of the coordinates
+//octreenode for use in greedymesher
+//pipeline for rendering optimizations
+//1.octree
+//2.face occlusion
+//3. greedy mesh
+//4. maybe frustrum cull if possible
+//do some bounding box stuff 
+
+
+class OctreeNode
+{
+    bounds:BoundInfo;
+    depth:number;
+    maxDepth:number;
+    children:Array<OctreeNode> | null;
+    data:Array<number>
+    isLeaf:boolean;
+    constructor(bounds:BoundInfo, depth=0, maxDepth=8, isleaf:boolean)
+    {
+        this.bounds = bounds;
+        this.depth =  depth;
+        this.maxDepth =  maxDepth;
+        this.children = null;
+        this.data = [];
+        this.isLeaf = false;
+    }
+    subdivide()
+    {
+
+    }
+
+}
+function interleave(a:number)
+{
+
+}
+function encodeMorton(x:number, y:number)
+{
+
+}
+function decodeMorton(encoded:number)
+{
+
+}
 
 
 </script>
