@@ -10,7 +10,7 @@ import { onMounted, ref } from 'vue';
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { util3d, BitArray, Random, BiomeStack } from './utils';    
+import { util3d, BitArray, Random } from './utils';    
 import { Noise } from './noisefunct';
 import { faceDirections } from './stupidlylongvariables';
 import { options } from './options';

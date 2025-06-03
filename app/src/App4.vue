@@ -82,6 +82,12 @@ document.addEventListener('pointerlockchange', () => {
         document.removeEventListener('mousemove', onMouseMove);
     }
 });
+window.addEventListener('resize', resizeCanvas);
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    requestAnimationFrame(animate);
+}
 let yaw = 0;
 let pitch = 0;
 function onMouseMove(event:MouseEvent) {
@@ -197,8 +203,6 @@ function greedyMesh(data:Array<number>)
 
         
     }
-
-
 }
 //ideas
 //implement morton idea for octree, helps with locality of the coordinates
@@ -211,17 +215,22 @@ function greedyMesh(data:Array<number>)
 //do some bounding box stuff 
 
 
+
+
+
 class OctreeNode
 {
-    bounds:BoundInfo;
+    minPoint:Array<number>
+    maxPoint:Array<number>
     depth:number;
     maxDepth:number;
     children:Array<OctreeNode> | null;
     data:Array<number>
     isLeaf:boolean;
-    constructor(bounds:BoundInfo, depth=0, maxDepth=8, isleaf:boolean)
+    constructor(minPoint:Array<number>, maxPoint:Array<number>, depth=0, maxDepth=8, isleaf:boolean)
     {
-        this.bounds = bounds;
+        this.minPoint = minPoint;//[x,y,z]bottom left front
+        this.maxPoint = maxPoint;//[x,y,z]top right back
         this.depth =  depth;
         this.maxDepth =  maxDepth;
         this.children = null;
@@ -230,11 +239,52 @@ class OctreeNode
     }
     subdivide()
     {
+        this.children = []
+        const size = this.maxPoint[0] - this.minPoint[0] +  1;
+        
+        for(let x = 0; x<=2; x++)
+        {
+            for(let y = 0; y<=2; y++)
+            {
+                for(let x = 0; x<=2; x++)
+                {
+                    //get the other nodes by adding 15 
+                }
+            }
+        }
+    }
+    insert(pos:number, data:Array<number>)
+    {
+        //insert a node at a given 
+    }
+    remove()
+    {
+        //remove a node
+    }
+    get()
+    {
+        //gets the data at the given chunk
+        //does it on a 1by1 basis
+    }
+    queryArea(aabb_min:Array<number>, aabb_max:Array<number>)//min and max are the corners of the box to avoid excessive storage 
+    {
 
+    }   
+    clear()
+    {
+        //destroy the tree
+    }
+    optimize()
+    {
+        //reblanace the tree
     }
 
 }
 function interleave(a:number)
+{
+
+}
+function dontInterleave(a:number)
 {
 
 }
