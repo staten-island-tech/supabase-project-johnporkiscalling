@@ -5,6 +5,12 @@ import { Random } from './utils';
 import { Noise } from './noisefunct';
 import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
 import { string } from 'three/tsl';
+//changes to be made here
+//REWRITE THE 16S TO BE A CONSTANT
+//U
+
+
+
 const deltas = [
     [1, 0, 0],
     [-1, 0, 0],
@@ -215,6 +221,9 @@ class VoxelChunk {
         buffer.setAttribute('uv', new THREE.Float32BufferAttribute(this.uvs, 2));
         buffer.setIndex(this.indices);
         this.meshData = new THREE.Mesh(buffer, blocksMaterial);
+        this.vertices = [];
+        this.indices = [];
+        this.uvs = [];
     }
     destroyMesh(scene: THREE.Scene) {
         scene.remove(this.meshData!);
@@ -223,6 +232,7 @@ class VoxelChunk {
         this.vertices = [];
         this.indices = [];
         this.uvs = [];
+        this.meshData = null;
     }
 }
 export class ChunkManager  //optimize this things memory usage 
@@ -260,9 +270,9 @@ export class ChunkManager  //optimize this things memory usage
         const aX = chunkX * 16;
         const aY = chunkY * 16
         const aZ = chunkZ * 16
-        for (let a = -1; a < 2; a++)//this loop helps ensure that the neighboring chunks are loaded 
+        for (let a = -1; a <=1; a++)//this loop helps ensure that the neighboring chunks are loaded 
         {
-            for (let b = -1; b < 2; b++) {
+            for (let b = -1; b <=1; b++) {
                 if (!this.loadedChunks.has(`${chunkX + a},${chunkZ + b}`)) {
                     this.loadWorldData(chunkX + a, chunkZ + b);
                 }
@@ -307,7 +317,7 @@ export class ChunkManager  //optimize this things memory usage
         return chunk.data[cX + 16 * (cY + 16 * cZ)]
     }
     renderNew(scene: THREE.Scene, yawObject: THREE.Object3D) {
-        const loadLimit = 1;
+        const loadLimit = 4;
         const chunkX = Math.floor(yawObject.position.x / 16)
         const chunkZ = Math.floor(yawObject.position.z / 16)
         const nBound = chunkZ + loadLimit;

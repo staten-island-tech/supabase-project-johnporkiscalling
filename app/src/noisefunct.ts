@@ -20,8 +20,8 @@ const G2 = (3 - Math.sqrt(3)) / 6;
 const F3 = 1 / 3;
 const G3 = 1 / 6;
 export class Noise {
-    private lcgState;
-    private lcg() {
+    lcgState;
+    lcg() {
         this.lcgState = (this.lcgState * 1664525 + 1013904223) >>> 0;
         return this.lcgState;
     }
@@ -30,8 +30,8 @@ export class Noise {
     constructor(seed: number) {
         this.seed = seed;
         this.permutation = [];
-        this.generatePermutation();
         this.lcgState = seed;
+        this.generatePermutation();
     }
     generatePermutation() {
         const permutate = [...Array(256).keys()];
@@ -43,7 +43,6 @@ export class Noise {
         for (let i = 0; i < 512; i++) {
             this.permutation[i] = permutate[i & 255];
         }
-        console.log(this.permutation)
     }
     hash(x: number, y: number): number {
         const xi = x & 255;
