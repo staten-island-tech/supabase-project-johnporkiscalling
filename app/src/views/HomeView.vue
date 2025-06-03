@@ -18,12 +18,20 @@
   z-index: 1000;
 }
 .scene-container {
-  height: 100%;
+  height: 93vh;
   width: 100%;
 }
 </style>
 
 <script setup lang="ts">
+// import { onBeforeUnmount } from "vue";
+
+// let resizeObserver: ResizeObserver | undefined = undefined;
+
+// onBeforeUnmount(() => {
+//   resizeObserver?.disconnect();
+// });
+
 import { onMounted, ref } from "vue";
 
 const keys: Record<string, boolean> = {};
@@ -63,8 +71,8 @@ import { options } from "../options";
 import pako from "pako";
 
 const seed = 7987989798;
-const stats = new Stats();
-document.body.appendChild(stats.dom);
+// const stats = new Stats();
+// document.body.appendChild(stats.dom);
 const coordinates = ref();
 
 const scene: THREE.Scene = new THREE.Scene();
@@ -80,7 +88,14 @@ const yawObject: THREE.Object3D = new THREE.Object3D().add(pitchObject);
 yawObject.position.set(0, 70, 0);
 camera.position.set(0, 0, 0);
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
+function resizeRendererToDisplaySize() {
+  if (!canvasContainer.value) return;
+  const width = canvasContainer.value.clientWidth;
+  const height = canvasContainer.value.clientHeight;
+  renderer.setSize(width, height);
+  (camera as THREE.PerspectiveCamera).aspect = width / height;
+  (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+}
 scene.add(yawObject);
 //mouse movement
 const canvasContainer = ref<HTMLElement | null>(null);
@@ -153,7 +168,7 @@ import { ChunkManager } from "../REWRITEAGAIN";
 
 let chunkManager: ChunkManager;
 function animate() {
-  stats.begin();
+  // stats.begin();
   const delta = (performance.now() - currentTime) / 1000;
   currentTime = performance.now();
   chunkManager.maybeLoad(scene, yawObject);
@@ -164,12 +179,18 @@ function animate() {
   updateSun();
   updateDebug();
   renderer.render(scene, camera);
-  stats.end();
+  // stats.end();
   requestAnimationFrame(animate);
 }
 function init() {
   if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
     canvasContainer.value.appendChild(renderer.domElement);
+    resizeRendererToDisplaySize();
+
+    const resizeObserver = new ResizeObserver(() => {
+      resizeRendererToDisplaySize();
+    });
+    resizeObserver.observe(canvasContainer.value);
   }
   chunkManager = new ChunkManager(seed);
   requestAnimationFrame(animate);
