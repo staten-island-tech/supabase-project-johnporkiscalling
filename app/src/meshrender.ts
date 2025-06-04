@@ -36,11 +36,11 @@ function greedyMesh(validFace: Map<string, Array<BlockInfo>>) {
             //if the face dir is +x go +-y and +-z; etc
             //expand until it reaches a limit in the faces that it can consume
             //the 
+
         }
     }
 }
 function getNeighbors(x: number, y: number, z: number) {
     //this thing can account for neighbors across chunk boundaries by loading the data but not actually rendering it
     return []
-
 }

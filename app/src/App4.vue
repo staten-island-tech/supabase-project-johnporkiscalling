@@ -298,6 +298,54 @@ function decodeMorton(encoded:number)
 }
 
 
+//data serialization section
+function efficientStorage(data:Uint16Array)//this is only really to help with compression as this isnt really usuable for the computation aspect
+{
+    const uniqueBlocks = new Set();
+    data.forEach((block)=>
+    {
+        if(!uniqueBlocks.has(block)) uniqueBlocks.add(block);
+    })
+    //calculate the nearest power of 2 for efficient bit packing
+    const bitpow2 = Math.ceil(Math.log2(uniqueBlocks.size));
+    const bitSize = 2**bitpow2;
+    const array = new UniversalIntArray(bitSize, 4096)
+    return { array, uniqueBlocks };
+}``
+class UniversalIntArray
+{
+    size:number;
+    bits:number;
+    array:Uint16Array;
+    entries:number
+    constructor(size:number, bits:number)
+    {
+        this.size =  size;
+        this.bits = bits;
+        const bitTotal = size*bits;
+        const arraySize = (16/bitTotal);
+        this.array = new Uint16Array(arraySize);
+        this.entries = Math.floor(16/size);
+    }
+    get(index:number)
+    {
+        const wordIndex = Math.floor(index/this.entries);
+        const bitOffset = (index % this.entries) * this.entries;
+        const word = this.array[wordIndex];
+        return (word >>> bitOffset) & ((1 << this.entries) -1 );
+    }
+    set(index:number, value:number)
+    {
+        const wordIndex = Math.floor(index/this.entries);
+        const bitOffset = (index % this.entries) * this.entries;
+        const word = this.array[wordIndex];
+        const mask  = ((1 << this.entries) -1 ) << bitOffset;
+        this.array[wordIndex] = (this.array[wordIndex] & ~mask) | ((value << bitOffset) & mask)
+    }
+}
+
+
+
 </script>
 
 <style scoped>
