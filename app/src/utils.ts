@@ -100,36 +100,6 @@ export class Random {
         return this.lcgState;
     }
 }
-export class BitArray {
-    array: Uint8Array;
-    size: number;
-    constructor(size: number) {
-        this.size = size;
-        this.array = new Uint8Array(Math.ceil(size / 8));
-    }
-
-    set(index: number, value: boolean) {
-        const byteIndex = index >> 3;
-        const bitIndex = index & 7;
-        if (value) {
-            this.array[byteIndex] |= (1 << bitIndex);
-        } else {
-            this.array[byteIndex] &= ~(1 << bitIndex);
-        }
-    }
-
-    get(index: number) {
-        const byteIndex = index >> 3;
-        const bitIndex = index % 8;
-        return (this.array[byteIndex] & (1 << bitIndex)) !== 0;
-    }
-}
-
-class Octree
-{
-    
-}
-
 
 
 //in the area where you call the class maintain a depth counter of the current octree node
