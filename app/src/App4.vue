@@ -50,7 +50,6 @@ import * as THREE from 'three';
 import Stats from 'stats.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { util3d } from './utils';    
-import { Noise } from './noisefunct';
 import { faceDirections } from './stupidlylongvariables';
 import { options } from './options';
 import pako from 'pako';
@@ -171,9 +170,15 @@ function init()
     requestAnimationFrame(animate);
 }
 //call the init function in onMounted()
-
+import { Noise } from './lib/noise';
+import { TerrainGenerator, Mesher, DataManager } from './lib/renderer';
+let dm = new DataManager();
+let tg = new TerrainGenerator(seed);
+let mesher = new Mesher();
 onMounted(()=>{
-    init()
+    dm.update(0,0,4,tg);
+    const data = mesher.createMesh(dm,0,4,0)
+    console.log(data)
 })
 
 
