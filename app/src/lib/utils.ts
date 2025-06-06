@@ -46,12 +46,12 @@ export const util = Object.freeze(
             const cX = wX >> 4;
             const cY = wY >> 4;
             const cZ = wZ >> 4;
-            const chunkCords = [cX, cY, cZ];
+            const cCords = [cX, cY, cZ];
             const lX = Math.abs(wX) & 15;
             const lY = Math.abs(wY) & 15;
             const lZ = Math.abs(wZ) & 15;
-            const localCords = [lX, lY, lZ];
-            return { chunkCords, localCords };
+            const lCords = [lX, lY, lZ];
+            return { cCords, lCords };
         },
         clamp(min:number, max:number, value:number)
         {
