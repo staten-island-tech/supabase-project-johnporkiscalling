@@ -3,7 +3,8 @@
   <div class="debugScreen">
     {{ coordinates }}
   </div>
-  <div></div>
+
+  <div class="stats-container"><div ref="statsContainer"></div></div>
 </template>
 <style scoped>
 .debugScreen {
@@ -24,14 +25,6 @@
 </style>
 
 <script setup lang="ts">
-// import { onBeforeUnmount } from "vue";
-
-// let resizeObserver: ResizeObserver | undefined = undefined;
-
-// onBeforeUnmount(() => {
-//   resizeObserver?.disconnect();
-// });
-
 import { onMounted, ref } from "vue";
 
 const keys: Record<string, boolean> = {};
@@ -73,6 +66,9 @@ import pako from "pako";
 const seed = 7987989798;
 // const stats = new Stats();
 // document.body.appendChild(stats.dom);
+const statsContainer = ref<HTMLElement | null>(null);
+const stats = new Stats();
+
 const coordinates = ref();
 
 const scene: THREE.Scene = new THREE.Scene();
@@ -168,7 +164,7 @@ import { ChunkManager } from "../REWRITEAGAIN";
 
 let chunkManager: ChunkManager;
 function animate() {
-  // stats.begin();
+  stats.begin();
   const delta = (performance.now() - currentTime) / 1000;
   currentTime = performance.now();
   chunkManager.maybeLoad(scene, yawObject);
@@ -179,7 +175,7 @@ function animate() {
   updateSun();
   updateDebug();
   renderer.render(scene, camera);
-  // stats.end();
+  stats.end();
   requestAnimationFrame(animate);
 }
 function init() {
@@ -198,6 +194,19 @@ function init() {
 //call the init function in onMounted()
 
 onMounted(() => {
+  if (statsContainer.value) {
+    statsContainer.value.appendChild(stats.dom);
+  }
+
+  Object.assign(stats.dom.style, {
+    position: "absolute",
+    top: "7vh",
+    left: "0px",
+    zIndex: "1000",
+    opacity: "1",
+    cursor: "default",
+  });
+
   init();
 });
 </script>
