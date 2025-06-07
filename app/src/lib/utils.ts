@@ -40,8 +40,18 @@ export class UniversalIntArray
         this.array[wordIndex] = (this.array[wordIndex] & ~mask) | ((value << bitOffset) & mask)
     }
 }
+const textureLoader = new THREE.TextureLoader();
 export const util = Object.freeze(
     {
+        loadBlockTexture(path: string) {
+            const tex = textureLoader.load(path);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.magFilter = THREE.NearestFilter;
+            tex.minFilter = THREE.NearestFilter;
+            tex.generateMipmaps = true;
+            tex.premultiplyAlpha = false;
+            return tex;
+        },
         localizeCords: function (wX: number, wY: number, wZ: number) {
             const cX = wX >> 4;
             const cY = wY >> 4;

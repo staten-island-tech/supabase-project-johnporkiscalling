@@ -47,28 +47,25 @@ export class TerrainGenerator extends Random {
         this.detailNoise = new Noise(seed + 5000);
     }
 
-    generateChunkData(chunkX: number, chunkZ: number): Map<number, Uint8Array> {
-        const chunkData: Map<number, Uint8Array> = new Map();
+    generateChunkData(chunkX: number, chunkZ: number): {data: Map<number, Uint8Array>; maxChunkY: number} 
+    {
+        const data: Map<number, Uint8Array> = new Map();
         
         // Generate height and biome maps for this chunk
         const heightMap = this.baseHeightMap(chunkX, chunkZ);
         const biomeMap = this.biomeMap(chunkX, chunkZ);
-        
-        // Determine Y range needed based on height map
-        const minHeight = Math.min(...heightMap);
         const maxHeight = Math.max(...heightMap);
-        const minChunkY = Math.floor(minHeight / 16) - 1; // Extra buffer for caves/ores
         const maxChunkY = Math.floor(maxHeight / 16) + 1;
         
         // Generate each Y chunk section
         for (let chunkY = 0; chunkY <= maxChunkY; chunkY++) {
             const chunkBlocks = this.generateChunkSection(chunkX, chunkY, chunkZ, heightMap, biomeMap);
             if (chunkBlocks.some(block => block !== BLOCK_TYPES.AIR)) {
-                chunkData.set(chunkY, chunkBlocks);
+                data.set(chunkY, chunkBlocks);
             }
         }
         
-        return chunkData;
+        return {data, maxChunkY};
     }
 
     generateChunkSection(chunkX: number, chunkY: number, chunkZ: number, heightMap: Uint8Array, biomeMap: Uint8Array): Uint8Array {
@@ -278,9 +275,13 @@ export class TerrainGenerator extends Random {
 export class DataManager
 {
     chunkData:Map<string, Map<number, Uint8Array>> = new Map();
+    chunkHeights:Record<string, number>
     constructor()
     {
         this.chunkData = new Map();
+        this.chunkHeights = {
+
+        }
     }
     get(x:number,y:number,z:number)
     {
@@ -317,44 +318,40 @@ export class DataManager
         for(const string of requiredData)
         {
             const [x,z] = string.split(`,`).map(Number);
-            const data = tGen.generateChunkData(x,z);
+            const {data, maxChunkY} = tGen.generateChunkData(x,z);
+            this.chunkHeights[string] = maxChunkY;
             this.chunkData.set(string, data)
         }//loads the new world data into storage
     }
-    getVoxel(x:number,y:number,z:number)
-    {
+    _lastChunkKey = ``;
+    _lastChunkData:Uint8Array|undefined = new Uint8Array();
+    getVoxel(x: number, y: number, z: number) {
         const {cCords, lCords} = util.localizeCords(x,y,z);
-        const chunkData = this.chunkData.get(`${cCords[0]},${cCords[2]}`)?.get(cCords[1]);
-        if(!chunkData) return false;
-        return chunkData[util.getIndex(lCords[0], lCords[1], lCords[2])];
+        const chunkKey = `${cCords[0]},${cCords[1]},${cCords[2]}`;
+        if (this._lastChunkKey === chunkKey && this._lastChunkData) {
+            return this._lastChunkData[util.getIndex(lCords[0], lCords[1], lCords[2])] || false;
+        }
+        const chunkMap = this.chunkData.get(`${cCords[0]},${cCords[2]}`);
+        const chunkData = chunkMap?.get(cCords[1]);
+        this._lastChunkKey = chunkKey;
+        this._lastChunkData = chunkData;
+        return chunkData?.[util.getIndex(lCords[0], lCords[1], lCords[2])];
     }
-    getNeighbor(ax:number,ay:number,az:number)
+    getNeighbor(ax: number, ay: number, az: number) 
     {
-        const neighbors:Array<boolean> = []
-        for(let x = -1; x<=1; x++)
-        {
-            if(x==0) continue;
-            neighbors.push(this.getVoxel(ax+x,ay,az)!=false);
-        }
-        for(let y = -1; y<=1; y++)
-        {
-            if(y==0) continue;
-            neighbors.push(this.getVoxel(ax,ay+y,az)!=false);
-        }
-        for(let z = -1; z<=1; z++)
-        {
-            if(z==0)continue;
-            neighbors.push(this.getVoxel(ax,ay,az+z)!=false);
-        }
-        return neighbors;
+        return [
+            this.getVoxel(ax-1, ay, az),   // left
+            this.getVoxel(ax+1, ay, az),   // right
+            this.getVoxel(ax, ay-1, az),   // bottom
+            this.getVoxel(ax, ay+1, az),   // top
+            this.getVoxel(ax, ay, az-1),    // back
+            this.getVoxel(ax, ay, az+1)    // front
+        ];
     }
 }
 import * as THREE from "three";
-interface FaceInfo
-{
-    coordinates:string,
-    blockType:number
-}
+const texture0 = util.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
+const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide})
 export class Mesher
 {
     meshMap:Map<string, THREE.Mesh>;
@@ -362,14 +359,11 @@ export class Mesher
     {
         this.meshMap = new Map();
     }
-    createMesh(dm:DataManager,ax:number,ay:number,az:number)
+    createMesh(dm:DataManager,ax:number,ay:number,az:number, scene:THREE.Scene)
     {
         const xBound = ax*16;
         const yBound = ay*16;
         const zBound = az*16;
-        const vertices = [];
-        const uvs = [];
-        const index = [];
         const validFaces:Record<string, Record<string, number>> = {
             "top":{},
             "bottom":{},
@@ -378,7 +372,7 @@ export class Mesher
             "front":{},
             "back":{}
         }
-        console.log(validFaces)
+        let faceCounter = 0;
         for(let x = xBound; x<xBound+16 ; x++)
         {
             for(let y = yBound; y<yBound+16; y++)
@@ -386,84 +380,110 @@ export class Mesher
                 for(let z = zBound; z<zBound+16; z++)
                 {
                     const blockType = dm.getVoxel(x,y,z)
-                    console.log(blockType)
-                    //converts any 0 data into false
                     if(!!!blockType) continue;
                     const neighbors = dm.getNeighbor(x,y,z);
                     for(let i = 0; i<neighbors.length; i++)
                     {
-                        if(neighbors[i]==false) continue;
+                        if(neighbors[i]==true) continue;
+                        faceCounter++;
                         validFaces[faceArray[i]][`${x},${y},${z}`] = blockType as number;
                     }
                 }
             }   
         }
-        const newStuff = this.greedyMesh(validFaces);
-        console.log(validFaces)
-    }
-    getQuadVertices(start: number[], end: number[], face: string): number[][] {
-        // Returns 4 vertices of a quad from start to end (used in greedy mesh)
-        const [x1, y1, z1] = start;
-        const [x2, y2, z2] = end;
+        const validQuads = this.greedyMesh(validFaces)
+        if (validQuads.length === 0) return null;
+        const vertices: Array<number> = [];
+        const indices: Array<number>= [];
+        const uvs: Array<number> = [];
+        let offset = 0;
+        for (const quad of validQuads) {
+            const [start, end, face, blockType] = quad as [Array<number>, Array<number>, string, number];
+            const [x1, y1, z1] = start;
+            const [x2, y2, z2] = end;
+            const aAxis = indexRef[face][0]; 
+            const bAxis = indexRef[face][1]; 
+            const width = end[aAxis] - start[aAxis] + 1;
+            const height = end[bAxis] - start[bAxis] + 1;
 
-        // Handles 6 axis-aligned face directions
-        switch (face) {
-            case 'top':
-                return [
-                    [x1, y2, z1],
-                    [x2, y2, z1],
-                    [x2, y2, z2],
-                    [x1, y2, z2]
-                ];
-            case 'bottom':
-                return [
-                    [x1, y1, z2],
-                    [x2, y1, z2],
-                    [x2, y1, z1],
-                    [x1, y1, z1]
-                ];
-            case 'left':
-                return [
-                    [x1, y1, z2],
-                    [x1, y1, z1],
-                    [x1, y2, z1],
-                    [x1, y2, z2]
-                ];
-            case 'right':
-                return [
-                    [x2, y1, z1],
-                    [x2, y1, z2],
-                    [x2, y2, z2],
-                    [x2, y2, z1]
-                ];
-            case 'front':
-                return [
-                    [x1, y1, z1],
-                    [x2, y1, z1],
-                    [x2, y2, z1],
-                    [x1, y2, z1]
-                ];
-            case 'back':
-                return [
-                    [x2, y1, z2],
-                    [x1, y1, z2],
-                    [x1, y2, z2],
-                    [x2, y2, z2]
-                ];
-            default:
-                return [];
+            const uvData = [
+                0, height,     // Top-Left
+                0, 0,          // Bottom-Left
+                width, 0,       // Bottom-Right
+                width, height,  // Top-Right
+            ];
+            switch (face) {
+                case 'top': // +Y face
+                    vertices.push(
+                        x1,      y1 + 1, z2 + 1,  // Top-Left
+                        x1,      y1 + 1, z1,      // Bottom-Left
+                        x2 + 1,  y1 + 1, z1,      // Bottom-Right
+                        x2 + 1,  y1 + 1, z2 + 1,  // Top-Right
+                    );
+                    uvs.push(...uvData);
+                    break;
+
+                case 'bottom': // -Y face
+                    vertices.push(
+                        x1,      y1, z1,      // Top-Left
+                        x1,      y1, z2 + 1,  // Bottom-Left
+                        x2 + 1,  y1, z2 + 1,  // Bottom-Right
+                        x2 + 1,  y1, z1,      // Top-Right
+                    );
+                    uvs.push(...uvData);
+                    break;
+
+                case 'left': // -X face
+                    vertices.push(
+                        x1, y2 + 1, z2 + 1,  // Top-Left
+                        x1, y1,     z2 + 1,  // Bottom-Left
+                        x1, y1,     z1,      // Bottom-Right
+                        x1, y2 + 1, z1,      // Top-Right
+                    );
+                    uvs.push(...uvData);
+                    break;
+                    
+                case 'right': // +X face
+                    vertices.push(
+                        x2 + 1, y2 + 1, z1,      // Top-Left
+                        x2 + 1, y1,     z1,      // Bottom-Left
+                        x2 + 1, y1,     z2 + 1,  // Bottom-Right
+                        x2 + 1, y2 + 1, z2 + 1,  // Top-Right
+                    );
+                    uvs.push(...uvData);
+                    break;
+
+                case 'front': // +Z face
+                    vertices.push(
+                        x2 + 1, y2 + 1, z1 + 1,  // Top-Left
+                        x2 + 1, y1,     z1 + 1,  // Bottom-Left
+                        x1,     y1,     z1 + 1,  // Bottom-Right
+                        x1,     y2 + 1, z1 + 1,  // Top-Right
+                    );
+                    uvs.push(...uvData);
+                    break;
+
+                case 'back': // -Z face
+                    vertices.push(
+                        x1,     y2 + 1, z1,  // Top-Left
+                        x1,     y1,     z1,  // Bottom-Left
+                        x2 + 1, y1,     z1,  // Bottom-Right
+                        x2 + 1, y2 + 1, z1,  // Top-Right
+                    );
+                    uvs.push(...uvData);
+                    break;
+            }
+            indices.push(offset, offset + 1, offset + 2, offset, offset + 2, offset + 3);
+            offset += 4;
         }
+        const buffer = new THREE.BufferGeometry();
+        buffer.setAttribute(`position`, new THREE.Float32BufferAttribute(vertices, 3));
+        buffer.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        buffer.setIndex(indices);
+        const mesh = new THREE.Mesh(buffer, blocksMaterial)
+        scene.add(mesh);
+        this.meshMap.set(`${ax},${ay},${az}`, mesh);
     }
-    getQuadUVs(): number[][] {
-        // Simple square UVs
-        return [
-            [0, 0],
-            [1, 0],
-            [1, 1],
-            [0, 1]
-        ];
-    }
-
     destroyMesh(key:string, scene:THREE.Scene)
     {
         const data = this.meshMap.get(key)
@@ -471,95 +491,71 @@ export class Mesher
         data!.geometry.dispose();
         this.meshMap.delete(key);
     }
-    greedyMesh(data:Record<string, Record<string, number>>)//something about w being initialized to 1? just in case leaving a note
-    {
+    greedyMesh(data: Record<string, Record<string, number>>) {
         const validQuads = [];
-        for(let [key,value] of Object.entries(data))
-        {
-            console.log(key)
-            let current = 0;//current variable = iteration thru faces 
-            const faces = Object.keys(value);//gets the keys for iteration
-            if(faces.length == 0) continue;//prevents iteration of 0 faces
-            const aAxis = indexRef[key][0];//thingie to get the other axises to expand in
-            const bAxis = indexRef[key][1];//thingie to get the other axises to expand in
-            const visitedQuads =  new Set();//set that helps prevent going to visited quads
-            while(visitedQuads.size<faces.length)
-            {
-                let w = 0;
-                if(visitedQuads.has(faces[current]))//determines if the face has been consumed yet
-                {
-                    //if consumed go to the next iteration of the code 
+        for (let [key, value] of Object.entries(data)) {
+            const faces = Object.keys(value);
+            if (faces.length === 0) continue;
+            const aAxis = indexRef[key][0];
+            const bAxis = indexRef[key][1];
+            const visitedQuads = new Set();
+            let current = 0;
+            while (visitedQuads.size < faces.length) {
+                while (current < faces.length && visitedQuads.has(faces[current])) {
                     current++;
-                    if (current <= faces.length) break;
-                    //if current has become longer than the length of total faces end loop
-                    continue;
                 }
-                const blockType = value[faces[current]]//determines the block type
-                visitedQuads.add(faces[current]);//current face that is on will be added to the visited set 
-                let face = faces[current].split(',').map(Number);//splits the face into its coordinates to be utilized
-                let firstBound;
-                while(true)
-                {
-                    let currentPos = [...face];//make a deep cpy
-                    currentPos[aAxis]++;//increment the first axis to try to expand
-                    const str = `${currentPos.join(',')}`//join the string to get the key 
-                    if(!value[str]||value[str]!=blockType) //if the key doesnt exist means the face doesnt exist or if the blocktypes dont match
-                    {
-                        currentPos[aAxis]--;//deincreements as the attempt failed
-                        firstBound = currentPos;//sets the bound to the block that was last set 
-                        break;//breaks 
+                if (current >= faces.length) break;
+                const blockType = value[faces[current]];
+                const face = faces[current].split(',').map(Number);
+                let firstBound = [...face];
+                let w = 0;
+                let currentPos = [...face];
+                while (true) {
+                    currentPos[aAxis]++;
+                    const str = currentPos.join(',');
+                    if (!(str in value) || value[str] !== blockType || visitedQuads.has(str)) {
+                        currentPos[aAxis]--;
+                        firstBound = [...currentPos];
+                        break;
                     }
-                    visitedQuads.add(str)//if sucessful add the key to the visited set
-                    w++//increments the value to indicated sucessfuil expansion
-                    
+                    w++;
                 }
                 let v = 0;
-                while(true)//next loop to iterate thru to the next face 
-                {
-                    const currentPos = [...face];//make another deep copy
-                    currentPos[bAxis]++;//increment the seconday axis
-                    let sucess = true;//state varaible to check at end of loop
-                    const consumedQuads = []
-                    for(let i = 0; i<w; i++)//another loop that checks if this row is as long as w which si the expansion in the other axis
-                    {
-                        const newCopy = [...currentPos];//make a deepy copy again
-                        newCopy[aAxis]+=i;//increment by i everytime to get the new key 
-                        const str = `${newCopy.join(',')}`;//key thingie
-                        if(!value[str]||value[str]!=blockType) //checks if its a valdi block or exists
-                        {
-                            sucess = false;//desnt exist then say that failed to expand
-                            break//exit loop
-                        };
-                        //issue here where u premarturely add the key before you even know if u can fully expand downwards 
-                        //fix this might be causing the infinite loop logic 
-                        //wgoijegoeijveijbejbejberjbeojbeojbeojbe
-                        consumedQuads.push(str);//otherwise sucessful expansion add to the explored quad 
+                currentPos = [...face];
+                const quadFaces = new Set([faces[current]]);
+                
+                while (w > 0) { 
+                    currentPos[bAxis]++;
+                    const rowFaces = [];
+                    let success = true;
+                    for (let i = 0; i <= w; i++) {
+                        const newPos = [...currentPos];
+                        newPos[aAxis] = face[aAxis] + i;
+                        const str = newPos.join(',');
+
+                        if (!(str in value) || value[str] !== blockType || visitedQuads.has(str)) {
+                            success = false;
+                            break;
+                        }
+                        rowFaces.push(str);
                     }
-                    if(!sucess) break;//if sucess was false indicaets that the maximum expansion has ooccured 
-                    for(let a = 0; a<consumedQuads.length; a++)
-                    {
-                        visitedQuads.add(consumedQuads[a]);
-                    }
-                    v++;//increment v if sucessful and continue;
+
+                    if (!success) break;
+                    rowFaces.forEach(f => quadFaces.add(f));
+                    v++;
                 }
-                if(!(v!=0 && w!=0)) //if 0 expansion happened set them to their default states
-                {
-                    validQuads.push([face, face, key, blockType])
-                }
-                else //otherwise add the up corner and down corner. 
-                {
-                    const copy = [...face];
-                    copy[bAxis]+=v;
-                    copy[aAxis]+=w;
-                    validQuads.push([face, copy, key, blockType])
+                quadFaces.forEach(f => visitedQuads.add(f));
+                if (v === 0 && w === 0) {
+                    validQuads.push([face, face, key, blockType]);
+                } else {
+                    const endPos = [...face];
+                    endPos[aAxis] += w;
+                    endPos[bAxis] += v;
+                    validQuads.push([face, endPos, key, blockType]);
                 }
             }
-        }   
-        return validQuads;        
-    }
-    meshAxis()
-    {
-
+        }
+        return validQuads;
     }
 }
 

@@ -176,9 +176,18 @@ let dm = new DataManager();
 let tg = new TerrainGenerator(seed);
 let mesher = new Mesher();
 onMounted(()=>{
+    let start = performance.now()
     dm.update(0,0,4,tg);
-    const data = mesher.createMesh(dm,0,4,0)
-    console.log(data)
+    for(let [key, value] of Object.entries(dm.chunkHeights))
+    {
+        for(let i = 0; i<value+1; i++)
+        {
+            const [x,y] = key.split(',').map(Number);
+            console.log(mesher.createMesh(dm,x,i,y,scene))
+        }            
+    }
+    console.log("took", performance.now()-start)
+
 })
 
 
