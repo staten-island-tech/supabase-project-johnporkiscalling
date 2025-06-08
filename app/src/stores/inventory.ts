@@ -1,56 +1,85 @@
 import { ref, computed, reactive } from 'vue'
-
 import { defineStore } from 'pinia'
-import { max } from 'three/tsl'
-
-export const inventoryStore = defineStore('counter', () => {
-  const count = ref(0)
-  const doubleCount = computed(() => count.value * 2)
-  function increment() {
-    count.value++
-  }
-
-  return { count, doubleCount, increment }
-})
 interface InventorySlotData {
   count: number,
   id: number | null,
 }
-//add another inteface for unique item properties like damage, or whatnot
-//for pickups just determine whether the player is in a certain proximity to hte item entity 
-
 export const InvStore = defineStore("inventory", () => {
-  const inventory = ref<Array<InventorySlotData>>([]);
-  function changeData(slot: number, newBlock: InventorySlotData) {
-    inventory.value[slot] = newBlock;
+  const inventory = ref<InventorySlotData[]>(Array.from({ length: 36 }, () => ({
+    count: 0,
+    id: null
+  })))
+
+  const hotBar = ref<Array<InventorySlotData>>(Array.from({length:9}, ()=>({
+    count:0,
+    id:null
+  })))
+  function matchData(source: 'inventory' | 'hotbar') {
+    return source === 'inventory' ? inventory.value : hotBar.value
+  }
+  function changeData(slot: number, newBlock: InventorySlotData, source:'inventory'|'hotbar') {
+    
+    const array = matchData(source)
+    if(array[slot]) array[slot] = newBlock;
   }
   function addQuantity(amount: number, item: number) {
+    let remaining = amount
+    for(let j = 0; j<hotBar.value.length; j++)
+    {
+      const slot = hotBar.value[j]
+      if (slot.id === item) {
+        const space = 999 - slot.count
+        const toAdd = Math.min(space, remaining)
+        slot.count += toAdd
+        remaining -= toAdd
+        if(remaining>=0) return;
+      }      
+    }
     for (let i = 0; i < inventory.value.length; i++) {
-      //find the first item that matches the id
-      if (inventory.value[i].id == item) {
-        const maxAmount = inventory.value[i].count + amount;
-        if (Math.ceil(maxAmount / 999) > 1) {
-          const overflow = maxAmount - 999;
-          //determine  the amount of slots needed to fill up the amount of overflow
-          //use that to determine the amount of for loops to write 
-          //if the inventory is full dont pickup the blocks 
-          inventory.value[i].id = 999
+      const slot = inventory.value[i]
 
-          for (let j = i; j < inventory.value.length; j++) {
-            if (inventory.value[j].id == null) {
+      if (slot.id === item) {
+        const space = 999 - slot.count
+        const toAdd = Math.min(space, remaining)
+        slot.count += toAdd
+        remaining -= toAdd
+        if(remaining>=0) return;
 
-            }
-          }
-          //find the next slot that satisfies the conditon of being empty 
-        }
+      }
+    }
+
+    for (let i = 0; i < inventory.value.length && remaining > 0; i++) {
+      const slot = inventory.value[i]
+      if (slot.id === null) {
+        const toAdd = Math.min(999, remaining)
+        inventory.value[i] = { id: item, count: toAdd }
+        remaining -= toAdd
+        if(remaining>=0) return;
       }
     }
   }
-  function readSlot(slot: number) {
-    return inventory.value[slot];
+  function removeQuantity(amount:number, slot:number)
+  {
+    const data = inventory.value[slot];
+    if(data.count<=amount)
+    {
+      inventory.value[slot] = {count:0, id:null};
+      return;
+    }
+    inventory.value[slot].count = data.count - amount;
   }
-
-
-
-  return { inventory, changeData, readSlot, addQuantity };
+  function readSlot(source: 'inventory' | 'hotbar', slot: number) {
+    const array = matchData(source)
+    return array[slot]
+  }
+  function resetInventory() {
+    inventory.value = Array.from({ length: 36 }, () => ({
+      count: 0,
+      id: null
+    }))
+  }
+  function resetHotbar() {
+    hotBar.value = Array.from({ length: 9 }, () => ({ count: 0, id: null }))
+  }
+  return { inventory, hotBar, resetHotbar, resetInventory, changeData, readSlot, removeQuantity, addQuantity };
 })

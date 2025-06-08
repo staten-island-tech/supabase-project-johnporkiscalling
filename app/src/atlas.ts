@@ -1872,7 +1872,7 @@ const atlasData:AtlasData=
 
 const atlas2 = 
 {
-    "minecraft:block/acacia_door_bottom":[0.09385,0.84385,0.109275,0.84385,0.109275,0.8749,0.09385,0.8749],
+"minecraft:block/acacia_door_bottom":[0.09385,0.84385,0.109275,0.84385,0.109275,0.8749,0.09385,0.8749],
 "minecraft:block/acacia_door_top":[0.109475,0.84385,0.1249,0.84385,0.1249,0.8749,0.109475,0.8749],
 "minecraft:block/acacia_leaves":[0.03135,0.8126,0.046775,0.8126,0.046775,0.84365,0.03135,0.84365],
 "minecraft:block/acacia_log":[0.046975,0.8126,0.0624,0.8126,0.0624,0.84365,0.046975,0.84365],

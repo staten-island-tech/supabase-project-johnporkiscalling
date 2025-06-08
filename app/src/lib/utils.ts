@@ -53,14 +53,16 @@ export const util = Object.freeze(
             return tex;
         },
         localizeCords: function (wX: number, wY: number, wZ: number) {
-            const cX = wX >> 4;
-            const cY = wY >> 4;
-            const cZ = wZ >> 4;
+            const cX = Math.floor(wX / 16);
+            const cY = Math.floor(wY / 16);
+            const cZ = Math.floor(wZ / 16);
             const cCords = [cX, cY, cZ];
-            const lX = Math.abs(wX) & 15;
-            const lY = Math.abs(wY) & 15;
-            const lZ = Math.abs(wZ) & 15;
+
+            const lX = ((wX % 16) + 16) % 16;
+            const lY = ((wY % 16) + 16) % 16;
+            const lZ = ((wZ % 16) + 16) % 16;
             const lCords = [lX, lY, lZ];
+
             return { cCords, lCords };
         },
         clamp(min:number, max:number, value:number)

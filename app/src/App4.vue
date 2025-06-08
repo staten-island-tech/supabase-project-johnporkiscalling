@@ -1,16 +1,17 @@
 <template>
+    
     <div ref="canvasContainer" class="scene-container"></div>
         <div class="debugScreen">
             {{ coordinates }}
         </div>
     <div>
-    
+    <InventoryManager v-if="showInventory" class="gui"></InventoryManager>
     </div>
 </template>
 
 <script setup lang="ts"> 
-import { onMounted, ref } from 'vue';
-
+import { onMounted, ref, render } from 'vue';
+import InventoryManager from './components/InventoryManager.vue';
 const keys:Record<string, boolean> = {}
 window.addEventListener("keydown", (event)=>
 {
@@ -22,50 +23,36 @@ window.addEventListener("keyup", (event)=>
 })
 
 
-const inInventory = ref(false);
+const showInventory = ref(false);
 const paused =  ref(false);
 
-function inputLayer()
-{
-    if(keys["escape"])//change this to some other key later, esc messes with pointer lock i think
-    {
-        if(inInventory.value==true)
-        {
-            inInventory.value = false;   
-        }
-        else if(paused.value==true)
-        {
-            paused.value = false;
-        }
-        else
-        {
-            paused.value = true;
-        }
+
+window.addEventListener('keydown', (event) => {
+    if (event.key.toLowerCase() === 'e') {
+        showInventory.value = !showInventory.value
     }
-}
+    else if(event.key.toLowerCase()==="esc")
+    {
+        paused.value = !paused.value;
+    }
+})
 
 
 
 import * as THREE from 'three';
 import Stats from 'stats.js';
-import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { util3d } from './utils';    
-import { faceDirections } from './stupidlylongvariables';
 import { options } from './options';
-import pako from 'pako';
+import pako from 'pako'; 
 
-const seed = 7987989798;
-const stats =  new Stats();
-document.body.appendChild(stats.dom);
+const seed = 2134132131;
 const coordinates =  ref();
 
 const scene:THREE.Scene = new THREE.Scene();
-const camera:THREE.Camera =  new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2048)
+const camera:THREE.PerspectiveCamera =  new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2048)
 const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:false});
 const pitchObject:THREE.Object3D =  new THREE.Object3D().add(camera);
 const yawObject:THREE.Object3D =  new THREE.Object3D().add(pitchObject);
-yawObject.position.set(0,70,0);
-camera.position.set(0, 0, 0);
+yawObject.position.set(0,64,0);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 scene.add(yawObject);
@@ -102,30 +89,7 @@ function updateDebug()
     ${Math.round(yawObject.position.z)}`;
 }
 
-const sunSource =  new THREE.DirectionalLight(0xffffff,1);
-const sun =  new THREE.Vector3();
-const sky =  new Sky();
-const skyUniforms = sky.material.uniforms;
-skyUniforms['turbidity'].value = 4;
-skyUniforms['rayleigh'].value = 2;
-skyUniforms['mieCoefficient'].value = 0.00005;
-skyUniforms['mieDirectionalG'].value = 0.8;
-sky.scale.setScalar(10000);
-scene.add(sky);
-scene.add(sunSource);
 let time = 0;
-function updateSun() 
-{
-    time += 0.000001; // Adjust for speed
-    if (time > 1) time = 0;
-    const elevation = Math.sin(time * 2 * Math.PI) * 90;
-    const azimuth = 180 + Math.cos(time * 2 * Math.PI) * 90;
-    const phi = THREE.MathUtils.degToRad(90 - elevation);
-    const theta = THREE.MathUtils.degToRad(azimuth);
-    sun.setFromSphericalCoords(1, phi, theta);
-    sky.material.uniforms['sunPosition'].value.copy(sun);
-    sunSource.position.copy(sun);
-}
 let currentTime = Infinity;
 
 
@@ -139,72 +103,95 @@ document.addEventListener('mouseup', function (event) {
     duration[event.button] = currentTime - mouseDown[event.button]
 });
 
-import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
-import { ChunkManager } from './REWRITEAGAIN';
+import { Noise } from './lib/noise';
+import { TerrainGenerator, Mesher, DataManager } from './lib/renderer';
+import { InvStore } from './stores/inventory';
+import { Player } from './lib/entitymanager';
+import { basicSkySetup } from './lib/sceneobjects';
 
 
-
-let chunkManager:ChunkManager
+const store = InvStore();
+let player = new Player(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0), 100)
+let dm = new DataManager();
+let tg = new TerrainGenerator(seed);
+let mesher = new Mesher();
+let skibidisky = new basicSkySetup(scene);
 function animate()
 {
-    stats.begin();
     const delta = (performance.now()-currentTime)/1000;
     currentTime = performance.now()
-    chunkManager.maybeLoad(scene,yawObject);
-
-    const dirvector = new THREE.Vector3();
-    yawObject.getWorldPosition(dirvector);
-    const result = chunkManager.voxelRayCast(dirvector, yawObject);//clean this up
-    updateSun();
+    if (showInventory.value) {
+        document.exitPointerLock();
+    } else {
+        canvas.requestPointerLock();
+    }
     updateDebug();
-    renderer.render(scene, camera);
-    stats.end();
-    requestAnimationFrame(animate);
+    skibidisky.updateSun();
+    player.updatePosition(delta, camera, keys, yawObject);
+    renderer.render(scene, camera)
+    requestAnimationFrame(animate)
 }
 function init()
 {
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
+        canvas.style.position = 'fixed'; // important
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.zIndex = '0'; // background layer
         canvasContainer.value.appendChild(renderer.domElement);
     }
-    chunkManager = new ChunkManager(seed);
-    requestAnimationFrame(animate);
-}
-//call the init function in onMounted()
-import { Noise } from './lib/noise';
-import { TerrainGenerator, Mesher, DataManager } from './lib/renderer';
-let dm = new DataManager();
-let tg = new TerrainGenerator(seed);
-let mesher = new Mesher();
-onMounted(()=>{
-    let start = performance.now()
-    dm.update(0,0,4,tg);
+    skibidisky.setup();
+    dm.update(0,0,2,tg);
+    const stuff =  dm.chunkHeights;
     for(let [key, value] of Object.entries(dm.chunkHeights))
     {
-        for(let i = 0; i<value+1; i++)
+        const [x,z] = key.split(',').map(Number);
+        for(let y = 0; y<value;y++)
         {
-            const [x,y] = key.split(',').map(Number);
-            console.log(mesher.createMesh(dm,x,i,y,scene))
-        }            
+            mesher.createMesh(dm, x,y,z, scene)
+        }
     }
-    console.log("took", performance.now()-start)
-
+    requestAnimationFrame(animate);
+}
+onMounted(()=>
+{
+    store.resetHotbar();
+    store.resetInventory();
+    store.changeData(0, {id:1, count:1}, "inventory");
+    init();
 })
+
 
 
 
 </script>
 
 <style scoped>
- .debugScreen
-  {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: rgba(0,0,0,0.7);
-    color: lime;
-    padding: 10px;
-    font-family: monospace;
-    font-size: 14px;
-    z-index: 1000;
-  }
+    .debugScreen
+    {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.7);
+        color: lime;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 14px;
+        z-index: 1000;
+    }
+
+    .scene-container
+    {
+        position: relative;
+        z-index: 0;
+    }
+    .gui {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: auto;
+    }
 </style>

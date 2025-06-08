@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 
 
-class basicSkySetup
+export class basicSkySetup
 {
     scene:THREE.Scene
     time:number

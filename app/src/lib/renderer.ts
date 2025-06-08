@@ -1,7 +1,7 @@
 import { Random, util } from "./utils";
 import { Noise } from "./noise";
 import { faceDirections } from "./constants";
-
+import { atlas2, atlasData } from "@/atlas";
 const testData = new Uint8Array(4096)//single chunk
 const CHUNK_LENGTH = 16; 
 const CHUNK_AREA = 256;
@@ -29,6 +29,91 @@ const BIOMES = {
     TUNDRA: 4,
     OCEAN: 5
 };
+const UVCORDS: Record<number, string> = {
+    1: "minecraft:block/stone",
+    2: "minecraft:block/dirt",
+    3: "minecraft:block/green_wool",
+    4: "minecraft:block/sand",
+    5: "minecraft:block/water_still",
+    6: "minecraft:block/snow",
+    7: "minecraft:block/ice",
+    8: "minecraft:block/coal_ore",
+    9: "minecraft:block/iron_ore",
+    10: "minecraft:block/bedrock"
+};
+
+const precomputedUVs:Record<string, Array<number>> = {};
+interface TextureSize {
+    width: number;
+    height: number;
+}
+type AtlasData = {
+    textureSize: TextureSize;
+    frames: Record<string, TextureFrame>;
+}
+interface TextureFrame {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+function preprocessAtlas(atlasData:AtlasData) {
+    const { width: texWidth, height: texHeight } = atlasData.textureSize;
+    const padding = 0.0001;
+
+    for (const [name, frame] of Object.entries(atlasData.frames)) {
+        const { x, y, w, h } = frame;
+
+        const u0 = x / texWidth + padding;
+        const u1 = (x + w) / texWidth - padding;
+        const v1 = 1 - y / texHeight - padding;     // top
+        const v0 = 1 - (y + h) / texHeight + padding; // bottom
+
+        precomputedUVs[name] = [
+            u0,
+            v0,
+
+            u1 - u0, //tw
+            v1 - v0 //th
+        ];
+    }
+}
+preprocessAtlas(atlasData);
+// In getUVCords(), ensure proper texture mapping:
+function getUVCords(name: string, width: number = 1, height: number = 1) {
+    const uv = precomputedUVs[name];
+    if (!uv) {
+        console.warn(`Missing UVs for texture: ${name}`);
+        return [0, 0, 1, 0, 1, 1, 0, 1];
+    }
+
+    const [u0, v0, tw, th] = uv;
+
+    // For non-greedy meshing (single block)
+    if (width === 1 && height === 1) {
+        return [
+            u0, v0,         // bottom-left
+            u0 + tw, v0,    // bottom-right
+            u0 + tw, v0 + th, // top-right
+            u0, v0 + th      // top-left
+        ];
+    }
+
+    // For greedy meshing (merged faces)
+    return [
+    0, 0,
+    width, 0,
+    width, height,
+    0, height
+    ].map((val, i) => {
+    return i % 2 === 0
+        ? u0 + (val % 1) * tw  // U: tile-repeated within tile region
+        : v0 + (val % 1) * th; // V: same here
+    });
+
+
+}
+
 export class TerrainGenerator extends Random {
     heightNoise: Noise;
     biomeNoise: Noise;
@@ -84,7 +169,7 @@ export class TerrainGenerator extends Random {
                 
                 for (let y = 0; y < 16; y++) {
                     const absY = worldY + y;
-                    const blockIndex = y * 256 + z * 16 + x; // y * 16 * 16 + z * 16 + x
+                    const blockIndex = x + 16 * (y + 16 * z); // y * 16 * 16 + z * 16 + x
                     
                     // Skip if above surface (unless water level)
                     if (absY > surfaceHeight + 5) {
@@ -134,7 +219,7 @@ export class TerrainGenerator extends Random {
                     absX * 0.005, absZ * 0.005, // Low frequency for large features
                     4, 0.5, 1.0, 1.0, 2.0,
                     (x, z) => this.heightNoise.simplex(x, z)
-                ) * 60 + 64; // Scale to 64-124 range
+                ) * 60 + 12; // Scale to 64-124 range
                 
                 // Add mountains
                 const mountainHeight = this.mountainCreate(absX, absZ);
@@ -270,8 +355,6 @@ export class TerrainGenerator extends Random {
         return waterNoise < -0.4;
     }
 }
-//only area where render dist is passed is update
-
 export class DataManager
 {
     chunkData:Map<string, Map<number, Uint8Array>> = new Map();
@@ -333,9 +416,8 @@ export class DataManager
         }
         const chunkMap = this.chunkData.get(`${cCords[0]},${cCords[2]}`);
         const chunkData = chunkMap?.get(cCords[1]);
-        this._lastChunkKey = chunkKey;
-        this._lastChunkData = chunkData;
-        return chunkData?.[util.getIndex(lCords[0], lCords[1], lCords[2])];
+
+        return chunkData?.[util.getIndex(lCords[0], lCords[1], lCords[2])] || false;
     }
     getNeighbor(ax: number, ay: number, az: number) 
     {
@@ -406,74 +488,77 @@ export class Mesher
             const width = end[aAxis] - start[aAxis] + 1;
             const height = end[bAxis] - start[bAxis] + 1;
 
-            const uvData = [
-                0, height,     // Top-Left
-                0, 0,          // Bottom-Left
-                width, 0,       // Bottom-Right
-                width, height,  // Top-Right
-            ];
-            switch (face) {
-                case 'top': // +Y face
-                    vertices.push(
-                        x1,      y1 + 1, z2 + 1,  // Top-Left
-                        x1,      y1 + 1, z1,      // Bottom-Left
-                        x2 + 1,  y1 + 1, z1,      // Bottom-Right
-                        x2 + 1,  y1 + 1, z2 + 1,  // Top-Right
-                    );
-                    uvs.push(...uvData);
-                    break;
+            let uvData = getUVCords(UVCORDS[blockType], height, width);
 
-                case 'bottom': // -Y face
-                    vertices.push(
-                        x1,      y1, z1,      // Top-Left
-                        x1,      y1, z2 + 1,  // Bottom-Left
-                        x2 + 1,  y1, z2 + 1,  // Bottom-Right
-                        x2 + 1,  y1, z1,      // Top-Right
-                    );
-                    uvs.push(...uvData);
-                    break;
+        switch (face) {
+            case 'top': // +Y face
+                vertices.push(
+                    x1, y2 + 1, z1,      // Bottom-Left
+                    x1, y2 + 1, z2 + 1,  // Top-Left
+                    x2 + 1, y2 + 1, z2 + 1,  // Top-Right
+                    x2 + 1, y2 + 1, z1       // Bottom-Right
+                );
+                // For top face: width = x dimension, height = z dimension
+                uvData = getUVCords(UVCORDS[blockType], (x2 - x1 + 1), (z2 - z1 + 1));
+                break;
 
-                case 'left': // -X face
-                    vertices.push(
-                        x1, y2 + 1, z2 + 1,  // Top-Left
-                        x1, y1,     z2 + 1,  // Bottom-Left
-                        x1, y1,     z1,      // Bottom-Right
-                        x1, y2 + 1, z1,      // Top-Right
-                    );
-                    uvs.push(...uvData);
-                    break;
-                    
-                case 'right': // +X face
-                    vertices.push(
-                        x2 + 1, y2 + 1, z1,      // Top-Left
-                        x2 + 1, y1,     z1,      // Bottom-Left
-                        x2 + 1, y1,     z2 + 1,  // Bottom-Right
-                        x2 + 1, y2 + 1, z2 + 1,  // Top-Right
-                    );
-                    uvs.push(...uvData);
-                    break;
+            case 'bottom': // -Y face
+                vertices.push(
+                    x1, y1, z1,      // Bottom-Left
+                    x1, y1, z2 + 1,  // Top-Left
+                    x2 + 1, y1, z2 + 1,  // Top-Right
+                    x2 + 1, y1, z1       // Bottom-Right
+                );
+                // Same as top face
+                uvData = getUVCords(UVCORDS[blockType], (x2 - x1 + 1), (z2 - z1 + 1));
+                break;
 
-                case 'front': // +Z face
-                    vertices.push(
-                        x2 + 1, y2 + 1, z1 + 1,  // Top-Left
-                        x2 + 1, y1,     z1 + 1,  // Bottom-Left
-                        x1,     y1,     z1 + 1,  // Bottom-Right
-                        x1,     y2 + 1, z1 + 1,  // Top-Right
-                    );
-                    uvs.push(...uvData);
-                    break;
+            case 'left': // -X face
+                vertices.push(
+                    x1, y1, z2 + 1,  // Bottom-Left
+                    x1, y2 + 1, z2 + 1,  // Top-Left
+                    x1, y2 + 1, z1,      // Top-Right
+                    x1, y1, z1       // Bottom-Right
+                );
+                // For left face: width = z dimension, height = y dimension
+                uvData = getUVCords(UVCORDS[blockType], (z2 - z1 + 1), (y2 - y1 + 1));
+                break;
+                
+            case 'right': // +X face
+                vertices.push(
+                    x2 + 1, y1, z1,      // Bottom-Left
+                    x2 + 1, y2 + 1, z1,  // Top-Left
+                    x2 + 1, y2 + 1, z2 + 1,  // Top-Right
+                    x2 + 1, y1, z2 + 1       // Bottom-Right
+                );
+                // Same as left face
+                uvData = getUVCords(UVCORDS[blockType], (z2 - z1 + 1), (y2 - y1 + 1));
+                break;
 
-                case 'back': // -Z face
-                    vertices.push(
-                        x1,     y2 + 1, z1,  // Top-Left
-                        x1,     y1,     z1,  // Bottom-Left
-                        x2 + 1, y1,     z1,  // Bottom-Right
-                        x2 + 1, y2 + 1, z1,  // Top-Right
-                    );
-                    uvs.push(...uvData);
-                    break;
-            }
-            indices.push(offset, offset + 1, offset + 2, offset, offset + 2, offset + 3);
+            case 'front': // +Z face
+                vertices.push(
+                    x1, y1, z2 + 1,  // Bottom-Left
+                    x1, y2 + 1, z2 + 1,  // Top-Left
+                    x2 + 1, y2 + 1, z2 + 1,  // Top-Right
+                    x2 + 1, y1, z2 + 1       // Bottom-Right
+                );
+                // For front face: width = x dimension, height = y dimension
+                uvData = getUVCords(UVCORDS[blockType], (x2 - x1 + 1), (y2 - y1 + 1));
+                break;
+
+            case 'back': // -Z face
+                vertices.push(
+                    x2 + 1, y1, z1,  // Bottom-Left
+                    x2 + 1, y2 + 1, z1,  // Top-Left
+                    x1, y2 + 1, z1,  // Top-Right
+                    x1, y1, z1       // Bottom-Right
+                );
+                // Same as front face
+                uvData = getUVCords(UVCORDS[blockType], (x2 - x1 + 1), (y2 - y1 + 1));
+                break;
+        }
+            uvs.push(...uvData)
+            indices.push(offset, offset + 1, offset + 2, offset+2, offset + 3, offset + 0);
             offset += 4;
         }
         const buffer = new THREE.BufferGeometry();

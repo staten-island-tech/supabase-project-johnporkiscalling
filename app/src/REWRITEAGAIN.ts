@@ -3,7 +3,6 @@ import { faceDirections } from './stupidlylongvariables';
 import { util3d } from './utils';
 import { Random } from './utils';
 import { Noise } from './noisefunct';
-import { BiomeData, BIOME_IDS, BLOCK_TYPES } from './biome';
 import { string } from 'three/tsl';
 const deltas = [
     [1, 0, 0],
@@ -20,141 +19,280 @@ interface VoxelRayInfo {
     distance?: number;
     face?: THREE.Vector3;
 }
-class WorldGenerator extends Random {
-    temperatureNoise: Noise;
-    humidityNoise: Noise;
-    continentalnessNoise: Noise;
+const BLOCK_TYPES = {
+    AIR: 0,
+    STONE: 1,
+    DIRT: 2,
+    GRASS: 3,
+    SAND: 4,
+    WATER: 5,
+    SNOW: 6,
+    ICE: 7,
+    COAL_ORE: 8,
+    IRON_ORE: 9,
+    BEDROCK: 10
+};
+const BIOMES = {
+    PLAINS: 0,
+    DESERT: 1,
+    MOUNTAINS: 2,
+    FOREST: 3,
+    TUNDRA: 4,
+    OCEAN: 5
+};
+const UVCORDS: Record<number, string> = {
+    1: "minecraft:block/stone",
+    2: "minecraft:block/dirt",
+    3: "minecraft:block/green_wool",
+    4: "minecraft:block/sand",
+    5: "minecraft:block/water_still",
+    6: "minecraft:block/snow",
+    7: "minecraft:block/ice",
+    8: "minecraft:block/coal_ore",
+    9: "minecraft:block/iron_ore",
+    10: "minecraft:block/bedrock"
+};
+
+export class WorldGenerator extends Random {
+    heightNoise: Noise;
+    biomeNoise: Noise;
+    caveNoise: Noise;
+    riverNoise: Noise;
+    oreNoise: Noise;
     detailNoise: Noise;
-    mountainNoise: Noise;
+
     constructor(seed: number) {
         super(seed);
-        this.temperatureNoise = new Noise(this.lcg());
-        this.humidityNoise = new Noise(this.lcg());
-        this.continentalnessNoise = new Noise(this.lcg());
-        this.detailNoise = new Noise(this.lcg());
-        this.mountainNoise = new Noise(this.lcg());
+        this.heightNoise = new Noise(seed);
+        this.biomeNoise = new Noise(seed + 1000);
+        this.caveNoise = new Noise(seed + 2000);
+        this.riverNoise = new Noise(seed + 3000);
+        this.oreNoise = new Noise(seed + 4000);
+        this.detailNoise = new Noise(seed + 5000);
     }
-    seaLevel = 62;
-    cThresh = 0.48;
-    mFactor = 0.6;
-    getColumnData(x: number, z: number)//uses world corrds
+
+    generateChunkData(chunkX: number, chunkZ: number): {data: Map<number, Uint8Array>; maxChunkY: number} 
     {
-        const continentalness = this.continentalnessNoise.simplex(x / 2000, z / 2000);
-        const temperature = this.temperatureNoise.simplex(x / 1500, z / 1500);
-        const humidity = this.humidityNoise.simplex(x / 1200, z / 1200);
-        const detailInfluence = this.detailNoise.simplex(x / 150, z / 150);
-        const mountainInfluence = this.mountainNoise.simplex(x / 500, z / 500);
-        let biome;
-        let baseHeight;
-        if (continentalness < this.cThresh) {
-            biome = BiomeData[BIOME_IDS.OCEAN];
-            const depthFactor = 1.0 - (continentalness / this.cThresh)
-            baseHeight = this.seaLevel + biome.baseHeightOffset * depthFactor;
-            baseHeight += (detailInfluence * 2 - 1) * biome.heightVariation;
-        }
-        else {
-            const landElevationFactor = (continentalness - this.cThresh) / (1 - this.cThresh);
-            const altitudeEffect = landElevationFactor * 0.6;
-            let effectiveTemperature = temperature * (1 - altitudeEffect);
-            effectiveTemperature = util3d.clamp(0, 1, effectiveTemperature);
-            if (effectiveTemperature < 0.15) { // Very Cold
-                if (landElevationFactor > 0.5 && mountainInfluence > this.mFactor * 0.8) biome = BiomeData[BIOME_IDS.SNOWY_PEAKS];
-                else biome = BiomeData[BIOME_IDS.TAIGA];
-            } else if (effectiveTemperature < 0.4) { // cold
-                if (landElevationFactor > 0.4 && mountainInfluence > this.mFactor * 0.7) biome = BiomeData[BIOME_IDS.MOUNTAINS];
-                else biome = BiomeData[BIOME_IDS.TAIGA];
-            } else if (effectiveTemperature < 0.7) { // average
-                if (landElevationFactor > 0.5 && mountainInfluence > this.mFactor) biome = BiomeData[BIOME_IDS.MOUNTAINS];
-                else if (humidity < 0.3) biome = BiomeData[BIOME_IDS.PLAINS];
-                else if (humidity < 0.6) biome = BiomeData[BIOME_IDS.PLAINS];
-                else biome = BiomeData[BIOME_IDS.FOREST];
-            } else {//HOT
-                if (humidity < 0.15) {
-                    if (landElevationFactor > 0.3 && mountainInfluence > this.mFactor * 0.5) biome = BiomeData[BIOME_IDS.BADLANDS];
-                    else biome = BiomeData[BIOME_IDS.DESERT];
-                } else if (humidity < 0.4) biome = BiomeData[BIOME_IDS.PLAINS];
-                else biome = BiomeData[BIOME_IDS.JUNGLE];
-            }
-            const distToWater = (continentalness - this.cThresh) / 0.03;
-            if (distToWater >= 0 && distToWater < 1.0 && biome.id !== BIOME_IDS.OCEAN && biome.id !== BIOME_IDS.MOUNTAINS && biome.id !== BIOME_IDS.SNOWY_PEAKS) {
-                if (landElevationFactor < 0.1) biome = BiomeData[BIOME_IDS.BEACH];
-            }
-
-            // Calculate Land Height
-            baseHeight = this.seaLevel + biome.baseHeightOffset + (landElevationFactor * biome.heightVariation * 0.5);
-            baseHeight += (detailInfluence * 2 - 1) * biome.heightVariation * 0.5; // detailInfluence from [0,1] to [-1,1]
-
-            if (biome.id === BIOME_IDS.MOUNTAINS || biome.id === BIOME_IDS.SNOWY_PEAKS || biome.id === BIOME_IDS.BADLANDS) {
-                baseHeight += mountainInfluence * biome.heightVariation * 1.2;
-            } else if (mountainInfluence > 0.7 && landElevationFactor > 0.3) {
-                baseHeight += mountainInfluence * biome.heightVariation * 0.3;
+        const data: Map<number, Uint8Array> = new Map();
+        
+        // Generate height and biome maps for this chunk
+        const heightMap = this.baseHeightMap(chunkX, chunkZ);
+        const biomeMap = this.biomeMap(chunkX, chunkZ);
+        const maxHeight = Math.max(...heightMap);
+        const maxChunkY = Math.floor(maxHeight / 16) + 1;
+        
+        // Generate each Y chunk section
+        for (let chunkY = 0; chunkY <= maxChunkY; chunkY++) {
+            const chunkBlocks = this.generateChunkSection(chunkX, chunkY, chunkZ, heightMap, biomeMap);
+            if (chunkBlocks.some(block => block !== BLOCK_TYPES.AIR)) {
+                data.set(chunkY, chunkBlocks);
             }
         }
-        const finalHeight = Math.floor(util3d.clamp(1, 255, baseHeight));
-        return { height: finalHeight, biome: biome };
+        
+        return {data, maxChunkY};
     }
-    generateChunkData(chunkX: number, chunkZ: number) {
-        const CHUNK_WIDTH = 16;
-        const columnInfoArray = new Array(CHUNK_WIDTH * CHUNK_WIDTH);
-        let highestBlock = -Infinity;
-        for (let localX = 0; localX < CHUNK_WIDTH; localX++) {
-            for (let localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
-                const worldX = chunkX * CHUNK_WIDTH + localX;
-                const worldZ = chunkZ * CHUNK_WIDTH + localZ;
-                const data = this.getColumnData(worldX, worldZ)
-                if (data.height > highestBlock) {
-                    highestBlock = data.height;
-                }
-                columnInfoArray[localX + localZ * CHUNK_WIDTH] = data;
-            }
-        }
-        const chunkPartitions = Math.ceil(highestBlock / 16);
-        const chunks = [];
-        for (let i = 0; i < chunkPartitions+1; i++) {
-            chunks.push(new Uint8Array(4096));
-            //preallocates memory for the new chunk data
-        }
+
+    generateChunkSection(chunkX: number, chunkY: number, chunkZ: number, heightMap: Uint8Array, biomeMap: Uint8Array): Uint8Array {
+        const blocks = new Uint8Array(4096); // 16x16x16 = 4096
+        const worldX = chunkX * 16;
+        const worldY = chunkY * 16;
+        const worldZ = chunkZ * 16;
+        
         for (let x = 0; x < 16; x++) {
             for (let z = 0; z < 16; z++) {
-                const indexV = x + z * CHUNK_WIDTH;
-                const height = columnInfoArray[indexV].height;
-                const biome = columnInfoArray[indexV].biome;
-                for (let y = 0; y <= height; y++) {
-                    const currentPartition = Math.floor(y / 16);
-                    const localY = y - currentPartition * 16;
-                    const block = y == height ? biome.primaryBlock : y > height - 8 ? biome.secondaryBlock : BLOCK_TYPES.STONE;
-                    chunks[currentPartition][util3d.getIndex(x, localY, z)] = block;
+                const localIndex = x * 16 + z;
+                const surfaceHeight = heightMap[localIndex];
+                const biome = biomeMap[localIndex];
+                const absX = worldX + x;
+                const absZ = worldZ + z;
+                
+                for (let y = 0; y < 16; y++) {
+                    const absY = worldY + y;
+                    const blockIndex = y * 256 + z * 16 + x; // y * 16 * 16 + z * 16 + x
+                    
+                    // Skip if above surface (unless water level)
+                    if (absY > surfaceHeight + 5) {
+                        blocks[blockIndex] = BLOCK_TYPES.AIR;
+                        continue;
+                    }
+                    
+                    // Bedrock layer
+                    if (absY <= 2) {
+                        blocks[blockIndex] = BLOCK_TYPES.BEDROCK;
+                        continue;
+                    }
+                    
+                    // Check for caves
+                    if (this.isCave(absX, absY, absZ)) {
+                        blocks[blockIndex] = BLOCK_TYPES.AIR;
+                        continue;
+                    }
+                    
+                    // Check for rivers (at surface level)
+                    if (Math.abs(absY - surfaceHeight) <= 2 && this.isRiver(absX, absZ)) {
+                        blocks[blockIndex] = BLOCK_TYPES.WATER;
+                        continue;
+                    }
+                    
+                    // Generate terrain based on height and biome
+                    blocks[blockIndex] = this.getBlockType(absX, absY, absZ, surfaceHeight, biome);
                 }
             }
         }
-        //returns chunkdata formatted in the index format 
-        console.log(chunks)
-        return chunks;
+        
+        return blocks;
     }
-    getBiome(x: number, z: number) {
-        const biomeMap: Uint8Array = new Uint8Array(256);
-        const xStart = x * 16;
-        const zStart = z * 16;
+
+    baseHeightMap(chunkX: number, chunkZ: number): Uint8Array {
+        const heightMap = new Uint8Array(256); // 16x16
+        const worldX = chunkX * 16;
+        const worldZ = chunkZ * 16;
+        
         for (let x = 0; x < 16; x++) {
             for (let z = 0; z < 16; z++) {
-                //placeholder for the biomeselector
-                biomeMap[x * 16 + z] = this.detailNoise.simplex(x + xStart, z + zStart);
+                const absX = worldX + x;
+                const absZ = worldZ + z;
+                
+                // Multi-octave noise for varied terrain
+                const baseHeight = this.heightNoise.octaveNoise(
+                    absX * 0.005, absZ * 0.005, // Low frequency for large features
+                    4, 0.5, 1.0, 1.0, 2.0,
+                    (x, z) => this.heightNoise.simplex(x, z)
+                ) * 60 + 64; // Scale to 64-124 range
+                
+                // Add mountains
+                const mountainHeight = this.mountainCreate(absX, absZ);
+                
+                // Final height
+                const finalHeight = Math.max(0, Math.min(255, baseHeight + mountainHeight));
+                heightMap[x * 16 + z] = Math.floor(finalHeight);
             }
         }
-        return biomeMap;
-    }
-    generateBaseHeight(x: number, z: number) {
-        const heightMap: Uint8Array = new Uint8Array(256);
-        const xStart = x * 16;
-        const zStart = z * 16;
-        for (let x = 0; x < 16; x++) {
-            for (let z = 0; z < 16; z++) {
-                heightMap[x * 16 + z] = (Math.floor(this.detailNoise.simplex(x + xStart, z + zStart) * 32));
-            }
-        }
+        
         return heightMap;
     }
 
+    biomeMap(chunkX: number, chunkZ: number): Uint8Array {
+        const biomeMap = new Uint8Array(256); // 16x16
+        const worldX = chunkX * 16;
+        const worldZ = chunkZ * 16;
+        
+        for (let x = 0; x < 16; x++) {
+            for (let z = 0; z < 16; z++) {
+                const absX = worldX + x;
+                const absZ = worldZ + z;
+                
+                // Temperature and humidity maps
+                const temperature = this.biomeNoise.simplex(absX * 0.003, absZ * 0.003);
+                const humidity = this.biomeNoise.simplex(absX * 0.003 + 1000, absZ * 0.003 + 1000);
+                
+                // Determine biome based on temperature and humidity
+                let biome = BIOMES.PLAINS;
+                
+                if (temperature < -0.3) {
+                    biome = BIOMES.TUNDRA;
+                } else if (temperature > 0.4 && humidity < -0.2) {
+                    biome = BIOMES.DESERT;
+                } else if (temperature > -0.1 && temperature < 0.3 && humidity > 0.2) {
+                    biome = BIOMES.FOREST;
+                } else if (temperature < 0.6 && this.isNearWater(absX, absZ)) {
+                    biome = BIOMES.OCEAN;
+                }
+                
+                biomeMap[x * 16 + z] = biome;
+            }
+        }
+        
+        return biomeMap;
+    }
+
+    riverCarve(x: number, z: number): boolean {
+        // Create winding rivers using multiple octaves
+        const riverNoise1 = this.riverNoise.simplex(x * 0.01, z * 0.01);
+        const riverNoise2 = this.riverNoise.simplex(x * 0.02 + 100, z * 0.02 + 100);
+        
+        // Rivers follow noise valleys
+        return Math.abs(riverNoise1) < 0.1 || Math.abs(riverNoise2) < 0.08;
+    }
+
+    mountainCreate(x: number, z: number): number {
+        // Mountain regions using simplex noise
+        const mountainMask = this.heightNoise.simplex(x * 0.002, z * 0.002);
+        
+        if (mountainMask > 0.3) {
+            // Add height variation in mountain regions
+            const mountainHeight = this.heightNoise.octaveNoise(
+                x * 0.008, z * 0.008,
+                6, 0.6, 1.0, 1.0, 2.0,
+                (x, z) => this.heightNoise.simplex(x, z)
+            ) * 80; // Up to 80 blocks additional height
+            
+            return mountainHeight * (mountainMask - 0.3) * 2; // Fade in mountains
+        }
+        
+        return 0;
+    }
+
+    private getBlockType(x: number, y: number, z: number, surfaceHeight: number, biome: number): number {
+        const depthFromSurface = surfaceHeight - y;
+        
+        // Surface blocks based on biome
+        if (depthFromSurface <= 0) {
+            switch (biome) {
+                case BIOMES.DESERT:
+                    return BLOCK_TYPES.SAND;
+                case BIOMES.TUNDRA:
+                    return y > 120 ? BLOCK_TYPES.SNOW : BLOCK_TYPES.GRASS;
+                case BIOMES.OCEAN:
+                    return y < surfaceHeight - 3 ? BLOCK_TYPES.SAND : BLOCK_TYPES.WATER;
+                default:
+                    return BLOCK_TYPES.GRASS;
+            }
+        }
+        
+        // Subsurface layers
+        if (depthFromSurface <= 3) {
+            return biome === BIOMES.DESERT ? BLOCK_TYPES.SAND : BLOCK_TYPES.DIRT;
+        }
+        
+        // Check for ores in stone layer
+        if (depthFromSurface > 3) {
+            const oreChance = this.oreNoise.simplex3(x * 0.1, y * 0.1, z * 0.1);
+            
+            if (y < 16 && oreChance > 0.6) {
+                return BLOCK_TYPES.IRON_ORE;
+            } else if (y < 32 && oreChance > 0.7) {
+                return BLOCK_TYPES.COAL_ORE;
+            }
+            
+            return BLOCK_TYPES.STONE;
+        }
+        
+        return BLOCK_TYPES.AIR;
+    }
+
+    private isCave(x: number, y: number, z: number): boolean {
+        if (y < 8 || y > 120) return false; // No caves too high or low
+        
+        // 3D cave system using simplex noise
+        const caveNoise1 = this.caveNoise.simplex3(x * 0.02, y * 0.02, z * 0.02);
+        const caveNoise2 = this.caveNoise.simplex3(x * 0.03 + 100, y * 0.03, z * 0.03 + 100);
+        
+        // Caves where noise values are close to 0
+        
+        return (Math.abs(caveNoise1) < 0.15 && Math.abs(caveNoise2) < 0.1) ||
+               (Math.abs(caveNoise1) < 0.1 && Math.abs(caveNoise2) < 0.15);
+    }
+
+    private isRiver(x: number, z: number): boolean {
+        return this.riverCarve(x, z);
+    }
+
+    private isNearWater(x: number, z: number): boolean {
+        // Simple check for ocean biome proximity
+        const waterNoise = this.biomeNoise.simplex(x * 0.005, z * 0.005);
+        return waterNoise < -0.4;
+    }
 }
 const texture0 = util3d.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
 const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide})
@@ -289,7 +427,7 @@ export class ChunkManager  //optimize this things memory usage
                         return this.getVoxel(worldX, worldY, worldZ) != BLOCK_TYPES.AIR;
                     })
                     for (let i = 0; i < neighbors.length; i++) {
-                        chunk.addFace(lX+aX, lY+aY, lZ+aZ, 12, faceArray[i]);
+                        chunk.addFace(lX+aX, lY+aY, lZ+aZ, 1, faceArray[i]);
                     }
                 }
             }
@@ -300,10 +438,12 @@ export class ChunkManager  //optimize this things memory usage
     {
         this.callCounter+=1;
         this.loadedChunks.add(`${x},${z}`);
-        const data = this.worldGen.generateChunkData(x, z);
-        for (let i = 0; i < data.length; i++) {
-            const newVox = new VoxelChunk(`${x},${i},${z}`, data[i]);
-            this.chunks.set(`${x},${i},${z}`, newVox);
+        const {data, maxChunkY} = this.worldGen.generateChunkData(x, z);
+        for(const [key, value] of data)
+        {
+            const newVox = new VoxelChunk(`${x},${key},${z}`, value);
+            this.chunks.set(`${x},${key},${z}`, newVox);
+
         }
     }
     getVoxel(x:number, y:number, z:number)
