@@ -1,7 +1,7 @@
 import { Random, util } from "./utils";
 import { Noise } from "./noise";
 import { faceDirections } from "./constants";
-import { atlas2, atlasData } from "@/atlas";
+import { atlas2, atlasData } from "@/lib/atlas";
 const testData = new Uint8Array(4096)//single chunk
 const CHUNK_LENGTH = 16; 
 const CHUNK_AREA = 256;
