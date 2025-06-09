@@ -6,6 +6,7 @@
         </div>
     <div>
     <InventoryManager v-if="showInventory" class="gui"></InventoryManager>
+    <HotBar></HotBar>
     </div>
 </template>
 
@@ -104,17 +105,18 @@ document.addEventListener('mouseup', function (event) {
 });
 
 import { Noise } from './lib/noise';
-import { TerrainGenerator, Mesher, DataManager } from './lib/renderer';
+import { TerrainGenerator, Mesher2, DataManager } from './lib/renderer';
 import { InvStore } from './stores/inventory';
 import { Player } from './lib/entitymanager';
 import { basicSkySetup } from './lib/sceneobjects';
+import HotBar from './components/HotBar.vue';
 
 
 const store = InvStore();
 let player = new Player(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0), 100)
 let dm = new DataManager();
 let tg = new TerrainGenerator(seed);
-let mesher = new Mesher();
+let mesher = new Mesher2();
 let skibidisky = new basicSkySetup(scene);
 function animate()
 {
@@ -136,12 +138,12 @@ function init()
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
         canvas.style.position = 'fixed'; // important
         canvas.style.top = '0';
-        canvas.style.left = '0';
+        canvas.style.left = '';
         canvas.style.zIndex = '0'; // background layer
         canvasContainer.value.appendChild(renderer.domElement);
     }
     skibidisky.setup();
-    dm.update(0,0,2,tg);
+    dm.update(0,0,1,tg);
     const stuff =  dm.chunkHeights;
     for(let [key, value] of Object.entries(dm.chunkHeights))
     {
@@ -157,7 +159,8 @@ onMounted(()=>
 {
     store.resetHotbar();
     store.resetInventory();
-    store.changeData(0, {id:1, count:1}, "inventory");
+    store.changeData(0, {id:1, count:1}, "hotbar");
+
     init();
 })
 

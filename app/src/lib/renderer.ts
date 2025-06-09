@@ -80,7 +80,7 @@ function preprocessAtlas(atlasData:AtlasData) {
 }
 preprocessAtlas(atlasData);
 // In getUVCords(), ensure proper texture mapping:
-function getUVCords(name: string, width: number = 1, height: number = 1) {
+function getUVCords(name: string, width:number, height:number) {
     const uv = precomputedUVs[name];
     if (!uv) {
         console.warn(`Missing UVs for texture: ${name}`);
@@ -113,7 +113,6 @@ function getUVCords(name: string, width: number = 1, height: number = 1) {
 
 
 }
-
 export class TerrainGenerator extends Random {
     heightNoise: Noise;
     biomeNoise: Noise;
@@ -124,12 +123,12 @@ export class TerrainGenerator extends Random {
 
     constructor(seed: number) {
         super(seed);
-        this.heightNoise = new Noise(seed);
-        this.biomeNoise = new Noise(seed + 1000);
-        this.caveNoise = new Noise(seed + 2000);
-        this.riverNoise = new Noise(seed + 3000);
-        this.oreNoise = new Noise(seed + 4000);
-        this.detailNoise = new Noise(seed + 5000);
+        this.heightNoise = new Noise(this.lcg());
+        this.biomeNoise = new Noise(this.lcg());
+        this.caveNoise = new Noise(this.lcg());
+        this.riverNoise = new Noise(this.lcg());
+        this.oreNoise = new Noise (this.lcg());
+        this.detailNoise = new Noise(this.lcg());
     }
 
     generateChunkData(chunkX: number, chunkZ: number): {data: Map<number, Uint8Array>; maxChunkY: number} 
@@ -217,7 +216,7 @@ export class TerrainGenerator extends Random {
                 // Multi-octave noise for varied terrain
                 const baseHeight = this.heightNoise.octaveNoise(
                     absX * 0.005, absZ * 0.005, // Low frequency for large features
-                    4, 0.5, 1.0, 1.0, 2.0,
+                    4, 0.5, 0.5, 0.5, 2.0,
                     (x, z) => this.heightNoise.simplex(x, z)
                 ) * 60 + 12; // Scale to 64-124 range
                 
@@ -643,4 +642,102 @@ export class Mesher
         return validQuads;
     }
 }
+export class Mesher2 
+{
+    meshMap:Map<string, THREE.Mesh>;
 
+    constructor()
+    {
+        this.meshMap =  new Map();
+    }
+    createMesh(dm:DataManager, ax:number, ay:number, az:number, scene:THREE.Scene)
+    {
+        const xBound = ax*16;
+        const yBound = ay*16;
+        const zBound = az*16;
+        
+        const validFaces:Record<string, Record<string, number>> = {
+            "top":{},
+            "bottom":{},
+            "right":{},
+            "left":{},
+            "front":{},
+            "back":{}
+        }
+        let faceCounter = 0;
+        const vertices: Array<number> = [];
+        const indices: Array<number>= [];
+        const uvs: Array<number> = [];
+        let offset = 0;
+        for(let x = xBound; x<xBound+16 ; x++)
+        {
+            for(let y = yBound; y<yBound+16; y++)
+            {
+                for(let z = zBound; z<zBound+16; z++)
+                {
+                    const blockType = dm.getVoxel(x,y,z)
+                    if(!!!blockType) continue;
+                    const neighbors = dm.getNeighbor(x,y,z);
+                    for(let i = 0; i<neighbors.length; i++)
+                    {
+                        if(neighbors[i]==true) continue;
+                        faceCounter++;
+                        const offSetValues = faceDirections[faceArray[i]];
+                        vertices.push(
+                            x + offSetValues[0], y + offSetValues[1], z + offSetValues[2],
+                            x + offSetValues[3], y + offSetValues[4], z + offSetValues[5],
+                            x + offSetValues[6], y + offSetValues[7], z + offSetValues[8],
+                            x + offSetValues[9], y + offSetValues[10], z + offSetValues[11],
+                        )
+                        indices.push(offset, offset + 1, offset + 2, offset + 2, offset + 3, offset);
+                        let uvsss = getUVCords(UVCORDS[blockType], 1,1)
+                        uvs.push(...uvsss);
+                        offset+=4;
+                    }
+                }
+            }   
+        }
+        const buffer = new THREE.BufferGeometry();
+        buffer.setAttribute(`position`, new THREE.Float32BufferAttribute(vertices, 3));
+        buffer.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        buffer.setIndex(indices);
+        const mesh = new THREE.Mesh(buffer, blocksMaterial)
+        scene.add(mesh);
+        this.meshMap.set(`${ax},${ay},${az}`, mesh);
+    }
+}
+
+
+function intializeWorkerScripts(chunkAmount:number, data:Array<string>)
+{
+    const coreCount = navigator.hardwareConcurrency || 4;
+    if(!coreCount) return;
+    const workerCount = Math.max(1, coreCount-1);
+    const workerURL = 'app/src/lib/workerscripts.ts';
+    const worker = new Worker(workerURL);
+    //determien the amoutn of chunks to process
+    //determine how many iterations of thread utilization should be done
+    const batchSize = 8;
+    const iterations = chunkAmount/batchSize;
+    
+    for(let x = 0; x<iterations; x++)
+    {
+        for(let x = 0; x<workerCount; x++)
+        {
+            const worker = new Worker(workerURL);    
+            const work = [];
+            for(let j = 0; j<batchSize; j++)
+            {
+                work.push(data[x*batchSize+j]);
+            }
+            worker.onerror = (e) => { console.error(e.message, "Error")};
+            worker.postMessage(
+                {
+                    type:'init',
+                    data:work
+                }
+            )
+            worker.onmessage = (e) => { };//send the data back after its done processing it 
+        }
+    }
+}

@@ -114,6 +114,10 @@ export class Player extends Entity {
         this.adjustmentSpeed = 0.1;
         this.moveSpeed = 20;
     }
+    checkPosition(delt:number, yawObject:THREE.Object3D)
+    {   
+        const forward = new THREE.Vector3(0,)
+    }
 
     updatePosition(delta: number, camera: THREE.PerspectiveCamera, keys: Record<string, boolean>, yawObject: THREE.Object3D) {
         // Get forward direction from yawObject
