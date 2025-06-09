@@ -4,6 +4,7 @@ import { util3d } from './utils';
 import { Random } from './utils';
 import { Noise } from './noisefunct';
 import { string } from 'three/tsl';
+import { ref } from 'vue'
 const deltas = [
     [1, 0, 0],
     [-1, 0, 0],
@@ -459,13 +460,13 @@ export class ChunkManager  //optimize this things memory usage
     }
     renderNew(scene:THREE.Scene, yawObject:THREE.Object3D)
     {
-        const loadLimit = 4;
+        const loadLimit = ref(4);
         const chunkX = Math.floor(yawObject.position.x / 16)
         const chunkZ = Math.floor(yawObject.position.z / 16)    
-        const nBound = chunkZ + loadLimit;
-        const sBound = chunkZ - loadLimit;
-        const eBound = chunkX + loadLimit;
-        const wBound = chunkX - loadLimit;
+        const nBound = chunkZ + loadLimit.value;
+        const sBound = chunkZ - loadLimit.value;
+        const eBound = chunkX + loadLimit.value;
+        const wBound = chunkX - loadLimit.value;
         for(const [key, VoxChunk] of this.chunks)
         {
             const [x,y,z] = key.split(',').map(Number);
