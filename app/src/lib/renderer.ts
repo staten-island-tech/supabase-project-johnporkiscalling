@@ -355,18 +355,27 @@ export class TerrainGenerator extends Random {
 }
 type CD =
     {
-        data: Map<number, Uint8Array>
+        data: Record<number, Uint8Array>
         maxChunkY: number,
     }
 type WorkerMessage =
+{
+    type: "generate",
+    DATABUTUPPERCASE:
     {
-        type: string,
-        data:
-        {
-            data: Map<number, Uint8Array>,
-            maxChunkY: number,
-        }
+        seed: number;
+        payload: Array<string>
     }
+}
+type ReturnMessage =
+{
+    type:string,
+    data:Record<string,
+    {
+        data: Record<number, Uint8Array>
+        maxChunkY: number,
+    }>
+}
 
 export class DataManager {
     chunkData: Map<string, Map<number, Uint8Array>> = new Map();
@@ -380,43 +389,68 @@ export class DataManager {
     get(x: number, y: number, z: number) {
         return this.chunkData.get(`${x},${z}`);
     }
-    intializeWorkerScripts(data: Array<string>) {
+    async intializeWorkerScripts(data: Array<string>) {
         const coreCount = navigator.hardwareConcurrency || 4;
         if (!coreCount) return;
         const workerCount = Math.max(1, coreCount - 1);
-        const workerURL = 'app/src/worker/terrainWorker.ts';
-        const batchSize = 8;
+        const batchSize = 32;
         const iterations = data.length / batchSize;
+        const allWorkerPromises: Array<Promise<void>> = [];
 
         for (let x = 0; x < iterations; x++) {
-            for (let x = 0; x < workerCount; x++) {
-                const worker = new Worker(workerURL);
-                const work = [];
+            for (let b = 0; b < workerCount; b++) {
+                const work:Array<string> = [];
                 for (let j = 0; j < batchSize; j++) {
+                    if(!data[x*batchSize+j])continue;
                     work.push(data[x * batchSize + j]);
                 }
-                worker.onerror = (e) => { console.error(e.message, "Error") };
-                worker.postMessage(
+                if(work.length==0) continue;
+                const promise = new Promise<void>((resolve, reject)=>
+                {
+                    const worker = new Worker(
+                        new URL('../workers/terrainWorker.ts?worker', import.meta.url),
+                        { type: 'module' }
+                    );
+                    worker.onerror = (e) => { 
+                        console.error(e, "Error")
+                        worker.terminate();
+                    }; 
+                    const message:WorkerMessage =
                     {
-                        type: 'init',
-                        data: work
-                    }
-                )
-                worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
-                    const { type, data } = e;
-                    for (let [key, value] of Object.entries(data)) {
-                        const [x, z] = key.split(',').map(Number);
-                        for (let [k, v] of value) {
-                            this.chunkData.set(`${x},${k},${z}`, v)
+                        type: 'generate',
+                        DATABUTUPPERCASE: {
+                            seed: 123, // or whatever your seed is
+                            payload: work
                         }
                     }
-                };
+                    worker.postMessage(message);
+                    worker.onmessage = (e: MessageEvent<ReturnMessage>) => {
+                        const { data: returnData } = e.data; 
+                        for (const [key, value] of Object.entries(returnData)) {
+                            const [x, z] = key.split(',').map(Number);
+                            value.data
+                            if (!value?.data) continue;
+                            const yLevelsMap = new Map<number, Uint8Array>(
+                                Object.entries(value.data).map(([yStr, data]) => 
+                                    [Number(yStr), data] 
+                                )
+                            );
+                            this.chunkData.set(`${x},${z}`, yLevelsMap);
+                            this.chunkHeights[`${x},${z}`] = value.maxChunkY;
+                        }
+                        worker.terminate();
+                        resolve();
+                    };
+                })
+                allWorkerPromises.push(promise);
+
             }
         }
+        await Promise.all(allWorkerPromises);
     }
-    update(cX: number, cZ: number, bounds: number, tGen: TerrainGenerator) {
+    async update(cX: number, cZ: number, bounds: number, tGen: TerrainGenerator) {
         const nBound = cZ + bounds;
-        const sBound = cZ - bounds;
+        const sBound = cZ - bounds;1
         const eBound = cX + bounds;
         const wBound = cX - bounds;
         const deleteQueue: Set<string> = new Set();
@@ -435,7 +469,7 @@ export class DataManager {
                 if (!this.chunkData.has(`${x},${z}`)) requiredData.push(`${x},${z}`);
             }
         }
-        this.intializeWorkerScripts(requiredData);
+        await this.intializeWorkerScripts(requiredData);
 
     }
     loadNewData(tGen: TerrainGenerator, requiredData: Set<string>) {
@@ -470,7 +504,11 @@ export class DataManager {
         ];
     }
 }
+
+
+
 import * as THREE from "three";
+import type { Return } from "three/examples/jsm/transpiler/AST.js";
 const texture0 = util.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
 const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide })
 export class Mesher {

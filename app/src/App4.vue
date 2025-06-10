@@ -122,18 +122,13 @@ function animate()
 {
     const delta = (performance.now()-currentTime)/1000;
     currentTime = performance.now()
-    if (showInventory.value) {
-        document.exitPointerLock();
-    } else {
-        canvas.requestPointerLock();
-    }
     updateDebug();
     skibidisky.updateSun();
     player.updatePosition(delta, camera, keys, yawObject);
     renderer.render(scene, camera)
     requestAnimationFrame(animate)
 }
-function init()
+async function init()
 {
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
         canvas.style.position = 'fixed'; // important
@@ -143,10 +138,12 @@ function init()
         canvasContainer.value.appendChild(renderer.domElement);
     }
     skibidisky.setup();
-    dm.update(0,0,1,tg);
+    await dm.update(0,0,8,tg);
     const stuff =  dm.chunkHeights;
+    console.log(dm.chunkHeights)
     for(let [key, value] of Object.entries(dm.chunkHeights))
     {
+        console.log(key, value)
         const [x,z] = key.split(',').map(Number);
         for(let y = 0; y<value;y++)
         {

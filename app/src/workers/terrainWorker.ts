@@ -6,29 +6,40 @@ import { TerrainGenerator } from "@/lib/workerscripts";
 //gottta import the seed into here and then pass values into it
 
 type WorkerMessage =
+{
+    type: string,
+    DATABUTUPPERCASE:
     {
-        type: "generate",
-        data:
-        {
-            seed: number;
-            payload: Array<string>
-        }
+        seed: number;
+        payload: Array<string>
     }
+}
 type CD =
+{
+    data: Record<number, Uint8Array>
+    maxChunkY: number,
+}
+type ReturnMessage =
+{
+    type:string,
+    data:Record<string,
     {
-        data: Record<string, Uint8Array>
+        data: Record<number, Uint8Array>
         maxChunkY: number,
-    }
-self.onmessage = (e: MessageEvent<WorkerMessage>) => {
-    const { type, data } = e.data;
-    const tgen = new TerrainGenerator(data.seed);
+    }>
+}
+self.onmessage = (e: MessageEvent<WorkerMessage>) => 
+{
+    const { type, DATABUTUPPERCASE } = e.data;
+    const tgen = new TerrainGenerator(DATABUTUPPERCASE.seed);
     let results: Record<string, CD> = {};
-    for (let r = 0; r < data.payload.length; r++) {
-        let cords = data.payload[r].split(',').map(Number);
-        results[data.payload[r]] = tgen.generateChunkData(cords[0], cords[1]);
+    for (let r = 0; r < DATABUTUPPERCASE.payload.length; r++) {
+        let cords = DATABUTUPPERCASE.payload[r].split(',').map(Number);
+        results[DATABUTUPPERCASE.payload[r]] = tgen.generateChunkData(cords[0], cords[1]);
     }
-    self.postMessage({
+    const rm:ReturnMessage =  {
         type: "a",
         data: results
-    });
+    }
+    self.postMessage(rm);
 }

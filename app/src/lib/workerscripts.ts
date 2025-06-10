@@ -1,4 +1,4 @@
-import { Noise } from "@/noisefunct";
+import { Noise } from "./noise";
 import { Random } from "./utils";
 const BLOCK_TYPES = {
     AIR: 0,
@@ -39,9 +39,9 @@ export class TerrainGenerator extends Random {
         this.detailNoise = new Noise(this.lcg());
     }
 
-    generateChunkData(chunkX: number, chunkZ: number): {data: Map<number, Uint8Array>; maxChunkY: number} 
+    generateChunkData(chunkX: number, chunkZ: number): {data: Record<number, Uint8Array>; maxChunkY: number} 
     {
-        const data: Map<number, Uint8Array> = new Map();
+        const data: Record<number, Uint8Array> = []
         
         // Generate height and biome maps for this chunk
         const heightMap = this.baseHeightMap(chunkX, chunkZ);
@@ -53,7 +53,7 @@ export class TerrainGenerator extends Random {
         for (let chunkY = 0; chunkY <= maxChunkY; chunkY++) {
             const chunkBlocks = this.generateChunkSection(chunkX, chunkY, chunkZ, heightMap, biomeMap);
             if (chunkBlocks.some(block => block !== BLOCK_TYPES.AIR)) {
-                data.set(chunkY, chunkBlocks);
+                data[chunkY] = chunkBlocks
             }
         }
         
