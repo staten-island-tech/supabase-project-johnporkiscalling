@@ -7,8 +7,10 @@
         </div>
     <div>
     <InventoryManager v-if="showInventory" class="gui"></InventoryManager>
-    <HotBar></HotBar>
+    <HotBar class="employment"></HotBar>
     </div>
+    <img src="./assets/realhand.png" class="unemployed swing-image" width="30%">
+    <img src="./assets/realhand.png" class="mirroredunemployed" width="30%" style="filter: sepia(0.7) hue-rotate(-10deg) brightness(0.4) contrast(1.1) saturate(1.2);">
 </template>
 
 <script setup lang="ts"> 
@@ -95,19 +97,24 @@ function updateDebug()
     ${(yawObject.position.z)}`;
 }
 
-let time = 0;
 let currentTime = performance.now();
 
 
-let mouseDown: Array<number> = [];
-let duration: Array<number> = []
-document.addEventListener('mousedown', function (event) {
-    mouseDown[event.button] = performance.now();
+let mouseHeldTime: Array<number> = [];
+let isMouseDown: Array<boolean> = [];
+
+const HOLD_THRESHOLD = 1; // time in ms required to "break" a block
+
+document.addEventListener('mousedown', (event) => {
+    isMouseDown[event.button] = true;
+    mouseHeldTime[event.button] = performance.now();
 });
-document.addEventListener('mouseup', function (event) {
-    const currentTime = performance.now();
-    duration[event.button] = currentTime - mouseDown[event.button]
-});   
+
+document.addEventListener('mouseup', (event) => {
+    isMouseDown[event.button] = false;
+    mouseHeldTime[event.button] = 0;
+});
+
 
 import { Mesher2, DataManager } from './lib/renderer';
 import { InvStore } from './stores/inventory';
@@ -115,6 +122,7 @@ import { Player } from './lib/entitymanager';
 import { basicSkySetup } from './lib/sceneobjects';
 import HotBar from './components/HotBar.vue';
 import { TerrainGenerator } from './lib/workerscripts';
+import { util } from './lib/utils';
 
 
 const store = InvStore();
@@ -155,6 +163,12 @@ interface VoxelRayInfo
     distance?:number;
     face?:THREE.Vector3;
 }
+
+const metalPipe = new Audio(`../src/assets/metalpipe.mp3`)
+const miningSound = new Audio('../src/assets/blockbreak.mp3');
+miningSound.loop = true; // Makes the sound loop
+miningSound.preload = 'auto';
+let isPlayingMiningSound = false;
 function animate()
 {
     const delta = (performance.now()-currentTime)/1500;
@@ -164,7 +178,7 @@ function animate()
     player.updatePosition2(delta, camera, keys, yawObject, dm);
     const dirvector = new THREE.Vector3();
     camera.getWorldDirection(dirvector);
-    const rayinfo = player.voxelRayCast(dirvector, yawObject, dm);
+    const rayinfo:VoxelRayInfo = player.voxelRayCast(dirvector, yawObject, dm);
     velocity.value = `${Math.floor(player.verticalVelocity)}m/s`
     if (selectionQuad) {
         scene.remove(selectionQuad);
@@ -180,26 +194,42 @@ function animate()
         // Create and add new selection quad
         selectionQuad = createFaceQuad(faceCenter, rayinfo.face);
         scene.add(selectionQuad);
+        if (isMouseDown[0]) 
+        {
+            const heldDuration = currentTime - mouseHeldTime[0];
+            if (heldDuration >= HOLD_THRESHOLD) 
+            {
+                console.log("broke block")
+                const [x,y,z] = rayinfo.position;
+                dm.setVoxel(x,y,z,0);
+                const {lCords, cCords} = util.localizeCords(x,y,z);
+                mesher.renderQueue.push(cCords.toString());
+                //trigger a re render at the chunk specified
+                metalPipe.currentTime = 0;
+                metalPipe.play();
+                isMouseDown[0]=false;
+            }
+        }
+        else if(isMouseDown[2])
+        {
+            const [x,y,z] = rayinfo.position.clone().add(rayinfo.face);
+            const {lCords, cCords} = util.localizeCords(x,y,z);
+            mesher.renderQueue.push(cCords.toString());
+            dm.setVoxel(x,y,z, 1);
+            isMouseDown[2] = false;
+            metalPipe.currentTime = 0;
+            metalPipe.play();
+        }
     }
     if(yawObject.position.y<0)
     {
         yawObject.position.y = 100;
     }
+    mesher.renderStuff(dm, scene);
     renderer.render(scene, camera)
     requestAnimationFrame(animate)
 }
-let currentChunkX = Infinity;
-let currentChunkZ = Infinity;
-function maybeLoad()
-{
-    const chunkX = Math.floor(yawObject.position.x/16);
-    const chunkZ = Math.floor(yawObject.position.z/16);
-    if(chunkX != currentChunkX || chunkZ != currentChunkZ) {
-        updateChunks(chunkX, chunkZ)
-        currentChunkX = chunkX
-        currentChunkZ = chunkZ
-    }
-}
+
 
 
 async function updateChunks(chunkX:number,chunkZ:number)
@@ -263,7 +293,6 @@ onMounted(()=>
         font-size: 14px;
         z-index: 1000;
     }
-
     .scene-container
     {
         position: relative;
@@ -278,4 +307,27 @@ onMounted(()=>
         height: 100vh;
         pointer-events: auto;
     }
+    .employment {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 1em;
+        text-align: center;
+        z-index: 0;
+    }
+    .unemployed {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        z-index: 10;
+    }
+    .mirroredunemployed {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        transform: scaleX(-1);
+
+    }
+
 </style>

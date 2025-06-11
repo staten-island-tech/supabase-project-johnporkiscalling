@@ -260,15 +260,42 @@ export class DataManager {
             this.getVoxel(ax, ay, az + 1)    // front
         ];
     }
+    setVoxel(x:number, y:number, z:number, data:number)
+    {
+        const { cCords, lCords } = util.localizeCords(x, y, z);
+        const chunkKey = `${cCords[0]},${cCords[1]},${cCords[2]}`;
+        if (this._lastChunkKey === chunkKey && this._lastChunkData) {
+            return this._lastChunkData[util.getIndex(lCords[0], lCords[1], lCords[2])] || false;
+        }
+        const chunkMap = this.chunkData.get(`${cCords[0]},${cCords[2]}`);
+        const chunkData = chunkMap?.get(cCords[1]);
+        if(!chunkData) return;
+        chunkData[util.getIndex(lCords[0], lCords[1], lCords[2])] = data;
+    }
 }
 import * as THREE from "three";
 const texture0 = util.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
 const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide })
 export class Mesher2 {
     meshMap: Map<string, THREE.Mesh>;
-
+    renderQueue:Array<string> = [];
     constructor() {
         this.meshMap = new Map();
+    }
+    renderStuff(dm:DataManager,scene:THREE.Scene)
+    {
+        if(this.renderQueue.length==0) return;
+        for(let a = 0; a<this.renderQueue.length; a++)
+        {
+            const key = this.renderQueue[a];
+            const mesh = this.meshMap.get(key) as THREE.Mesh;
+            scene.remove(mesh);
+            mesh.geometry.dispose();
+            this.meshMap.delete(key);
+            const [x,y,z] = key.split(',').map(Number);
+            this.createMesh(dm, x,y,z, scene)
+        }
+        this.renderQueue.length = 0;
     }
     removeStuff(cX:number, cZ:number, bounds:number,scene:THREE.Scene)
     {

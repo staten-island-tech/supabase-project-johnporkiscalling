@@ -32,7 +32,7 @@
     grid-template-columns: repeat(9, 80px);
     gap: 5px;
     padding: 20px;
-    background: rgba(30, 30, 30, 0.9);
+    background: rgba(30, 30, 30, 0.1);
     border: 2px solid #666;
     border-radius: 5px;
     align-items: center;
@@ -53,8 +53,8 @@
 }
 
 .hotbarSlot {
-    background-color: #333;
-    border: 2px solid #555;
+    background-color: rgba(0,0,0,0.3);
+    border: 2px solid #000;
 }
 
 .item {

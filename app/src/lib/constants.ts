@@ -1,7 +1,7 @@
 export const playerData = {
     
 }
-const faceDirections = {
+const faceDirections:Record<string, Array<number>> = {
   left: [
     0, 0, 0,
     0, 0, 1,
