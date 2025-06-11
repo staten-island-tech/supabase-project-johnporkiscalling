@@ -9,6 +9,82 @@ export class Random {
         return this.lcgState;
     }
 }
+export class WorkerPool {
+    private workers: Worker[] = [];
+    private idleWorkers: Worker[] = [];
+    private pendingTasks: Array<() => void> = [];
+    private workerScript: URL;
+    private maxWorkers: number;
+
+    constructor(workerScript: URL, maxWorkers: number) {
+        this.workerScript = workerScript;
+        this.maxWorkers = maxWorkers;
+    }
+
+async runTask<T>(message: any): Promise<T> {
+    const worker = await this.getIdleWorker();
+    console.log("worker was assigned");
+
+    return new Promise<T>((resolve, reject) => {
+        const handleMessage = (e: MessageEvent<T>) => {
+            console.log("worker sent a message");
+            cleanup();
+            this.returnWorker(worker);
+            resolve(e.data);
+        };
+
+        const handleError = (e: ErrorEvent) => {
+            console.error("worker error", e);
+            cleanup();
+            this.workers = this.workers.filter(w => w !== worker);
+            worker.terminate();
+            reject(e);
+        };
+
+        const cleanup = () => {
+            worker.onmessage = null;
+            worker.onerror = null;
+        };
+
+        // Set handlers BEFORE sending message
+        worker.onmessage = handleMessage;
+        worker.onerror = handleError;
+
+        console.log('worker posting message');
+        worker.postMessage(message);
+    });
+}
+
+
+    async getIdleWorker(): Promise<Worker> {
+        if (this.idleWorkers.length > 0) {//return first available worker
+            return this.idleWorkers.pop()!;
+        }
+        if (this.workers.length < this.maxWorkers) {//no worker then create worker
+            const worker = new Worker(this.workerScript, { type: 'module' });
+            this.workers.push(worker);
+            return worker;
+        }
+        return new Promise<Worker>(resolve => {//if problem isnt no worker wait for a new worker to become available 
+            this.pendingTasks.push(() => {
+                resolve(this.idleWorkers.pop()!);
+            });
+        });
+    }
+
+    returnWorker(worker: Worker): void {
+        this.idleWorkers.push(worker);
+        const nextTask = this.pendingTasks.shift();
+        if (nextTask) {
+            nextTask();
+        }
+    }
+    terminateAll(): void {//destroy the workers when task has been done
+        this.workers.forEach(worker => worker.terminate());
+        this.workers = [];
+        this.idleWorkers = [];
+    }
+}
 export class UniversalIntArray
 {
     size:number;

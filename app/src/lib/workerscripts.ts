@@ -59,6 +59,27 @@ export class TerrainGenerator extends Random {
         
         return {data, maxChunkY};
     }
+    
+    generateChunkData2(chunkX: number, chunkZ: number): {data: Map<number, Uint8Array>; maxChunkY: number} 
+    {
+        const data: Map<number, Uint8Array> = new Map();
+        
+        // Generate height and biome maps for this chunk
+        const heightMap = this.baseHeightMap(chunkX, chunkZ);
+        const biomeMap = this.biomeMap(chunkX, chunkZ);
+        const maxHeight = Math.max(...heightMap);
+        const maxChunkY = Math.floor(maxHeight / 16) + 1;
+        
+        // Generate each Y chunk section
+        for (let chunkY = 0; chunkY <= maxChunkY; chunkY++) {
+            const chunkBlocks = this.generateChunkSection(chunkX, chunkY, chunkZ, heightMap, biomeMap);
+            if (chunkBlocks.some(block => block !== BLOCK_TYPES.AIR)) {
+                data.set(chunkY, chunkBlocks)
+            }
+        }
+        
+        return {data, maxChunkY};
+    }
 
     generateChunkSection(chunkX: number, chunkY: number, chunkZ: number, heightMap: Uint8Array, biomeMap: Uint8Array): Uint8Array {
         const blocks = new Uint8Array(4096); // 16x16x16 = 4096
