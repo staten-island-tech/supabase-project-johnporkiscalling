@@ -34,6 +34,14 @@ const paused =  ref(false);
 window.addEventListener('keydown', (event) => {
     if (event.key.toLowerCase() === 'e') {
         showInventory.value = !showInventory.value
+                // If inventory is being shown, exit pointer lock
+        if (showInventory.value && document.pointerLockElement === canvas) {
+            document.exitPointerLock();
+        }
+        // If inventory is being hidden, request pointer lock
+        else if (!showInventory.value && document.pointerLockElement !== canvas) {
+            canvas.requestPointerLock();
+        }
     }
     else if(event.key.toLowerCase()==="esc")
     {
@@ -44,7 +52,7 @@ import * as THREE from 'three';
 import Stats from 'stats.js';
 import pako from 'pako'; 
 
-const seed = 2134132131;
+const seed = 1213121;
 const coordinates =  ref();
 
 const scene:THREE.Scene = new THREE.Scene();
@@ -52,7 +60,7 @@ const camera:THREE.PerspectiveCamera =  new THREE.PerspectiveCamera(75, window.i
 const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:true});
 const pitchObject:THREE.Object3D =  new THREE.Object3D().add(camera);
 const yawObject:THREE.Object3D =  new THREE.Object3D().add(pitchObject);
-yawObject.position.set(0,160,0);
+yawObject.position.set(10,150,10);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 scene.add(yawObject);
@@ -169,17 +177,8 @@ const miningSound = new Audio('../src/assets/blockbreak.mp3');
 miningSound.loop = true; // Makes the sound loop
 miningSound.preload = 'auto';
 let isPlayingMiningSound = false;
-function animate()
+function worldInteractions(rayinfo:VoxelRayInfo)
 {
-    const delta = (performance.now()-currentTime)/1500;
-    currentTime = performance.now()
-    updateDebug();
-    skibidisky.updateSun();
-    player.updatePosition2(delta, camera, keys, yawObject, dm);
-    const dirvector = new THREE.Vector3();
-    camera.getWorldDirection(dirvector);
-    const rayinfo:VoxelRayInfo = player.voxelRayCast(dirvector, yawObject, dm);
-    velocity.value = `${Math.floor(player.verticalVelocity)}m/s`
     if (selectionQuad) {
         scene.remove(selectionQuad);
         selectionQuad = null;
@@ -215,17 +214,95 @@ function animate()
             const [x,y,z] = rayinfo.position.clone().add(rayinfo.face);
             const {lCords, cCords} = util.localizeCords(x,y,z);
             mesher.renderQueue.push(cCords.toString());
-            dm.setVoxel(x,y,z, 1);
-            isMouseDown[2] = false;
-            metalPipe.currentTime = 0;
-            metalPipe.play();
+            const aabb = player.getPlayerAABB(camera.position);
+            const min = aabb.min.clone().floor();
+            const max = aabb.max.clone().floor();
+            let nah = true;
+            for (let ax = min.x; ax <= max.x; ax++) {
+                for (let ay = min.y; ay <= max.y; ay++) {
+                    for (let az = min.z; az <= max.z; az++) {
+                        if(ay==y)
+                        {
+                            nah = false;
+                        }
+                    }
+                }
+            }
+            if(nah)
+            {
+                dm.setVoxel(x,y,z, 1);
+                isMouseDown[2] = false;
+                metalPipe.currentTime = 0;
+                metalPipe.play();
+            }
         }
     }
     if(yawObject.position.y<0)
     {
         yawObject.position.y = 100;
     }
+}
+//queue inside the dm to load new stuff
+//when the stuff is loaded 
+let currentChunkX = Math.floor(yawObject.position.x/16);
+let currentChunkZ = Math.floor(yawObject.position.z/16);
+const bounds = 2;
+function loadStuff(yawObject:THREE.Object3D)
+{
+    console.log(yawObject.position, currentChunkX, currentChunkZ)
+    const cX = Math.floor(yawObject.position.x/16)
+    const cZ = Math.floor(yawObject.position.z/16);
+    if(cX!=currentChunkX || cZ!=currentChunkZ)
+    {
+        const nBound = cZ + bounds;
+        const sBound = cZ - bounds;
+        const eBound = cX + bounds;
+        const wBound = cX - bounds;
+        for(let x = wBound; x<eBound; x++)
+        {
+            for(let z = sBound; z<nBound; z++)
+            {
+                console.log(x,z)
+                if(dm.chunkData.has(`${x},${z}`)) continue;
+                dm.aqueue.push(`${x},${z}`);
+            }   
+        }
+        //determine what datas needs to be loaded into the queue
+        //when the data is done being loaded return some sort of indicator back to tell the data that its done being loaded
+        currentChunkX = cX;
+        currentChunkZ = cZ
+    }
+    console.log("SKIPPING")
+    if(dm.readyQueue.length!=0)//checks if theres data that neesd rendereinr after dm finished
+    {
+        for(let item of dm.readyQueue)
+        {
+            mesher.renderQueue.push(item);
+        }
+        dm.readyQueue.length=0;
+    }
+}
+
+
+
+function animate()
+{
+    const delta = (performance.now()-currentTime)/1500;
+    currentTime = performance.now()
+    updateDebug();
+    skibidisky.updateSun();
+    player.updatePosition2(delta, camera, keys, yawObject, dm);
+    const dirvector = new THREE.Vector3();
+    camera.getWorldDirection(dirvector);
+    const rayinfo:VoxelRayInfo = player.voxelRayCast(dirvector, yawObject, dm) as VoxelRayInfo;
+    worldInteractions(rayinfo);
+    velocity.value = `${Math.floor(player.verticalVelocity)}m/s`
+    loadStuff(yawObject);
+    console.log("now checking da queue")
+    dm.checkQueue(tg);
+    console.log("stuck on da quqeu")
     mesher.renderStuff(dm, scene);
+
     renderer.render(scene, camera)
     requestAnimationFrame(animate)
 }
@@ -266,11 +343,12 @@ async function init()
     }
     requestAnimationFrame(animate);
 }
-onMounted(()=>
-{
     store.resetHotbar();
     store.resetInventory();
     store.changeData(0, {id:1, count:1}, "hotbar");
+onMounted(()=>
+{
+
 
     init();
 })

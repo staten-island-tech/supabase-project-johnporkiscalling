@@ -57,7 +57,6 @@ preprocessAtlas(atlasData);
 function getUVCords(name: string, width: number, height: number) {
     const uv = precomputedUVs[name];
     if (!uv) {
-        console.warn(`Missing UVs for texture: ${name}`);
         return [0, 0, 1, 0, 1, 1, 0, 1];
     }
 
@@ -111,15 +110,34 @@ export class DataManager {
     chunkData: Map<string, Map<number, Uint8Array>> = new Map();
     chunkHeights: Record<string, number>
     queue:Array<string>;
+    readyQueue:Array<string>
+    aqueue:Array<string>
     constructor() {
         this.chunkData = new Map();
         this.chunkHeights = {
         }
         this.queue = [];
+        this.aqueue = [];
+        this.readyQueue = [];
+    }
+    checkQueue(tg:TerrainGenerator)
+    {
+        if(this.aqueue.length==0) return;
+
+        if(this.aqueue.length!=0)
+        {
+            for(let item of this.aqueue)
+            {
+                const [x,z] = item.split(',').map(Number);
+                this.nonAsync(x,z,tg);
+                this.readyQueue.push(item);
+            }
+        }
+        this.aqueue.length=0;
     }
     nonAsync(chunkX:number,chunkZ:number, tg:TerrainGenerator)
     {
-        const {data, maxChunkY} = tg.generateChunkData2(chunkX, chunkZ);
+        const {data, maxChunkY} = tg.generateChunkData(chunkX, chunkZ);
         for(let a = 0; a<maxChunkY; a++)
         {
             this.chunkData.set(`${chunkX},${chunkZ}`, data);
@@ -149,93 +167,6 @@ export class DataManager {
             }
         }
 
-    }
-    async intializeWorkerScripts(data: Array<string>) {
-        const coreCount = navigator.hardwareConcurrency || 4;
-        if (!coreCount) return;
-        const workerCount = Math.max(1, coreCount - 1);
-        const batchSize = 16;
-        const iterations = data.length / batchSize;
-        const allWorkerPromises: Array<Promise<void>> = [];
-
-        for (let x = 0; x < iterations; x++) {
-            for (let b = 0; b < workerCount; b++) {
-                const work:Array<string> = [];
-                for (let j = 0; j < batchSize; j++) {
-                    if(!data[x*batchSize+j])continue;
-                    work.push(data[x * batchSize + j]);
-                }
-                if(work.length==0) continue;
-                const promise = new Promise<void>((resolve, reject)=>
-                {
-                    const worker = new Worker(
-                        new URL('../workers/terrainWorker.ts?worker', import.meta.url),
-                        { type: 'module' }
-                    );
-                    worker.onerror = (e) => { 
-                        console.error(e, "Error")
-                        worker.terminate();
-                    }; 
-                    const message:WorkerMessage =
-                    {
-                        type: 'generate',
-                        DATABUTUPPERCASE: {
-                            seed: 123, // or whatever your seed is
-                            payload: work
-                        }
-                    }
-                    worker.postMessage(message);
-                    worker.onmessage = (e: MessageEvent<ReturnMessage>) => {
-                        const { data: returnData } = e.data; 
-                        for (const [key, value] of Object.entries(returnData)) {
-                            const [x, z] = key.split(',').map(Number);
-                            value.data
-                            if (!value?.data) continue;
-                            const yLevelsMap = new Map<number, Uint8Array>(
-                                Object.entries(value.data).map(([yStr, data]) => 
-                                    [Number(yStr), data] 
-                                )
-                            );
-                            this.chunkData.set(`${x},${z}`, yLevelsMap);
-                            this.chunkHeights[`${x},${z}`] = value.maxChunkY;
-                            this.queue.push(`${x},${z}`);
-                        }
-                        worker.terminate();
-                        resolve();
-                    };
-                })
-                allWorkerPromises.push(promise);
-
-            }
-        }
-        await Promise.all(allWorkerPromises);
-    }
-    async update(cX: number, cZ: number, bounds: number) {
-        const nBound = cZ + bounds;
-        const sBound = cZ - bounds;
-        const eBound = cX + bounds;
-        const wBound = cX - bounds;
-        const deleteQueue: Set<string> = new Set();
-        for (const [key] of this.chunkData) {
-            const [x, , z] = key.split(',').map(Number);
-            if (z > nBound || z < sBound || x > eBound || x < wBound) {
-                deleteQueue.add(key);
-            }
-        }
-        for (const key of deleteQueue) {
-            this.chunkData.delete(key);
-            console.log(key)
-        }
-        const requiredData: Array<string> = [];
-        for (let x = wBound; x <= eBound; x++) {
-            for (let z = sBound; z <= nBound; z++) {
-                if (!this.chunkData.has(`${x},${z}`)) requiredData.push(`${x},${z}`);
-            }
-        }
-        if(requiredData.length==0) return;
-        console.log("thos is issue")
-        await this.intializeWorkerScripts(requiredData);
-        return requiredData;
     }
     _lastChunkKey = ``;
     _lastChunkData: Uint8Array | undefined = new Uint8Array();
@@ -269,8 +200,17 @@ export class DataManager {
         }
         const chunkMap = this.chunkData.get(`${cCords[0]},${cCords[2]}`);
         const chunkData = chunkMap?.get(cCords[1]);
-        if(!chunkData) return;
-        chunkData[util.getIndex(lCords[0], lCords[1], lCords[2])] = data;
+        if(chunkMap && !chunkData) 
+        {
+            const modifiedData = new Uint8Array(4096);
+            console.log("new data was created")
+            modifiedData[util.getIndex(lCords[0], lCords[1], lCords[2])] = data;
+            chunkMap.set(cCords[1], modifiedData);
+        }
+        else
+        {
+            chunkData[util.getIndex(lCords[0], lCords[1], lCords[2])] = data;
+        }
     }
 }
 import * as THREE from "three";
@@ -288,11 +228,17 @@ export class Mesher2 {
         for(let a = 0; a<this.renderQueue.length; a++)
         {
             const key = this.renderQueue[a];
-            const mesh = this.meshMap.get(key) as THREE.Mesh;
-            scene.remove(mesh);
-            mesh.geometry.dispose();
-            this.meshMap.delete(key);
+            this.destroyMesh(key, scene);
             const [x,y,z] = key.split(',').map(Number);
+            if(!z)
+            {
+                const data =  dm.chunkData.get(`${x},${y}`);
+                for(const[k,v] of data)
+                {
+                    this.createMesh(dm, x,k,y,scene);
+                }
+                continue;
+            }
             this.createMesh(dm, x,y,z, scene)
         }
         this.renderQueue.length = 0;
@@ -355,8 +301,12 @@ export class Mesher2 {
         scene.add(mesh);
         this.meshMap.set(`${ax},${ay},${az}`, mesh);
     }
-    destroyMesh()
+    destroyMesh(key:string, scene:THREE.Scene)
     {
-        
+        const mesh = this.meshMap.get(key);
+        if(!mesh) return;
+        scene.remove(mesh);
+        mesh.geometry.dispose();
+        this.meshMap.delete(key);
     }
 }

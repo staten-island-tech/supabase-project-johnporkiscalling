@@ -206,12 +206,9 @@ export class Player extends Entity {
     }
     updatePosition2(delta: number, camera: THREE.PerspectiveCamera, keys: Record<string, boolean>, yawObject: THREE.Object3D, dm: DataManager) 
     {
-        // Prevent massive delta values (e.g., on resume)
         delta = Math.min(delta, 0.05);
-
         const moveSpeed = this.moveSpeed * delta;
         const position = yawObject.position;
-
         const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion).setY(0).normalize();
         const right = new THREE.Vector3(1, 0, 0).applyQuaternion(yawObject.quaternion).setY(0).normalize();
         const targetFov = keys["w"] ? this.fov * this.fovMultiplier : this.currentFov;
@@ -228,15 +225,11 @@ export class Player extends Entity {
         if (!this.collidesBlock(testX, dm)) position.x = testX.x;
         const testZ = position.clone().add(new THREE.Vector3(0, 0, move.z));
         if (!this.collidesBlock(testZ, dm)) position.z = testZ.z;
-
-        // --- Jump ---
         if (keys[" "] && this.isOnGround) {
             this.verticalVelocity = this.jumpStrength;
             this.isOnGround = false;
         }
-
-        // --- Gravity ---
-        this.verticalVelocity += this.gravity * delta;
+         this.verticalVelocity += this.gravity * delta ;
         const testY = position.clone();
         testY.y += this.verticalVelocity * delta;
 
@@ -247,8 +240,6 @@ export class Player extends Entity {
             if (this.verticalVelocity < 0) this.isOnGround = true;
             this.verticalVelocity = 0;
         }
-
-        // Update position to match yawObject (if needed elsewhere)
         this.position.copy(position);
     }
     
