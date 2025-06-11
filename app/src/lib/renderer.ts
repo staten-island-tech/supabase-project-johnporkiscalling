@@ -216,32 +216,46 @@ export class DataManager {
 import * as THREE from "three";
 const texture0 = util.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
 const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide })
+const frameBudget = 4;
 export class Mesher2 {
     meshMap: Map<string, THREE.Mesh>;
     renderQueue:Array<string> = [];
+    priorityQueue:Array<string> = [];
     constructor() {
         this.meshMap = new Map();
     }
     renderStuff(dm:DataManager,scene:THREE.Scene)
     {
-        if(this.renderQueue.length==0) return;
         for(let a = 0; a<this.renderQueue.length; a++)
         {
             const key = this.renderQueue[a];
             this.destroyMesh(key, scene);
             const [x,y,z] = key.split(',').map(Number);
-            if(!z)
+            console.log(x,y,z)
+            if(z===undefined)
             {
                 const data =  dm.chunkData.get(`${x},${y}`);
-                for(const[k,v] of data)
+                const maxHeight = Math.max(...Array.from(data.keys()).map(Number));
+                for(let bab = maxHeight; bab>=0; bab--)
                 {
-                    this.createMesh(dm, x,k,y,scene);
+                    this.priorityQueue.push(`${x},${bab},${y}`);
                 }
                 continue;
             }
-            this.createMesh(dm, x,y,z, scene)
+            console.log(x,y,z)
+            this.priorityQueue.push(key);
         }
+        console.log("yay")
         this.renderQueue.length = 0;
+        if(this.priorityQueue.length==0) return;
+        for(let a = 0; a<2; a++)
+        {
+            if(this.priorityQueue.length==0) break;
+            const element = this.priorityQueue.shift() as string;
+            console.log(element)
+            const [x,y,z] = element?.split(",").map(Number);
+            this.createMesh(dm, x,y,z, scene);
+        }
     }
     removeStuff(cX:number, cZ:number, bounds:number,scene:THREE.Scene)
     {

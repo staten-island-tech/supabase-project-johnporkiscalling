@@ -249,7 +249,6 @@ let currentChunkZ = Math.floor(yawObject.position.z/16);
 const bounds = 2;
 function loadStuff(yawObject:THREE.Object3D)
 {
-    console.log(yawObject.position, currentChunkX, currentChunkZ)
     const cX = Math.floor(yawObject.position.x/16)
     const cZ = Math.floor(yawObject.position.z/16);
     if(cX!=currentChunkX || cZ!=currentChunkZ)
@@ -272,7 +271,6 @@ function loadStuff(yawObject:THREE.Object3D)
         currentChunkX = cX;
         currentChunkZ = cZ
     }
-    console.log("SKIPPING")
     if(dm.readyQueue.length!=0)//checks if theres data that neesd rendereinr after dm finished
     {
         for(let item of dm.readyQueue)
@@ -298,9 +296,7 @@ function animate()
     worldInteractions(rayinfo);
     velocity.value = `${Math.floor(player.verticalVelocity)}m/s`
     loadStuff(yawObject);
-    console.log("now checking da queue")
     dm.checkQueue(tg);
-    console.log("stuck on da quqeu")
     mesher.renderStuff(dm, scene);
 
     renderer.render(scene, camera)
@@ -308,14 +304,6 @@ function animate()
 }
 
 
-
-async function updateChunks(chunkX:number,chunkZ:number)
-{
-    mesher.removeStuff(chunkX,chunkZ, renderDist.value, scene);
-    //then update stuff which handles deleting usesless data 
-    const stuff = await dm.update(chunkX, chunkZ, renderDist.value);
-    if(!stuff) return;
-}   
 
 const renderDist = ref(1);
 async function init()
