@@ -1,4 +1,8 @@
 <script setup lang="ts">
+//move this stuff to a component so it's compatabile with app4. toggle the escape menu and stuff via the v-if method 
+//paused method already inplace
+
+
 import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
 import LogIn from "./components/LogIn1.vue";

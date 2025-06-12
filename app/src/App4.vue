@@ -13,7 +13,7 @@
 
     <img src="./assets/realhand.png" class="unemployed swing-image" width="30%">
     <div class="escapemenu" v-if="paused">{{ "aasada" }}</div>
-    <img src="./assets/realhand.png" class="mirroredunemployed" width="30%" style="filter: sepia(0.7) hue-rotate(-10deg) brightness(0.4) contrast(1.1) saturate(1.2);">
+    <img src="./assets/realhand.png" class="mirroredunemployed" width="30%">
 </template>
 
 <script setup lang="ts"> 
@@ -285,6 +285,28 @@ function loadStuff(yawObject:THREE.Object3D)
         dm.readyQueue.length=0;
     }
 }
+let ctOne = performance.now();
+function handleDropAndPickup()
+{
+    //make a call to the itemManager and ask what items are within the range of the player
+    //take those items and attempt to pick them up 
+    //if it fails to do so then just leave it there
+    //this gets done every animate frame
+    //could implement item entity stacking to prevent too many entities spawning
+    //will add at the end
+    //to pick up the entity read the id from the item class of the mesh
+    //run the functin from the invStore to try and put the item in
+    //for dropping just check if q has been pressed and if yes create a new item via the itemmanager
+    //avoids having to deal with every individal item
+    if(keys["q"] && 5<(performance.now()-ctOne))//change this to rpevent dropping too fast ad
+    {
+        store.removeQuantity(1, selectedSlot.value)
+        ctOne = performance.now();
+    }
+}
+//for brightness just apply a filter over the canvas 
+
+let dropped = false;
 function animate()
 {
     const delta = (performance.now()-currentTime)/1500;
@@ -299,6 +321,7 @@ function animate()
     velocity.value = `${Math.floor(player.verticalVelocity)}m/s`
     loadStuff(yawObject);
     dm.checkQueue(tg);
+    handleDropAndPickup();
     mesher.renderStuff(dm, scene);
     im.updateAll(delta, dm);
     renderer.render(scene, camera)
@@ -336,6 +359,8 @@ async function init()
     store.resetHotbar();
     store.resetInventory();
     store.changeData(0, {id:1, count:10 }, "hotbar");
+    store.changeData(3, {id:10, count:1000 }, "hotbar");
+    store.changeData(3, {id:14, count:21000 }, "hotbar");
 onMounted(()=>
 {
 
