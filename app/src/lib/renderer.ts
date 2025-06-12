@@ -3,6 +3,25 @@ import { Noise } from "./noise";
 import { faceDirections } from "./constants";
 import { atlasData } from "@/lib/atlas";
 const faceArray = ["left", "right", "bottom", "top", "back", "front"]
+const BLOCK_TYPES = {
+    AIR: 0,
+    STONE: 1,
+    DIRT: 2,
+    GRASS: 3,
+    SAND: 4,
+    WATER: 5,
+    SNOW: 6,
+    ICE: 7,
+    COAL_ORE: 8,
+    IRON_ORE: 9,
+    GOLD_ORE: 10,
+    DIAMOND_ORE: 11,
+    BEDROCK: 12,
+    CLAY: 13,
+    GRAVEL: 14,
+    OBSIDIAN: 15
+};
+
 const UVCORDS: Record<number, string> = 
 {
     1: "minecraft:block/stone",
@@ -14,7 +33,12 @@ const UVCORDS: Record<number, string> =
     7: "minecraft:block/ice",
     8: "minecraft:block/coal_ore",
     9: "minecraft:block/iron_ore",
-    10: "minecraft:block/bedrock"
+    10:"minecraft:block/gold_ore",
+    11:"minecraft:block/diamond_ore",
+    12: "minecraft:block/bedrock",
+    13:"minecraft:block/clay",
+    14:"minecraft:block/gravel",
+    15:"minecraft:block/obsidian"
 };
 const precomputedUVs: Record<string, Array<number>> = {};
 interface TextureSize {
@@ -199,7 +223,8 @@ export class DataManager {
             return this._lastChunkData[util.getIndex(lCords[0], lCords[1], lCords[2])] || false;
         }
         const chunkMap = this.chunkData.get(`${cCords[0]},${cCords[2]}`);
-        const chunkData = chunkMap?.get(cCords[1]);
+        if(!chunkMap) return;
+        const chunkData = chunkMap?.get(cCords[1]) as Uint8Array;
         if(chunkMap && !chunkData) 
         {
             const modifiedData = new Uint8Array(4096);
@@ -214,9 +239,61 @@ export class DataManager {
     }
 }
 import * as THREE from "three";
-const texture0 = util.loadBlockTexture('./src/assets/blockAtlases/atlas0.png')
+const texture0 = util.loadBlockTexture('./src/assets/atlas0.png')
 const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide })
 const frameBudget = 4;
+import { Item } from "./entitymanager";
+interface renderItem 
+{
+    item:Item;
+    mesh:THREE.Mesh
+}
+export class ItemManager
+{
+    droppedItems:Array<renderItem> = []
+    lastDespawn:number;
+    constructor()
+    {
+        this.lastDespawn = 0;       
+    }
+    addItem(scene:THREE.Scene, positon:THREE.Vector3, id:number)
+    {
+        const item = new Item(id, positon.clone().add(new THREE.Vector3(0,1.5,0)), new THREE.Vector3(0.1,2,0.1));
+        const geometry = new THREE.BoxGeometry(0.25,0.25,0.25);
+        const uv = getUVCords(UVCORDS[id], 1,1);
+        const uvs = geometry.attributes.uv.array;
+        for (let i = 0; i < uvs.length; i += 8) {
+            uvs[i + 0] = uv[0]; uvs[i + 1] = uv[1]; // bottom-left
+            uvs[i + 2] = uv[2]; uvs[i + 3] = uv[3]; // bottom-right
+            uvs[i + 4] = uv[4]; uvs[i + 5] = uv[5]; // top-right
+            uvs[i + 6] = uv[6]; uvs[i + 7] = uv[7]; // top-left
+        }
+        geometry.attributes.uv.needsUpdate = true;
+        const newMesh = new THREE.Mesh(geometry, blocksMaterial);
+        scene.add(newMesh)
+        this.droppedItems.push({item:item,mesh:newMesh})
+    }
+    updateAll(delta:number,dm:DataManager)
+    {
+        for(let x of this.droppedItems)
+        {
+            x.item.update(delta, dm);
+            x.item.applyToMesh(x.mesh, delta);
+        }
+    }
+    despawnAll(scene:THREE.Scene)
+    {
+        if(!((performance.now()-this.lastDespawn) >= 300)) return;
+        for(let x of this.droppedItems)
+        {
+            scene.remove(x.mesh);
+            x.mesh.geometry.dispose();
+        }
+        this.droppedItems.length = 0;
+        this.lastDespawn = performance.now();
+
+    }
+}
 export class Mesher2 {
     meshMap: Map<string, THREE.Mesh>;
     renderQueue:Array<string> = [];
@@ -234,7 +311,7 @@ export class Mesher2 {
             console.log(x,y,z)
             if(z===undefined)
             {
-                const data =  dm.chunkData.get(`${x},${y}`);
+                const data =  dm.chunkData.get(`${x},${y}`) as Map<number, Uint8Array>;
                 const maxHeight = Math.max(...Array.from(data.keys()).map(Number));
                 for(let bab = maxHeight; bab>=0; bab--)
                 {
@@ -245,7 +322,6 @@ export class Mesher2 {
             console.log(x,y,z)
             this.priorityQueue.push(key);
         }
-        console.log("yay")
         this.renderQueue.length = 0;
         if(this.priorityQueue.length==0) return;
         for(let a = 0; a<2; a++)

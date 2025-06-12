@@ -15,7 +15,7 @@
           v-show="draggingIndex !== index || draggingSource !== 'inventory'"
           @mousedown="startDrag($event, index, 'inventory')"
         >
-          {{ items[inventory[index]?.id] || '' }}
+          <img :src="NOTUVCORDS[inventory[index]?.id]">
           <span v-if="inventory[index]?.count > 1" class="item-count">
             {{ inventory[index]?.count }}
           </span>
@@ -38,7 +38,7 @@
           v-show="draggingIndex !== index || draggingSource !== 'hotbar'"
           @mousedown="startDrag($event, index, 'hotbar')"
         >
-          {{ items[hotbar[index]?.id] || '' }}
+          <img :src="NOTUVCORDS[hotbar[index]?.id]">
           <span v-if="hotbar[index]?.count > 1" class="item-count">
             {{ hotbar[index]?.count }}
           </span>
@@ -53,7 +53,7 @@
       :class="{ hotbarItem: draggingSource === 'hotbar' }"
       :style="{ left: dragX + 'px', top: dragY + 'px' }"
     >
-      {{ items[draggedItem.id] }}
+      <img :src="NOTUVCORDS[draggedItem?.id]">
       <span v-if="draggedItem.count > 1" class="item-count">
         {{ draggedItem.count }}
       </span>
@@ -64,6 +64,24 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount } from 'vue'
 import { InvStore } from '@/stores/inventory'
+const NOTUVCORDS: Record<number, string> = {
+  1: new URL('@/assets/stone.png', import.meta.url).href,
+  2: new URL('@/assets/dirt.png', import.meta.url).href,
+  3: new URL('@/assets/green_wool.png', import.meta.url).href,
+  4: new URL('@/assets/sand.png', import.meta.url).href,
+  5: new URL('@/assets/water_still.png', import.meta.url).href,
+  6: new URL('@/assets/snow.png', import.meta.url).href,
+  7: new URL('@/assets/ice.png', import.meta.url).href,
+  8: new URL('@/assets/coal_ore.png', import.meta.url).href,
+  9: new URL('@/assets/iron_ore.png', import.meta.url).href,
+  10: new URL('@/assets/gold_ore.png', import.meta.url).href,
+  11: new URL('@/assets/diamond_ore.png', import.meta.url).href,
+  12: new URL('@/assets/bedrock.png', import.meta.url).href,
+  13: new URL('@/assets/clay.png', import.meta.url).href,
+  14: new URL('@/assets/gravel.png', import.meta.url).href,
+  15: new URL('@/assets/obsidian.png', import.meta.url).href
+};
+
 
 const store = InvStore();
 console.log(store)
@@ -88,19 +106,12 @@ const draggedItem = ref<{id: number | null, count: number} | null>(null)
 function startDrag(event: MouseEvent, slotIndex: number, source: 'inventory' | 'hotbar') {
   draggingIndex.value = slotIndex
   draggingSource.value = source
-  
-  // Get item data from store
-  const itemData = store.readSlot(source, slotIndex)
+    const itemData = store.readSlot(source, slotIndex)
   if (itemData.id === null) return
-  
   draggedItem.value = { ...itemData }
-  
-  // Clear the original slot in store
   store.changeData(slotIndex, { id: null, count: 0 }, source)
-
   dragX.value = event.clientX - 40
   dragY.value = event.clientY - 40
-
   window.addEventListener('mousemove', onDrag)
   window.addEventListener('mouseup', stopDrag)
 }
@@ -112,10 +123,7 @@ function onDrag(event: MouseEvent) {
 
 function dropItem(event: MouseEvent, slotIndex: number, target: 'inventory' | 'hotbar') {
   if (draggingIndex.value === null || draggedItem.value === null || draggingSource.value === null) return
-  
-  // Don't allow dropping on the same slot
   if (draggingSource.value === target && draggingIndex.value === slotIndex) {
-    // Return item to original position
     store.changeData(draggingIndex.value, draggedItem.value, draggingSource.value)
     stopDrag()
     return
@@ -245,12 +253,8 @@ onBeforeUnmount(() => {
 }
 
 .inventorySlot .item {
-    background-color: #4caf50;
 }
 
-.hotbarSlot .hotbarItem {
-    background-color: #2196f3;
-}
 
 .dragging {
     position: absolute;

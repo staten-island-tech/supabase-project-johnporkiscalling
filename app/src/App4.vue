@@ -7,15 +7,27 @@
         </div>
     <div>
     <InventoryManager v-if="showInventory" class="gui"></InventoryManager>
-    <HotBar class="employment"></HotBar>
+    <HotBar class="employment" :selectedSlot="selectedSlot"></HotBar>
     </div>
+    <div class="crosshair"></div>
+
     <img src="./assets/realhand.png" class="unemployed swing-image" width="30%">
+    <div class="escapemenu" v-if="paused">{{ "aasada" }}</div>
     <img src="./assets/realhand.png" class="mirroredunemployed" width="30%" style="filter: sepia(0.7) hue-rotate(-10deg) brightness(0.4) contrast(1.1) saturate(1.2);">
 </template>
 
 <script setup lang="ts"> 
 import { onMounted, ref, render, type Ref } from 'vue';
 import InventoryManager from './components/InventoryManager.vue';
+import * as THREE from 'three';
+import { Mesher2, DataManager } from './lib/renderer';
+import { InvStore } from './stores/inventory';
+import { Item, Player } from './lib/entitymanager';
+import { basicSkySetup } from './lib/sceneobjects';
+import HotBar from './components/HotBar.vue';
+import { TerrainGenerator } from './lib/workerscripts';
+import { util } from './lib/utils';
+
 const keys:Record<string, boolean> = {}
 window.addEventListener("keydown", (event)=>
 {
@@ -29,7 +41,9 @@ window.addEventListener("keyup", (event)=>
 
 const showInventory = ref(false);
 const paused =  ref(false);
-
+const coordinates =  ref();
+const velocity = ref();
+const selectedSlot = ref(0);
 
 window.addEventListener('keydown', (event) => {
     if (event.key.toLowerCase() === 'e') {
@@ -48,29 +62,44 @@ window.addEventListener('keydown', (event) => {
         paused.value = !paused.value;
     }
 })
-import * as THREE from 'three';
 import Stats from 'stats.js';
 import pako from 'pako'; 
+const metalPipe = new Audio(`../src/assets/metalpipe.mp3`)
 
 const seed = 1213121;
-const coordinates =  ref();
 
 const scene:THREE.Scene = new THREE.Scene();
 const camera:THREE.PerspectiveCamera =  new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2048)
-const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:true});
+const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:false});
 const pitchObject:THREE.Object3D =  new THREE.Object3D().add(camera);
 const yawObject:THREE.Object3D =  new THREE.Object3D().add(pitchObject);
 yawObject.position.set(10,150,10);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 scene.add(yawObject);
+scene.fog = new THREE.Fog(0xcccccc,5, 30)
 //mouse movement
-const velocity = ref();
-
-
-
 const canvasContainer = ref<HTMLElement | null>(null)
 const canvas =  renderer.domElement;
+
+window.addEventListener('wheel', (event) => {
+  if (event.deltaY > 0) {
+    selectedSlot.value = (selectedSlot.value + 1) % 9;
+  } else {
+    selectedSlot.value = (selectedSlot.value - 1 + 9) % 9;
+  }
+  event.preventDefault(); 
+}, { passive: false });
+document.addEventListener('mousedown', (event) => {
+    isMouseDown[event.button] = true;
+    mouseHeldTime[event.button] = performance.now();
+});
+
+document.addEventListener('mouseup', (event) => {
+    isMouseDown[event.button] = false;
+    mouseHeldTime[event.button] = 0;
+});
+
 canvas.addEventListener('click', () => {
     canvas.requestPointerLock();
 });
@@ -85,7 +114,8 @@ let yaw = 0;
 let pitch = 0;
 const options = 
 {
-    mouseSens:0.002
+    mouseSens:0.002,
+    renderDist:3
 }
 function onMouseMove(event:MouseEvent) {
     yaw -= event.movementX * options.mouseSens;
@@ -95,8 +125,6 @@ function onMouseMove(event:MouseEvent) {
     yawObject.rotation.y = yaw;
     pitchObject.rotation.x = pitch;
 }
-
-
 function updateDebug()
 {
     coordinates.value =  `
@@ -104,35 +132,17 @@ function updateDebug()
     ${(yawObject.position.y)},
     ${(yawObject.position.z)}`;
 }
+//when the player breaks a block spawn an item entity
+
+
 
 let currentTime = performance.now();
-
-
 let mouseHeldTime: Array<number> = [];
 let isMouseDown: Array<boolean> = [];
+const HOLD_THRESHOLD = 1; 
 
-const HOLD_THRESHOLD = 1; // time in ms required to "break" a block
-
-document.addEventListener('mousedown', (event) => {
-    isMouseDown[event.button] = true;
-    mouseHeldTime[event.button] = performance.now();
-});
-
-document.addEventListener('mouseup', (event) => {
-    isMouseDown[event.button] = false;
-    mouseHeldTime[event.button] = 0;
-});
-
-
-import { Mesher2, DataManager } from './lib/renderer';
-import { InvStore } from './stores/inventory';
-import { Player } from './lib/entitymanager';
-import { basicSkySetup } from './lib/sceneobjects';
-import HotBar from './components/HotBar.vue';
-import { TerrainGenerator } from './lib/workerscripts';
-import { util } from './lib/utils';
-
-
+import { ItemManager } from './lib/renderer';
+const im = new ItemManager();
 const store = InvStore();
 let player = new Player(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0), 100)
 let dm = new DataManager();
@@ -172,11 +182,8 @@ interface VoxelRayInfo
     face?:THREE.Vector3;
 }
 
-const metalPipe = new Audio(`../src/assets/metalpipe.mp3`)
-const miningSound = new Audio('../src/assets/blockbreak.mp3');
-miningSound.loop = true; // Makes the sound loop
-miningSound.preload = 'auto';
-let isPlayingMiningSound = false;
+let currentChunkX = Math.floor(yawObject.position.x/16);
+let currentChunkZ = Math.floor(yawObject.position.z/16);
 function worldInteractions(rayinfo:VoxelRayInfo)
 {
     if (selectionQuad) {
@@ -244,19 +251,17 @@ function worldInteractions(rayinfo:VoxelRayInfo)
 }
 //queue inside the dm to load new stuff
 //when the stuff is loaded 
-let currentChunkX = Math.floor(yawObject.position.x/16);
-let currentChunkZ = Math.floor(yawObject.position.z/16);
-const bounds = 2;
+
 function loadStuff(yawObject:THREE.Object3D)
 {
     const cX = Math.floor(yawObject.position.x/16)
     const cZ = Math.floor(yawObject.position.z/16);
     if(cX!=currentChunkX || cZ!=currentChunkZ)
     {
-        const nBound = cZ + bounds;
-        const sBound = cZ - bounds;
-        const eBound = cX + bounds;
-        const wBound = cX - bounds;
+        const nBound = cZ + options.renderDist;
+        const sBound = cZ - options.renderDist;
+        const eBound = cX + options.renderDist;
+        const wBound = cX - options.renderDist;
         for(let x = wBound; x<eBound; x++)
         {
             for(let z = sBound; z<nBound; z++)
@@ -280,9 +285,6 @@ function loadStuff(yawObject:THREE.Object3D)
         dm.readyQueue.length=0;
     }
 }
-
-
-
 function animate()
 {
     const delta = (performance.now()-currentTime)/1500;
@@ -298,14 +300,10 @@ function animate()
     loadStuff(yawObject);
     dm.checkQueue(tg);
     mesher.renderStuff(dm, scene);
-
+    im.updateAll(delta, dm);
     renderer.render(scene, camera)
     requestAnimationFrame(animate)
 }
-
-
-
-const renderDist = ref(1);
 async function init()
 {
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
@@ -316,9 +314,13 @@ async function init()
         canvasContainer.value.appendChild(renderer.domElement);
     }
     skibidisky.setup();
+    for(let x = 0; x<100; x++)
+    {
+        im.addItem(scene, new THREE.Vector3(x/10,150,x/10), 1);
+    }
     const cX = Math.ceil(yawObject.position.x/16);
     const cY = Math.ceil(yawObject.position.z/16);
-    dm.nonasyncUpdate(cX,cY, 1, tg);
+    dm.nonasyncUpdate(cX,cY, options.renderDist, tg);
     for(let xa = 0; xa<dm.queue.length;xa++)
     {
         const [x,z] = dm.queue[xa].split(',').map(Number)
@@ -333,7 +335,7 @@ async function init()
 }
     store.resetHotbar();
     store.resetInventory();
-    store.changeData(0, {id:1, count:1}, "hotbar");
+    store.changeData(0, {id:1, count:10 }, "hotbar");
 onMounted(()=>
 {
 
@@ -347,6 +349,47 @@ onMounted(()=>
 </script>
 
 <style scoped>
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      background: #000; /* Optional: black background for contrast */
+    }
+
+    .crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      transform: translate(-50%, -50%);
+      pointer-events: none; /* Let clicks pass through */
+    }
+
+    .crosshair::before,
+    .crosshair::after {
+      content: "";
+      position: absolute;
+      background: black; /* Change color if desired */
+    }
+
+    /* Vertical line */
+    .crosshair::before {
+      width: 2px;
+      height: 100%;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+    }
+
+    /* Horizontal line */
+    .crosshair::after {
+      height: 2px;
+      width: 100%;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%);
+    }
     .debugScreen
     {
         position: fixed;
@@ -394,6 +437,10 @@ onMounted(()=>
         left: 0;
         transform: scaleX(-1);
 
+    }
+    .escapemenu
+    {
+        z-index: 10;
     }
 
 </style>

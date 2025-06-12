@@ -10,8 +10,6 @@ class Entity
     entityPosition:THREE.Vector3
     entityVelocity:THREE.Vector3;
     worldBoundingBox:THREE.Box3;
-    toggledBox:boolean;
-    boxHelper?:THREE.Box3Helper
     constructor(entityType:string, entitySize:THREE.Vector3)
     {
         this.id = 1;
@@ -24,64 +22,133 @@ class Entity
         this.worldBoundingBox =  new THREE.Box3();
         this.worldBoundingBox.copy(this.boundingBox);
         this.entityVelocity =  new THREE.Vector3;
-        this.toggledBox = false;
-
     }
-    checkCollision(box:THREE.Box3)
-    {
-        if(this.worldBoundingBox.intersectsBox(box))
-        {
+}
+export class Item extends Entity {
+    position: THREE.Vector3;
+    velocity: THREE.Vector3;
+    size: THREE.Vector3;
+    gravity: number;
+    isOnGround: boolean;
+    rotationAxis: THREE.Vector3;
+    rotationSpeed: number; // radians per second
+    maxReach = 8;
+    rotationAngle: number = 0;
+    id: number;
 
+    constructor(
+        id: number,
+        position: THREE.Vector3,
+        initialVelocity: THREE.Vector3,
+        size: THREE.Vector3 = new THREE.Vector3(0.25, 0.25, 0.25),
+        gravity: number = -9.8,
+        rotationAxis = new THREE.Vector3(0, 1, 0),
+        rotationSpeed: number = Math.PI 
+    ) {
+        super("droppedItem", size);
+        this.id = id;
+        this.position = position.clone();
+        this.velocity = initialVelocity.clone();
+        this.size = size.clone();
+        this.gravity = gravity;
+        this.isOnGround = false;
+        
+        if (rotationAxis) {
+            rotationAxis.y = 0;
+            if (rotationAxis.length() > 0) {
+                this.rotationAxis = rotationAxis.normalize();
+            } else {
+                this.rotationAxis = new THREE.Vector3(1, 0, 0);
+            }
+        } else {
+            const randomAngle = Math.random() * Math.PI * 2;
+            this.rotationAxis = new THREE.Vector3(
+                Math.cos(randomAngle),
+                0,
+                Math.sin(randomAngle)
+            ).normalize();
+        }
+        this.rotationSpeed = rotationSpeed;
+    }
 
-        return true;
+    getAABB(position: THREE.Vector3) {
+        const half = this.size.clone().multiplyScalar(0.5);
+        const actualPos = new THREE.Vector3(position.x, position.clone().y - 0.75, position.z);
+        const min = actualPos.clone().sub(half);
+        const max = actualPos.clone().add(half);
+        return new THREE.Box3(min, max);
+    }
+
+    collidesBlock(position: THREE.Vector3, dm: DataManager) {
+        const aabb = this.getAABB(position);
+        const min = aabb.min.clone().floor();
+        const max = aabb.max.clone().floor();
+        for (let x = min.x; x <= max.x; x++) {
+            for (let y = min.y; y <= max.y; y++) {
+                for (let z = min.z; z <= max.z; z++) {
+                    const block = dm.getVoxel(x, y, z);
+                    if (block) {
+                        return true;
+                    }
+                }
+            }
         }
         return false;
     }
-    toggleHitbox(scene:THREE.Scene)
-    {   
-        this.toggledBox = !this.toggledBox;
-        if(this.toggledBox)
-        {
-        const boxHelper = new THREE.Box3Helper(this.worldBoundingBox, 0x000000);
-        this.boxHelper = boxHelper;
-        scene.add(boxHelper);
-        return
-        }
-        scene.remove(this.boxHelper as THREE.Box3Helper);
+
+    update(delta: number, dm: DataManager) {
+            const maxDelta = 0.05;
+            delta = Math.min(delta, maxDelta);
+            if (!this.isOnGround) {
+                this.velocity.y += this.gravity * delta;
+            }
+            const nextPos = this.position.clone().addScaledVector(this.velocity, delta);
+            const horizPos = this.position.clone();
+            horizPos.x = nextPos.x;
+            horizPos.z = nextPos.z;
+            if (!this.collidesBlock(horizPos, dm)) {
+                this.position.x = horizPos.x;
+                this.position.z = horizPos.z;
+            } else {
+                this.velocity.x = 0;
+                this.velocity.z = 0;
+            }
+            const vertPos = this.position.clone();
+            vertPos.y = nextPos.y;
+            
+            if (!this.collidesBlock(vertPos, dm)) {
+                this.position.y = vertPos.y;
+                this.isOnGround = false;
+            } else {
+                if (this.velocity.y < 0) {
+                    const bbox = this.getAABB(this.position);
+                    const currentMinY = bbox.min.y;
+                    const targetMinY = Math.floor(currentMinY) + 1;
+                    const halfHeight = this.size.y * 0.5;
+                    this.position.y = targetMinY + halfHeight + 0.001;
+                    this.isOnGround = true;
+                } else {
+                    this.velocity.y = 0;
+                }
+            }
+            if (this.isOnGround) {
+                this.velocity.x *= 0.8;
+                this.velocity.z *= 0.8;
+                if (Math.abs(this.velocity.y) < 0.1) {
+                    this.velocity.y = 0;
+                }
+            }
+
+            this.rotationAngle += this.rotationSpeed * delta;
     }
-    updateBound()
-    {
-        //corners of the bounding boxes defined by a given size dimension vector
-        this.worldBoundingBox.copy(this.boundingBox);
-        this.worldBoundingBox.min.add(this.entityPosition);
-        this.worldBoundingBox.max.add(this.entityPosition);
-    }
-    handleIntersect(box:THREE.Box3)
-    {
-        if(this.worldBoundingBox.intersectsBox(box))
-        {
-        //set the position of the entity to above the block so they dont collide
-        } 
-    }
-}
-class Mob extends Entity
-{
-    agroLevel:number
-    constructor()
-    {
-        super("id", new THREE.Vector3(1,1,1))
-        this.agroLevel = 0;
-    }
-    manageAgro()
-    {
-        //conditions for agro
-        //target entities in range =  agro up
-        //higher agro = targets the target mob
-        //must meet a certain agro threshold
-    }
-    targetAgro()
-    {
-        //system to find the nearest target and pathfind to it
+
+
+    applyToMesh(mesh: THREE.Object3D, delta: number) {
+        const positon = new THREE.Vector3().addVectors(new THREE.Vector3(0,-0.7,0), this.position.clone());
+        mesh.position.copy(positon);
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromAxisAngle(this.rotationAxis, this.rotationAngle);
+        mesh.rotation.set(0, this.rotationAngle, 0);
     }
 }
 
@@ -116,13 +183,13 @@ export class Player extends Entity {
         this.fovMultiplier = 1.3;
         this.verticalVelocity = 0;
         this.gravity = -19.6;
-        this.jumpStrength = 7.5;
+        this.jumpStrength = 20;
         this.isOnGround = true;
         this.groundLevel = 64.5;
         this.currentFov = this.fov;
         this.sprintFov = this.fov + 25;
         this.adjustmentSpeed = 0.1;
-        this.moveSpeed = 5;
+        this.moveSpeed = 20;
         this.playerSize = new THREE.Vector3(0.6,1.8,0.6);
     }
     getPlayerAABB(position:THREE.Vector3)
@@ -150,7 +217,7 @@ export class Player extends Entity {
         }
         return false;
     }
-    voxelRayCast(direction: THREE.Vector3, yawObject: THREE.Object3D,dm:DataManager, maxReach = 4): VoxelRayInfo {
+    voxelRayCast(direction: THREE.Vector3, yawObject: THREE.Object3D,dm:DataManager, maxReach = 8): VoxelRayInfo {
         const origin = yawObject.position.clone();
         const dir = direction.clone().normalize();
         const pos = origin.clone().floor();

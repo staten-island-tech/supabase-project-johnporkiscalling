@@ -72,15 +72,12 @@ export class TerrainGenerator extends Random {
     generateChunkData(chunkX: number, chunkZ: number): {data: Map<number, Uint8Array>; maxChunkY: number} {
         const data: Map<number, Uint8Array> = new Map();
         
-        // Pre-compute maps for better performance
         const heightMap = this.generateHeightMap(chunkX, chunkZ);
         const biomeMap = this.generateBiomeMap(chunkX, chunkZ);
         const erosionMap = this.generateErosionMap(chunkX, chunkZ);
         
         const maxHeight = Math.max(...heightMap);
         const maxChunkY = Math.floor(maxHeight / 16) + 2; // Extra buffer for features
-        
-        // Generate each Y chunk section
         for (let chunkY = 0; chunkY <= maxChunkY; chunkY++) {
             const chunkBlocks = this.generateChunkSection(chunkX, chunkY, chunkZ, heightMap, biomeMap, erosionMap);
             if (chunkBlocks.some(block => block !== BLOCK_TYPES.AIR)) {
@@ -126,51 +123,32 @@ export class TerrainGenerator extends Random {
     }
 
     private getBlockAtPosition(x: number, y: number, z: number, surfaceHeight: number, biome: number, erosion: number): number {
-        // Early exit for high altitude
         if (y > surfaceHeight + 10) return BLOCK_TYPES.AIR;
-        
-        // Bedrock layer with some variation
-        if (y <= 1 + Math.floor(this.detailNoise.simplex(x * 0.1, z * 0.1) * 3)) {
+                if (y <= 1 + Math.floor(this.detailNoise.simplex(x * 0.1, z * 0.1) * 3)) {
             return BLOCK_TYPES.BEDROCK;
         }
-        
-        // Cave generation with improved 3D noise
         if (this.isCave(x, y, z)) {
-            // Lava lakes in deep caves
             if (y < 12 && this.detailNoise.simplex3(x * 0.05, y * 0.05, z * 0.05) > 0.6) {
                 return BLOCK_TYPES.OBSIDIAN; // Placeholder for lava
             }
             return BLOCK_TYPES.AIR;
         }
-        
-        // Water level and ocean generation
         const waterLevel = 62;
         if (y <= waterLevel && biome === BIOMES.OCEAN) {
             return y <= waterLevel - 3 ? this.getOceanFloorBlock(y) : BLOCK_TYPES.WATER;
         }
-        
-        // River generation
         if (y <= surfaceHeight + 2 && this.isRiver(x, z)) {
             return y <= surfaceHeight - 1 ? BLOCK_TYPES.GRAVEL : BLOCK_TYPES.WATER;
         }
-        
-        // Terrain generation based on depth from surface
         const depthFromSurface = surfaceHeight - y;
-        
-        // Surface layer
         if (depthFromSurface <= 0) {
             return this.getSurfaceBlock(biome, y, surfaceHeight, erosion);
         }
-        
-        // Subsurface layers
         if (depthFromSurface <= 1) {
             return this.getSubsurfaceBlock(biome, depthFromSurface);
         }
-        
-        // Deep layers with ore generation
         return this.getDeepLayerBlock(x, y, z, biome, depthFromSurface);
     }
-
     private getSurfaceBlock(biome: number, y: number, surfaceHeight: number, erosion: number): number {
         const config = BIOME_CONFIG[biome];
         
@@ -280,7 +258,7 @@ export class TerrainGenerator extends Random {
                 const localHeight = localNoise * 8;
                 const ridgeHeight = ridgeNoise * 30;
                 
-                const finalHeight = baseHeight + continentalHeight + regionalHeight + localHeight + ridgeHeight;
+                const finalHeight = baseHeight + continentalHeight + regionalHeight + localHeight + ridgeHeight-64; 
                 heightMap[x * 16 + z] = Math.max(5, Math.min(250, Math.floor(finalHeight)));
             }
         }
