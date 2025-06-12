@@ -129,8 +129,8 @@ function animate() {
 function init() {
   if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
     canvas.style.position = "fixed"; // important
-    canvas.style.top = "0";
-    canvas.style.left = "";
+    canvas.style.top = "7vh";
+    canvas.style.left = "0";
     canvas.style.zIndex = "0"; // background layer
     canvasContainer.value.appendChild(renderer.domElement);
   }
@@ -167,10 +167,6 @@ onMounted(() => {
   z-index: 1000;
 }
 
-.scene-container {
-  position: relative;
-  z-index: 0;
-}
 .gui {
   position: fixed;
   top: 0;
@@ -180,9 +176,18 @@ onMounted(() => {
   height: 100vh;
   pointer-events: auto;
 }
-.screen {
-  position: sticky;
+
+.scene-container {
+  position: relative;
+  z-index: 0;
   height: 93vh;
   width: 100vw;
+}
+
+.screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  padding-top: 7vh; /* visual offset (not strictly needed since canvas is fixed) */
 }
 </style>

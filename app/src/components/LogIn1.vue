@@ -350,6 +350,24 @@ button:active {
   left: 73%;
   transform: translate(-50%, -50%);
 }
+@media screen and (max-width: 1700px) and (max-height: 952px) {
+  .square {
+    width: 12.88%;
+    height: 12.88vw;
+  }
+}
+@media screen and (max-width: 1354px) and (max-height: 952px) {
+  .square {
+    width: 14.88%;
+    height: 14.88vw;
+  }
+}
+@media screen and (max-width: 1300px) and (max-height: 952px) {
+  .square {
+    width: 15.9%;
+    height: 15.9vw;
+  }
+}
 @media screen and (max-width: 1300px) {
   .square {
     width: 13.1%;
