@@ -248,6 +248,7 @@ interface renderItem
     item:Item;
     mesh:THREE.Mesh
 }
+//change the import paths to absolute to avoid issues 
 export class ItemManager
 {
     droppedItems:Array<renderItem> = []
