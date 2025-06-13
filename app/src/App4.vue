@@ -31,6 +31,7 @@ import { util } from './lib/utils';
 const keys:Record<string, boolean> = {}
 window.addEventListener("keydown", (event)=>
 {
+
     keys[event.key.toLowerCase()] = true;
 })
 window.addEventListener("keyup", (event)=>
@@ -73,7 +74,7 @@ const camera:THREE.PerspectiveCamera =  new THREE.PerspectiveCamera(75, window.i
 const renderer:THREE.WebGLRenderer =  new THREE.WebGLRenderer({antialias:false});
 const pitchObject:THREE.Object3D =  new THREE.Object3D().add(camera);
 const yawObject:THREE.Object3D =  new THREE.Object3D().add(pitchObject);
-yawObject.position.set(10,150,10);
+yawObject.position.set(10,140,10);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 scene.add(yawObject);
@@ -163,24 +164,25 @@ function createFaceQuad(position: THREE.Vector3, faceNormal: THREE.Vector3): THR
             side: THREE.DoubleSide
         })
     );
-
-    // Position the quad slightly in front of the block face to avoid z-fighting
     const offset = faceNormal.clone().multiplyScalar(0.001);
     quad.position.copy(position).add(offset);
-
-    // Rotate the quad to match the face orientation
     quad.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), faceNormal);
     
     return quad;
 }
 let selectionQuad: THREE.Mesh | null = null;
-interface VoxelRayInfo 
-{
-    hit:boolean;
-    position?:THREE.Vector3;
-    distance?:number;
-    face?:THREE.Vector3;
+interface VoxelRayHit {
+    hit: true;
+    position: THREE.Vector3;
+    distance: number;
+    face: THREE.Vector3;
 }
+
+interface VoxelRayMiss {
+    hit: false;
+}
+
+type VoxelRayInfo = VoxelRayHit | VoxelRayMiss;
 
 let currentChunkX = Math.floor(yawObject.position.x/16);
 let currentChunkZ = Math.floor(yawObject.position.z/16);
@@ -207,7 +209,9 @@ function worldInteractions(rayinfo:VoxelRayInfo)
             {
                 console.log("broke block")
                 const [x,y,z] = rayinfo.position;
+                const blockId = dm.getVoxel(x,y,z) as number
                 dm.setVoxel(x,y,z,0);
+                im.addItem(scene, new THREE.Vector3(x+0.5,y+0.5,z+0.5), blockId,1)
                 const {lCords, cCords} = util.localizeCords(x,y,z);
                 mesher.renderQueue.push(cCords.toString());
                 //trigger a re render at the chunk specified
@@ -221,27 +225,23 @@ function worldInteractions(rayinfo:VoxelRayInfo)
             const [x,y,z] = rayinfo.position.clone().add(rayinfo.face);
             const {lCords, cCords} = util.localizeCords(x,y,z);
             mesher.renderQueue.push(cCords.toString());
-            const aabb = player.getPlayerAABB(camera.position);
-            const min = aabb.min.clone().floor();
-            const max = aabb.max.clone().floor();
-            let nah = true;
-            for (let ax = min.x; ax <= max.x; ax++) {
-                for (let ay = min.y; ay <= max.y; ay++) {
-                    for (let az = min.z; az <= max.z; az++) {
-                        if(ay==y)
-                        {
-                            nah = false;
-                        }
-                    }
-                }
-            }
-            if(nah)
-            {
-                dm.setVoxel(x,y,z, 1);
-                isMouseDown[2] = false;
-                metalPipe.currentTime = 0;
-                metalPipe.play();
-            }
+            const aabb = player.getPlayerAABB(yawObject.position);
+            const blockAABB = new THREE.Box3(
+                new THREE.Vector3(x,y,z),
+                new THREE.Vector3(x+1,y+1,z+1)
+            )
+            if(blockAABB.intersectsBox(aabb)) return;
+            console.log(blockAABB, aabb)
+            
+            const slotInfo = store.readSlot('hotbar', selectedSlot.value)
+            if(slotInfo.id==null) return;
+            const blockID = slotInfo.id;
+            store.removeQuantity(1, selectedSlot.value)
+            dm.setVoxel(x,y,z, blockID);
+            isMouseDown[2] = false;
+            metalPipe.currentTime = 0;
+            metalPipe.play();
+            
         }
     }
     if(yawObject.position.y<0)
@@ -285,28 +285,28 @@ function loadStuff(yawObject:THREE.Object3D)
         dm.readyQueue.length=0;
     }
 }
-let ctOne = performance.now();
-function handleDropAndPickup()
-{
-    //make a call to the itemManager and ask what items are within the range of the player
-    //take those items and attempt to pick them up 
-    //if it fails to do so then just leave it there
-    //this gets done every animate frame
-    //could implement item entity stacking to prevent too many entities spawning
-    //will add at the end
-    //to pick up the entity read the id from the item class of the mesh
-    //run the functin from the invStore to try and put the item in
-    //for dropping just check if q has been pressed and if yes create a new item via the itemmanager
-    //avoids having to deal with every individal item
-    if(keys["q"] && 5<(performance.now()-ctOne))//change this to rpevent dropping too fast ad
+const dropCooldown = {
+    lastDrop: 0,
+    delay: 300 // milliseconds
+};
+
+function handleDropAndPickup() {
+    const now = performance.now();
+    if(keys["r"])
     {
-        store.removeQuantity(1, selectedSlot.value)
-        ctOne = performance.now();
+        store.removeQuantity(999999, selectedSlot.value);
     }
+    else if (keys["q"] && now - dropCooldown.lastDrop > dropCooldown.delay) {
+
+        store.removeQuantity(1, selectedSlot.value)
+        dropCooldown.lastDrop = now;
+    }
+    im.itemsInRangeOfPlayer(yawObject.position, player, scene);
+
 }
-//for brightness just apply a filter over the canvas 
 
 let dropped = false;
+
 function animate()
 {
     const delta = (performance.now()-currentTime)/1500;
@@ -324,10 +324,17 @@ function animate()
     handleDropAndPickup();
     mesher.renderStuff(dm, scene);
     im.updateAll(delta, dm);
+    for(let x = 1; x<11; x++)
+    {
+        if(keys[`${x}`]) selectedSlot.value = x-1;
+    }
+    im.despawnAll(scene);
+
     renderer.render(scene, camera)
     requestAnimationFrame(animate)
 }
-async function init()
+import { initializeStore } from './lib/renderer';
+function init()
 {
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
         canvas.style.position = 'fixed'; // important
@@ -337,10 +344,8 @@ async function init()
         canvasContainer.value.appendChild(renderer.domElement);
     }
     skibidisky.setup();
-    for(let x = 0; x<100; x++)
-    {
-        im.addItem(scene, new THREE.Vector3(x/10,150,x/10), 1);
-    }
+    initializeStore();
+
     const cX = Math.ceil(yawObject.position.x/16);
     const cY = Math.ceil(yawObject.position.z/16);
     dm.nonasyncUpdate(cX,cY, options.renderDist, tg);
@@ -356,14 +361,11 @@ async function init()
     }
     requestAnimationFrame(animate);
 }
-    store.resetHotbar();
-    store.resetInventory();
-    store.changeData(0, {id:1, count:10 }, "hotbar");
-    store.changeData(3, {id:10, count:1000 }, "hotbar");
-    store.changeData(3, {id:14, count:21000 }, "hotbar");
+store.resetHotbar();
+store.resetInventory();
 onMounted(()=>
 {
-
+    
 
     init();
 })

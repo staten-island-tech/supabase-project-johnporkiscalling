@@ -5,8 +5,8 @@
 
 import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
-import LogIn from "./components/LogIn1.vue";
-import supabase from "./supabase";
+import LogIn from "./LogIn1.vue";
+import supabase from "../supabase";
 
 const loggedin = ref(false);
 const wantstologin = ref(false);

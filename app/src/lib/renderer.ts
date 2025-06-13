@@ -242,24 +242,33 @@ import * as THREE from "three";
 const texture0 = util.loadBlockTexture('./src/assets/atlas0.png')
 const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide })
 const frameBudget = 4;
-import { Item } from "./entitymanager";
+import { Item, Player } from "./entitymanager";
 interface renderItem 
 {
     item:Item;
     mesh:THREE.Mesh
 }
 //change the import paths to absolute to avoid issues 
+import { InvStore } from "../stores/inventory";
+let store:ReturnType<typeof InvStore>;
+export function initializeStore()
+{
+    store = InvStore();
+}
 export class ItemManager
 {
-    droppedItems:Array<renderItem> = []
+    droppedItems:Array<renderItem> = []//couldve changed this to a record for efficieny but im too lazy to do that
     lastDespawn:number;
+    itemPosition:Record<string,number> = {};//allows for faster lookup but ends up taking a bit more memory than the array approach where pos vectors are already keypt
+    pickUpRRange:number = 2;
     constructor()
     {
-        this.lastDespawn = 0;       
+        this.lastDespawn = 0;     
     }
-    addItem(scene:THREE.Scene, positon:THREE.Vector3, id:number)
+    addItem(scene:THREE.Scene, positon:THREE.Vector3, id:number, quantity:number)
     {
-        const item = new Item(id, positon.clone().add(new THREE.Vector3(0,1.5,0)), new THREE.Vector3(0.1,2,0.1));
+        const item = new Item(id,quantity, positon.clone().add(new THREE.Vector3(0,1.5,0)), new THREE.Vector3(0.1,2,0.1));
+        this.itemPosition[`${positon.x},${positon.y},${positon.z}`] = id; 
         const geometry = new THREE.BoxGeometry(0.25,0.25,0.25);
         const uv = getUVCords(UVCORDS[id], 1,1);
         const uvs = geometry.attributes.uv.array;
@@ -284,7 +293,7 @@ export class ItemManager
     }
     despawnAll(scene:THREE.Scene)
     {
-        if(!((performance.now()-this.lastDespawn) >= 300)) return;
+        if(!((performance.now()-this.lastDespawn) >= 30000)) return;
         for(let x of this.droppedItems)
         {
             scene.remove(x.mesh);
@@ -292,7 +301,27 @@ export class ItemManager
         }
         this.droppedItems.length = 0;
         this.lastDespawn = performance.now();
-
+    }
+    itemsInRangeOfPlayer(position:THREE.Vector3, player:Player, scene:THREE.Scene)
+    {
+        const inRangeItems:Array<Item>  = [];
+        const playerAABB = player.getPlayerAABB(position);
+        for (let i = this.droppedItems.length - 1; i >= 0; i--) {
+            const x = this.droppedItems[i];
+            const scaleFactor = this.pickUpRRange;
+            const size = x.mesh.scale.clone().multiplyScalar(scaleFactor);
+            const itemAABB = new THREE.Box3().setFromCenterAndSize(
+                x.item.position.clone(),
+                size
+            );
+            if (playerAABB.intersectsBox(itemAABB)) {
+                store.addQuantity(x.item.quantity, x.item.id);
+                scene.remove(x.mesh);
+                x.mesh.geometry.dispose?.();
+                this.droppedItems.splice(i, 1);
+            }
+        }
+        return inRangeItems;
     }
 }
 export class Mesher2 {

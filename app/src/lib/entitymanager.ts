@@ -35,15 +35,17 @@ export class Item extends Entity {
     maxReach = 8;
     rotationAngle: number = 0;
     id: number;
-
+    quantity:number
     constructor(
         id: number,
+        quantity:number,
         position: THREE.Vector3,
         initialVelocity: THREE.Vector3,
         size: THREE.Vector3 = new THREE.Vector3(0.25, 0.25, 0.25),
         gravity: number = -9.8,
         rotationAxis = new THREE.Vector3(0, 1, 0),
-        rotationSpeed: number = Math.PI 
+        rotationSpeed: number = Math.PI,
+
     ) {
         super("droppedItem", size);
         this.id = id;
@@ -52,6 +54,7 @@ export class Item extends Entity {
         this.size = size.clone();
         this.gravity = gravity;
         this.isOnGround = false;
+        this.quantity = quantity
         
         if (rotationAxis) {
             rotationAxis.y = 0;
@@ -96,51 +99,64 @@ export class Item extends Entity {
         return false;
     }
 
-    update(delta: number, dm: DataManager) {
-            const maxDelta = 0.05;
-            delta = Math.min(delta, maxDelta);
-            if (!this.isOnGround) {
-                this.velocity.y += this.gravity * delta;
-            }
-            const nextPos = this.position.clone().addScaledVector(this.velocity, delta);
-            const horizPos = this.position.clone();
-            horizPos.x = nextPos.x;
-            horizPos.z = nextPos.z;
-            if (!this.collidesBlock(horizPos, dm)) {
-                this.position.x = horizPos.x;
-                this.position.z = horizPos.z;
-            } else {
-                this.velocity.x = 0;
-                this.velocity.z = 0;
-            }
-            const vertPos = this.position.clone();
-            vertPos.y = nextPos.y;
-            
-            if (!this.collidesBlock(vertPos, dm)) {
-                this.position.y = vertPos.y;
-                this.isOnGround = false;
-            } else {
-                if (this.velocity.y < 0) {
-                    const bbox = this.getAABB(this.position);
-                    const currentMinY = bbox.min.y;
-                    const targetMinY = Math.floor(currentMinY) + 1;
-                    const halfHeight = this.size.y * 0.5;
-                    this.position.y = targetMinY + halfHeight + 0.001;
-                    this.isOnGround = true;
-                } else {
-                    this.velocity.y = 0;
-                }
-            }
-            if (this.isOnGround) {
-                this.velocity.x *= 0.8;
-                this.velocity.z *= 0.8;
-                if (Math.abs(this.velocity.y) < 0.1) {
-                    this.velocity.y = 0;
-                }
-            }
-
-            this.rotationAngle += this.rotationSpeed * delta;
+update(delta: number, dm: DataManager) {
+    const maxDelta = 0.05;
+    delta = Math.min(delta, maxDelta);
+    
+    if (!this.isOnGround) {
+        this.velocity.y += this.gravity * delta;
     }
+    
+    // Handle horizontal movement first
+    const nextPos = this.position.clone();
+    nextPos.x += this.velocity.x * delta;
+    nextPos.z += this.velocity.z * delta;
+    
+    if (!this.collidesBlock(nextPos, dm)) {
+        this.position.x = nextPos.x;
+        this.position.z = nextPos.z;
+    } else {
+        this.velocity.x = 0;
+        this.velocity.z = 0;
+    }
+    
+    // Handle vertical movement
+    nextPos.y += this.velocity.y * delta;
+    
+    if (!this.collidesBlock(nextPos, dm)) {
+        this.position.y = nextPos.y;
+        this.isOnGround = false;
+    } else {
+        if (this.velocity.y < 0) {
+            // We're moving downward and hit something - snap to top of block
+            const bbox = this.getAABB(this.position);
+            const currentMinY = bbox.min.y;
+            const targetMinY = Math.floor(currentMinY) + 1;
+            const halfHeight = -0.15;
+            
+            // Set position directly to the surface
+            this.position.y = targetMinY + halfHeight;
+            this.isOnGround = true;
+            
+            // Cancel any remaining downward velocity
+            this.velocity.y = 0;
+        } else {
+            // We're moving upward and hit something
+            this.velocity.y = 0;
+        }
+    }
+    
+    // Apply friction if on ground
+    if (this.isOnGround) {
+        this.velocity.x *= 0.8;
+        this.velocity.z *= 0.8;
+        if (Math.abs(this.velocity.y) < 0.1) {
+            this.velocity.y = 0;
+        }
+    }
+
+    this.rotationAngle += this.rotationSpeed * delta;
+}
 
 
     applyToMesh(mesh: THREE.Object3D, delta: number) {

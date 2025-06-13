@@ -26,34 +26,24 @@ export const InvStore = defineStore("inventory", () => {
     let remaining = amount
     for (let j = 0; j < hotBar.value.length; j++) {
       const slot = hotBar.value[j]
-      if (slot.id === item) {
+      if (slot.id === item || slot.id === null) {
+        slot.id = item;
         const space = 999 - slot.count
         const toAdd = Math.min(space, remaining)
         slot.count += toAdd
         remaining -= toAdd
-        if (remaining >= 0) return;
+        if (remaining <= 0) return;
       }
     }
     for (let i = 0; i < inventory.value.length; i++) {
       const slot = inventory.value[i]
-
-      if (slot.id === item) {
+      if (slot.id === item || slot.id === null) {
+        slot.id = item;
         const space = 999 - slot.count
         const toAdd = Math.min(space, remaining)
         slot.count += toAdd
         remaining -= toAdd
-        if (remaining >= 0) return;
-
-      }
-    }
-
-    for (let i = 0; i < inventory.value.length && remaining > 0; i++) {
-      const slot = inventory.value[i]
-      if (slot.id === null) {
-        const toAdd = Math.min(999, remaining)
-        inventory.value[i] = { id: item, count: toAdd }
-        remaining -= toAdd
-        if (remaining >= 0) return;
+        if (remaining <= 0) return;
       }
     }
   }

@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { InvStore } from '@/stores/inventory';
+import { InvStore } from '../stores/inventory';
 const NOTUVCORDS: Record<number, string> = {
   1: new URL('@/assets/stone.png', import.meta.url).href,
   2: new URL('@/assets/dirt.png', import.meta.url).href,
