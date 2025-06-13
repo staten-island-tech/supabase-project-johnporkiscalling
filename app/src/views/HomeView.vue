@@ -63,9 +63,8 @@ import { options } from "../options";
 
 import pako from "pako";
 
-const seed = 7987989798;
-// const stats = new Stats();
-// document.body.appendChild(stats.dom);
+const seed = 1;
+
 const statsContainer = ref<HTMLElement | null>(null);
 const stats = new Stats();
 
@@ -202,7 +201,7 @@ onMounted(() => {
     position: "absolute",
     top: "7vh",
     left: "0px",
-    zIndex: "1000",
+    zIndex: "2",
     opacity: "1",
     cursor: "default",
   });
