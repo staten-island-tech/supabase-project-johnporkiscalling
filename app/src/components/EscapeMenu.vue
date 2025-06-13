@@ -117,8 +117,8 @@ async function updatePreferences() {
 </script>
 
 <template>
-  <div class="login" v-if="wantstologin">
-    <LogIn @login="(loggedin = true), (wantstologin = false), userdata(), console.log(useremail)" />
+  <div class="login bigIndex" v-if="wantstologin">
+    <LogIn @login="(loggedin = true), (wantstologin = false), userdata(), console.log(useremail)"/>
   </div>
   <div v-else-if="!wantstologin || loggedin">
     <div class="overlay" v-if="open" @click="close()"></div>
@@ -127,7 +127,7 @@ async function updatePreferences() {
       <div class="wrapper">
         <nav>
           <button class="account">
-            <img src="./assets/grass.png" alt="Account" :class="{ rotated: open }" @click="spin" />
+            <img src="../assets/grass.png" alt="Account" :class="{ rotated: open }" @click="spin" />
           </button>
 
           <Transition name="fade-slide">
@@ -198,12 +198,7 @@ async function updatePreferences() {
           </Transition>
 
           <div class="main">
-            <div class="border">
-              <RouterLink to="/" @click.prevent="forbuttons()">Home</RouterLink>
-            </div>
-            <div class="border">
-              <RouterLink to="/about" @click.prevent="forbuttons()">About</RouterLink>
-            </div>
+  
 
             <div class="border">
               <a
@@ -453,7 +448,11 @@ a:focus {
   height: 100%;
   z-index: 11;
 }
-
+.bigIndex
+{
+  position:relative;
+  z-index:100000;
+}
 .border:first-of-type {
   border: 0;
 }

@@ -10,9 +10,8 @@
     <HotBar class="employment" :selectedSlot="selectedSlot"></HotBar>
     </div>
     <div class="crosshair"></div>
-
+    <EscapeMenu class="test" v-if="paused"></EscapeMenu>
     <img src="./assets/realhand.png" class="unemployed swing-image" width="30%">
-    <div class="escapemenu" v-if="paused">{{ "aasada" }}</div>
     <img src="./assets/realhand.png" class="mirroredunemployed" width="30%">
 </template>
 
@@ -58,9 +57,10 @@ window.addEventListener('keydown', (event) => {
             canvas.requestPointerLock();
         }
     }
-    else if(event.key.toLowerCase()==="esc")
+    else if(event.key==="Escape")
     {
         paused.value = !paused.value;
+        console.log(paused.value)
     }
 })
 import Stats from 'stats.js';
@@ -334,6 +334,8 @@ function animate()
     requestAnimationFrame(animate)
 }
 import { initializeStore } from './lib/renderer';
+import EscapeMenu from './components/EscapeMenu.vue';
+import { escape } from 'querystring';
 function init()
 {
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
@@ -376,6 +378,11 @@ onMounted(()=>
 </script>
 
 <style scoped>
+
+    .test 
+    {
+        z-index:99999;
+    }
     body {
       margin: 0;
       height: 100vh;
@@ -427,7 +434,7 @@ onMounted(()=>
         padding: 10px;
         font-family: monospace;
         font-size: 14px;
-        z-index: 1000;
+        z-index: 1;
     }
     .scene-container
     {
