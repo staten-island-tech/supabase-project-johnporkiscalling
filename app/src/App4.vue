@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts"> 
-import { onMounted, ref, onBeforeUnmount } from 'vue';
+import { onMounted, ref,computed, onBeforeUnmount } from 'vue';
 import InventoryManager from './components/InventoryManager.vue';
 import * as THREE from 'three';
 import { Mesher2, DataManager } from './lib/renderer';
@@ -127,13 +127,23 @@ function onMouseMove(event:MouseEvent) {
 function updateDebug()
 {
     coordinates.value =  `
-    ${(yawObject.position.x)},
-    ${(yawObject.position.y)},
-    ${(yawObject.position.z)}`;
+    ${Math.floor(yawObject.position.x)},
+    ${Math.floor(yawObject.position.y)},
+    ${Math.floor(yawObject.position.z)}`;
 }
 //when the player breaks a block spawn an item entity
-
-
+import { Options } from './stores/options';
+const opt = Options();
+const render = computed({
+  get: () => opt.render,
+  set: (val) => (opt.render = val),
+})
+const brightness = computed(
+  {
+    get:()=>opt.brightness,
+    set:(val)=>(opt.brightness = val),
+  }
+);
 
 let currentTime = performance.now();
 let mouseHeldTime: Array<number> = [];
@@ -254,10 +264,10 @@ function loadStuff(yawObject:THREE.Object3D)
     const cZ = Math.floor(yawObject.position.z/16);
     if(cX!=currentChunkX || cZ!=currentChunkZ)
     {
-        const nBound = cZ + options.renderDist;
-        const sBound = cZ - options.renderDist;
-        const eBound = cX + options.renderDist;
-        const wBound = cX - options.renderDist;
+        const nBound = cZ + render.value;
+        const sBound = cZ - render.value;
+        const eBound = cX + render.value;
+        const wBound = cX - render.value;
         for(let x = wBound; x<eBound; x++)
         {
             for(let z = sBound; z<nBound; z++)
@@ -330,7 +340,6 @@ function animate()
 }
 import { initializeStore } from './lib/renderer';
 import EscapeMenu from './components/EscapeMenu.vue';
-import { escape } from 'querystring';
 function init()
 {
     if (canvasContainer.value && !canvasContainer.value.hasChildNodes()) {
@@ -342,10 +351,9 @@ function init()
     }
     skibidisky.setup();
     initializeStore();
-
     const cX = Math.ceil(yawObject.position.x/16);
     const cY = Math.ceil(yawObject.position.z/16);
-    dm.nonasyncUpdate(cX,cY, options.renderDist, tg);
+    dm.nonasyncUpdate(cX,cY, render.value, tg);
     for(let xa = 0; xa<dm.queue.length;xa++)
     {
         const [x,z] = dm.queue[xa].split(',').map(Number)

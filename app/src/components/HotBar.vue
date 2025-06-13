@@ -22,7 +22,7 @@
 import { InvStore } from '../stores/inventory';
 const NOTUVCORDS: Record<number, string> = {
   1: new URL('@/assets/stone.png', import.meta.url).href,
-  2: new URL('@/assets/dirt.png', import.meta.url).href,
+  2: new URL('@/assets/dirty.png', import.meta.url).href,
   3: new URL('@/assets/green_wool.png', import.meta.url).href,
   4: new URL('@/assets/sand.png', import.meta.url).href,
   5: new URL('@/assets/water_still.png', import.meta.url).href,

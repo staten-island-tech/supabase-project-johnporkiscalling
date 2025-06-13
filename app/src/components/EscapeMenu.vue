@@ -4,7 +4,7 @@
 
 
 import { RouterLink, RouterView } from "vue-router";
-import { ref } from "vue";
+import { ref,computed } from "vue";
 import LogIn from "./LogIn1.vue";
 import supabase from "../supabase";
 
@@ -18,10 +18,19 @@ let data = ref([]);
 // let x = true;
 // while (x) {
 // setTimeout(() => {}, 1000);
-
+import { Options } from "@/stores/options";
+let options:ReturnType<typeof Options> = Options();
 //--------------------------------------------------------------settings
-let renderD = ref(8);
-let brightnessV = ref(100);
+const renderD = computed({
+  get: () => options.render,
+  set: (val) => (options.render = val),
+})
+const brightnessV = computed(
+  {
+    get:()=>options.brightness,
+    set:(val)=>(options.brightness = val),
+  }
+);
 //-----------------------------------------------
 
 async function userdata() {
@@ -162,8 +171,7 @@ async function updatePreferences() {
                     <input
                       type="range"
                       min="1"
-                      max="16"
-                      value="8"
+                      max="6"
                       class="slider"
                       v-model="renderD"
                     />
@@ -173,9 +181,8 @@ async function updatePreferences() {
                     <h2>Brightness:</h2>
                     <input
                       type="range"
-                      min="10"
+                      min="100"
                       max="200"
-                      value="100"
                       class="slider"
                       v-model="brightnessV"
                     />
