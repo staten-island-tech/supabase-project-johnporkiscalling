@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts"> 
-import { onMounted, ref, render, type Ref } from 'vue';
+import { onMounted, ref, onBeforeUnmount } from 'vue';
 import InventoryManager from './components/InventoryManager.vue';
 import * as THREE from 'three';
 import { Mesher2, DataManager } from './lib/renderer';
@@ -60,12 +60,10 @@ window.addEventListener('keydown', (event) => {
     else if(event.key==="Escape")
     {
         paused.value = !paused.value;
-        console.log(paused.value)
     }
 })
-import Stats from 'stats.js';
-import pako from 'pako'; 
-const metalPipe = new Audio(`../src/assets/metalpipe.mp3`)
+const audioPath = new URL('@/assets/metalpipe.mp3', import.meta.url).href;
+const metalPipe = new Audio(audioPath)
 
 const seed = 1213121;
 
@@ -207,7 +205,6 @@ function worldInteractions(rayinfo:VoxelRayInfo)
             const heldDuration = currentTime - mouseHeldTime[0];
             if (heldDuration >= HOLD_THRESHOLD) 
             {
-                console.log("broke block")
                 const [x,y,z] = rayinfo.position;
                 const blockId = dm.getVoxel(x,y,z) as number
                 dm.setVoxel(x,y,z,0);
@@ -231,7 +228,6 @@ function worldInteractions(rayinfo:VoxelRayInfo)
                 new THREE.Vector3(x+1,y+1,z+1)
             )
             if(blockAABB.intersectsBox(aabb)) return;
-            console.log(blockAABB, aabb)
             
             const slotInfo = store.readSlot('hotbar', selectedSlot.value)
             if(slotInfo.id==null) return;
@@ -266,7 +262,6 @@ function loadStuff(yawObject:THREE.Object3D)
         {
             for(let z = sBound; z<nBound; z++)
             {
-                console.log(x,z)
                 if(dm.chunkData.has(`${x},${z}`)) continue;
                 dm.aqueue.push(`${x},${z}`);
             }   
@@ -365,13 +360,29 @@ function init()
 }
 store.resetHotbar();
 store.resetInventory();
+
+const handleResize = () => {
+  if (!canvasContainer.value) return;
+
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(window.devicePixelRatio);
+
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+};
 onMounted(()=>
 {
-    
+      window.addEventListener('resize', handleResize);
+
 
     init();
 })
-
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize);
+});
 
 
 

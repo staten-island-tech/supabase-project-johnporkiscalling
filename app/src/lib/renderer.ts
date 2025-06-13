@@ -183,7 +183,6 @@ export class DataManager {
         }
         for (const key of deleteQueue) {
             this.chunkData.delete(key);
-            console.log(key)
         }
         for (let x = wBound; x <= eBound; x++) {
             for (let z = sBound; z <= nBound; z++) {
@@ -228,7 +227,6 @@ export class DataManager {
         if(chunkMap && !chunkData) 
         {
             const modifiedData = new Uint8Array(4096);
-            console.log("new data was created")
             modifiedData[util.getIndex(lCords[0], lCords[1], lCords[2])] = data;
             chunkMap.set(cCords[1], modifiedData);
         }
@@ -239,7 +237,8 @@ export class DataManager {
     }
 }
 import * as THREE from "three";
-const texture0 = util.loadBlockTexture('./src/assets/atlas0.png')
+const atlas0Path = new URL('@/assets/atlas0.png', import.meta.url).href;
+const texture0 = util.loadBlockTexture(atlas0Path);
 const blocksMaterial = new THREE.MeshBasicMaterial({ map: texture0, side: THREE.DoubleSide })
 const frameBudget = 4;
 import { Item, Player } from "./entitymanager";
@@ -293,7 +292,7 @@ export class ItemManager
     }
     despawnAll(scene:THREE.Scene)
     {
-        if(!((performance.now()-this.lastDespawn) >= 30000)) return;
+        if(!((performance.now()-this.lastDespawn) >= 60000)) return;
         for(let x of this.droppedItems)
         {
             scene.remove(x.mesh);
@@ -338,7 +337,6 @@ export class Mesher2 {
             const key = this.renderQueue[a];
             this.destroyMesh(key, scene);
             const [x,y,z] = key.split(',').map(Number);
-            console.log(x,y,z)
             if(z===undefined)
             {
                 const data =  dm.chunkData.get(`${x},${y}`) as Map<number, Uint8Array>;
@@ -349,7 +347,6 @@ export class Mesher2 {
                 }
                 continue;
             }
-            console.log(x,y,z)
             this.priorityQueue.push(key);
         }
         this.renderQueue.length = 0;
@@ -358,7 +355,6 @@ export class Mesher2 {
         {
             if(this.priorityQueue.length==0) break;
             const element = this.priorityQueue.shift() as string;
-            console.log(element)
             const [x,y,z] = element?.split(",").map(Number);
             this.createMesh(dm, x,y,z, scene);
         }

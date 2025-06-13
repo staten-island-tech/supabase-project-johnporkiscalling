@@ -38,7 +38,6 @@ async function userdata() {
           .eq("id", data.user.id)
           .single();
         if (oerror) {
-          console.log("Error", oerror.message);
         }
         if (odata?.options) {
           renderD.value = odata.options.render;
@@ -72,8 +71,6 @@ async function logout() {
     useremail.value = null;
     renderD.value = 8;
     brightnessV.value = 100;
-    console.log(useremail);
-    console.log("Signed out successfully.");
   } catch (error: any) {
     console.error("Sign-out error:", error);
     errorMessage.value = error.message || "Failed to sign out.";
@@ -81,10 +78,8 @@ async function logout() {
 }
 async function update() {
   if (loggedin.value) {
-    console.log("passed check");
     updatePreferences();
   } else {
-    console.log("not logged in, no user preferences updated");
   }
 }
 
@@ -93,7 +88,6 @@ async function updatePreferences() {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
-  console.log(data, userError);
 
   if (userError || !user) {
     console.error("Error fetching user:", userError?.message);
@@ -111,7 +105,6 @@ async function updatePreferences() {
   if (prefsError) {
     console.error("Error updating preferences:", prefsError.message);
   } else {
-    console.log("Preferences updated successfully");
   }
 }
 </script>

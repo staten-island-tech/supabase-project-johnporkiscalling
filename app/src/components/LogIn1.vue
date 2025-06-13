@@ -103,7 +103,6 @@ async function submit() {
     });
 
     if (!loginError) {
-      console.log(loginData);
       emit("login");
       return;
     }

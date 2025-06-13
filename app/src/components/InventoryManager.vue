@@ -84,7 +84,6 @@ const NOTUVCORDS: Record<number, string> = {
 
 
 const store = InvStore();
-console.log(store)
 const rows = 4
 const cols = 9
 const inventorySlots = Array.from({ length: rows * cols })
