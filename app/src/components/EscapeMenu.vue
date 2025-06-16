@@ -1,10 +1,9 @@
 <script setup lang="ts">
-//move this stuff to a component so it's compatabile with app4. toggle the escape menu and stuff via the v-if method 
+//move this stuff to a component so it's compatabile with app4. toggle the escape menu and stuff via the v-if method
 //paused method already inplace
 
-
 import { RouterLink, RouterView } from "vue-router";
-import { ref,computed } from "vue";
+import { ref, computed } from "vue";
 import LogIn from "./LogIn1.vue";
 import supabase from "../supabase";
 
@@ -19,18 +18,16 @@ let data = ref([]);
 // while (x) {
 // setTimeout(() => {}, 1000);
 import { Options } from "@/stores/options";
-let options:ReturnType<typeof Options> = Options();
+let options: ReturnType<typeof Options> = Options();
 //--------------------------------------------------------------settings
 const renderD = computed({
   get: () => options.render,
   set: (val) => (options.render = val),
-})
-const brightnessV = computed(
-  {
-    get:()=>options.brightness,
-    set:(val)=>(options.brightness = val),
-  }
-);
+});
+const brightnessV = computed({
+  get: () => options.brightness,
+  set: (val) => (options.brightness = val),
+});
 //-----------------------------------------------
 
 async function userdata() {
@@ -78,7 +75,7 @@ async function logout() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     useremail.value = null;
-    renderD.value = 8;
+    renderD.value = 4;
     brightnessV.value = 100;
   } catch (error: any) {
     console.error("Sign-out error:", error);
@@ -120,7 +117,7 @@ async function updatePreferences() {
 
 <template>
   <div class="login bigIndex" v-if="wantstologin">
-    <LogIn @login="(loggedin = true), (wantstologin = false), userdata(), console.log(useremail)"/>
+    <LogIn @login="(loggedin = true), (wantstologin = false), userdata(), console.log(useremail)" />
   </div>
   <div v-else-if="!wantstologin || loggedin">
     <div class="overlay" v-if="open" @click="close()"></div>
@@ -168,24 +165,12 @@ async function updatePreferences() {
                 <div class="mainsettings">
                   <div class="render">
                     <h2>Render Distance:</h2>
-                    <input
-                      type="range"
-                      min="1"
-                      max="6"
-                      class="slider"
-                      v-model="renderD"
-                    />
+                    <input type="range" min="1" max="6" class="slider" v-model="renderD" />
                     <h3>{{ renderD }}</h3>
                   </div>
                   <div class="brightness">
                     <h2>Brightness:</h2>
-                    <input
-                      type="range"
-                      min="100"
-                      max="200"
-                      class="slider"
-                      v-model="brightnessV"
-                    />
+                    <input type="range" min="100" max="200" class="slider" v-model="brightnessV" />
                     <h3>{{ brightnessV }}</h3>
                   </div>
                 </div>
@@ -198,8 +183,6 @@ async function updatePreferences() {
           </Transition>
 
           <div class="main">
-  
-
             <div class="border">
               <a
                 href=""
@@ -448,10 +431,9 @@ a:focus {
   height: 100%;
   z-index: 11;
 }
-.bigIndex
-{
-  position:relative;
-  z-index:100000;
+.bigIndex {
+  position: relative;
+  z-index: 100000;
 }
 .border:first-of-type {
   border: 0;
